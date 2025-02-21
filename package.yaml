@@ -1,0 +1,19 @@
+name: zkp-analysis
+version: 0.1
+
+library:
+  source-dirs: src
+
+dependencies:
+  - base > 4.7 && < 5
+  - rio
+  - maf2-syntax
+  - maf2-domains
+  - maf2-analysis
+
+executables:
+  zkp-analysis-exe:
+    source-dirs: app
+    main: Main.hs
+    dependencies:
+      - zkp-analysis
