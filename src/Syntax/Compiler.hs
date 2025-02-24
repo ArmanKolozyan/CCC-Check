@@ -164,7 +164,7 @@ compileDeclForm (bds, consts) form = case form of
     _ -> pure (bds, consts)
 
 --------------------------
--- 6) Expressions
+-- 6) Expression
 
 -- Variables, field elements (currently handled as integers), and arithmetic.
 --------------------------        
@@ -188,7 +188,7 @@ compileExp (Atom "*" _ ::: e1 ::: e2 ::: SNil _) = do
 compileExp e = throwError $ "Unsupported expression: " ++ show e
 
 --------------------------
--- 7) Sorts
+-- 7) Sort
 
 -- Currently only fieldMods (mod ...) are supported.
 --------------------------   
