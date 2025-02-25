@@ -17,7 +17,7 @@ type MonadCompile m = (MonadError String m)
 
 -- | Takes a top-level s-expression (SExp) and produces our Program AST.
 compile :: MonadCompile m => SExp -> m Program
-compile (Atom "computations" _ ::: (Atom _name _ ::: compBody) ::: SNil _) =
+compile (Atom "computations" _ ::: (Atom _name _ ::: compBody ::: SNil _) ::: SNil _) =
   compileComputation compBody
 compile sexp =
   throwError $ "Expected (computations (NAME (computation ...))), got: " ++ show sexp
