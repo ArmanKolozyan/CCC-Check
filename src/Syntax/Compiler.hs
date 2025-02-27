@@ -128,9 +128,10 @@ compilePrecompute e = throwError $ "Invalid (precompute ...): " ++ show e
 -- declarations and body expressions.
 compilePreForm :: MonadCompile m => ([Binding], [Expression]) -> SExp -> m ([Binding], [Expression])
 compilePreForm (vars, exps) preForm = case preForm of
-    ex@(Atom "declare" _ ::: _) -> do
-        (bds, _) <- compileDeclare ex -- TODO: separate declares for precompute and verification
-        pure (vars ++ bds, exps)
+    ex@(Atom "declare" _ ::: (varDefs ::: compForms ::: SNil _)) -> do
+        bds <- sfoldlM compileVariableDefinitions [] varDefs
+        exps <- compileExp compForms -- TODO: check if folding is needed
+        pure (vars ++ bds, [exps])
     ex@((Atom "return" _ ::: _) ::: SNil _) -> do -- TODO: handle outputs
         pure (vars, exps)    
     _ -> do
@@ -144,12 +145,29 @@ compilePreForm (vars, exps) preForm = case preForm of
 -- (declare ( (x sort) (y sort) ...) constraints...)
 --------------------------
 
+-- | Extracts only the variable bindings from a declare block.
+compileVariableDefinitions :: MonadCompile m => [Binding] -> SExp -> m [Binding]
+compileVariableDefinitions acc (Atom varName _ ::: sortExp ::: SNil _) = do
+    sort <- compileSort sortExp
+    pure (acc ++ [Binding varName sort])
+compileVariableDefinitions acc _ = pure acc
+
+-- | Extracts only the constraints from a declare block.
+compileConstraints :: MonadCompile m => SExp -> m [Constraint]
+compileConstraints (Atom "=" _ ::: lhs ::: rhs ::: SNil _) = do
+    lhs_compiled <- compileExp lhs
+    rhs_compiled <- compileExp rhs
+    pure [Eq lhs_compiled rhs_compiled]
+
 -- | Compiles a declare block by extracting variable declarations and constraints.
 compileDeclare :: MonadCompile m => SExp -> m ([Binding], [Constraint])
-compileDeclare (Atom "declare" _ ::: declForms) =
-    sfoldlM compileDeclForm ([], []) declForms
+compileDeclare (Atom "declare" _ ::: (varDefs ::: constrForms ::: SNil _)) = do
+    vars <- sfoldlM compileVariableDefinitions [] varDefs
+    constraints <- compileConstraints constrForms
+    pure (vars, constraints)
 compileDeclare e =
     throwError $ "Invalid (declare ...): " ++ show e
+
 
 -- | Compiles an individual declaration. It checks whether a variable is defined
 -- or a constraint is added.
@@ -160,7 +178,7 @@ compileDeclForm (bds, consts) form = case form of
         sort <- compileSort sortExp
         pure (bds ++ [Binding varName sort], consts)   
     -- constraint
-    (Atom "=" _ ::: lhs ::: rhs ::: SNil _) -> do 
+    (Atom "==" _ ::: lhs ::: rhs ::: SNil _) -> do 
         lhs_compiled <- compileExp lhs
         rhs_compiled <- compileExp rhs   
         pure (bds, consts ++ [Eq lhs_compiled rhs_compiled])
