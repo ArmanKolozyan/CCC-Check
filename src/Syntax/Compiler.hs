@@ -8,6 +8,7 @@ import Data.Char (isDigit)
 import Syntax.Scheme.Parser
 import qualified Syntax.Scheme.Parser as SExp
 import GHC.Arr (accum)
+import Syntax.Scheme.Parser (SExp(SNil))
 
 --------------------------
 -- 1) Top-level
@@ -130,6 +131,8 @@ compilePreForm (vars, exps) preForm = case preForm of
     ex@(Atom "declare" _ ::: _) -> do
         (bds, _) <- compileDeclare ex -- TODO: separate declares for precompute and verification
         pure (vars ++ bds, exps)
+    ex@((Atom "return" _ ::: _) ::: SNil _) -> do -- TODO: handle outputs
+        pure (vars, exps)    
     _ -> do
         preForm_compiled <- compileExp preForm
         pure (vars, exps ++ [preForm_compiled])    
