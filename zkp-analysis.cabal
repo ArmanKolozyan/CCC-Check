@@ -10,15 +10,14 @@ build-type:     Simple
 
 library
   exposed-modules:
+      Analysis.Analysis
+      Domain.Domain
       Syntax.AST
       Syntax.Compiler
   other-modules:
       Paths_zkp_analysis
   hs-source-dirs:
       src
-  default-extensions:
-    ConstraintKinds
-    FlexibleContexts    
   build-depends:
       base >4.7 && <5
     , maf2-analysis
@@ -26,6 +25,8 @@ library
     , maf2-syntax
     , rio
     , mtl
+    , singletons
+    , containers
   default-language: Haskell2010
 
 executable zkp-analysis-exe
