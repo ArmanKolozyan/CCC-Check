@@ -141,3 +141,12 @@ constantProp prog =
     let env0 = initEnv prog
         finalEnv = propagateCP (constraints prog) env0
     in finalEnv
+
+-- | Checks whether every variable in the environment has a unique constant value.
+-- It does so by checking whether the CP value from each 'CirCVal' is a 'Constant'.
+isFullyConstrained :: Env -> Bool
+isFullyConstrained env = all isConst (Map.elems env)
+    where
+        isConst circVal = case selectCP circVal of
+            Constant _ -> True
+            Top -> False
