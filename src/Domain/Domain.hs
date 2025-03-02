@@ -26,10 +26,14 @@ import Data.Map (Map)
 -- | The labels for the sparse labeled product.
 -- We currently only have integers, but since we will add other types later,
 -- I decided to already use a sparse labeled product.
+-- VRAAG: als je CP wilt doen voor alle mogelijke types, heb je dan een sparse labeled product nodig?
+-- Of is het enkel als je CP wilt doen voor een bepaalde type, interval domain wilt gebruiken voor een ander
+-- type, etc.?
 data CirCKey = IntKey deriving (Eq, Ord, Show)    
 
 -- This is necessary for the infrastructure promoting
 -- data constructors to types and the other way around.
+-- VRAAG: ?
 $(genHKeys ''CirCKey)
 
 -- | A type-level mapping which represents the definition
@@ -53,6 +57,7 @@ type M = '[IntKey ::-> CP Integer]
 --     CirCVal (singleton @IntKey (Constant 5))
 -- Here, 'singleton' creates an HMap with one field. The key 'IntKey' is known at compile–time,
 -- but at runtime it appears as a tag that helps us determine its domain.
+-- VRAAG: klopt dit een beetje? "a tag that helps us determine its domain"
 newtype CirCVal = CirCVal (HMap M) deriving (Eq, Joinable)
 
 -- To print CirC values.
