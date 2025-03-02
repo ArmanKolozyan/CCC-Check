@@ -14,3 +14,6 @@ source-repository-package
 packages:
    .
 
+package *
+  ghc-options: -Wunused-imports
+
