@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Syntax.AST (Program (..), Binding (..), Sort (..), Expression (..), Constraint (..)) where
 

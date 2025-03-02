@@ -9,9 +9,6 @@ import Control.Monad.Except
 import Data.Char (isDigit)
 
 import Syntax.Scheme.Parser
-import qualified Syntax.Scheme.Parser as SExp
-import GHC.Arr (accum)
-import Syntax.Scheme.Parser (SExp(SNil))
 
 --------------------------
 -- 1) Top-level
