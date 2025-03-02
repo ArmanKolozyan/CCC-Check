@@ -8,7 +8,7 @@ module Syntax.AST (Program (..), Binding (..), Sort (..), Expression (..), Const
 --   commitments, etc. is thus omitted.
 data Program = Program
   { inputs :: [Binding],
-    comptutationVars :: [Binding],
+    computationVars :: [Binding],
     constraintVars :: [Binding],
     computations :: [Expression],
     constraints :: [Constraint]

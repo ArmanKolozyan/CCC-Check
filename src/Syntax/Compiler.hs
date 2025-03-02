@@ -1,3 +1,6 @@
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+
 module Syntax.Compiler (compile, parseAndCompile) where
 
 import Syntax.AST
@@ -43,7 +46,7 @@ compileComputation (Atom "computation" _ ::: forms) = do
    (inputs, compVars, compExps, constrVars, constraints) <- compileForms forms
    return $ Program {
     inputs = inputs,
-    comptutationVars = compVars,
+    computationVars = compVars,
     constraintVars = constrVars,
     computations = compExps,
     constraints = constraints
