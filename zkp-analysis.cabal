@@ -42,4 +42,19 @@ executable zkp-analysis-exe
     , maf2-syntax
     , rio
     , zkp-analysis
+    , containers
+  default-language: Haskell2010
+
+test-suite fully-constrained-test
+  type: exitcode-stdio-1.0
+  main-is: FullyConstrainedTest.hs
+  hs-source-dirs: test
+  build-depends:
+      base >4.7 && <5
+    , maf2-analysis
+    , maf2-domains
+    , maf2-syntax
+    , rio
+    , zkp-analysis
+    , containers
   default-language: Haskell2010
