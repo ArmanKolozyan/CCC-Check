@@ -1,0 +1,27 @@
+(computations 
+
+ (main (computation 
+        (metadata
+         (parties  prover verifier)
+
+         (inputs
+          (return (mod 2))
+          (b (mod 2))
+          (sel bool)
+          (a (mod 2)))
+         
+         (commitments))
+        
+        (precompute ((return (mod 2)))
+                    (declare
+                     ((b (mod 2))
+                      (a (mod 2))
+                      (sel bool))
+                     (ite sel a b)))
+
+        (declare
+         ((return (mod 2))
+          (b (mod 2))
+          (a (mod 2))
+          (sel bool))
+         (= (ite sel a b) return)))))
