@@ -1,9 +1,9 @@
 module Main where
 
-import FullyConstrainedTest (runFullyConstrainedTest)
-import IteParseTest (runIteParsingTest)
+import Syntax.FullyConstrainedTest (runFullyConstrainedTest)
+import Syntax.IteParseTest (runIteParsingTest)
+import Syntax.ExpressionsParseTest (runExpressionParsingTest)
 import System.Exit (exitFailure)
-import ExpressionsParseTest (runExpressionParsingTest)
 
 main :: IO ()
 main = do

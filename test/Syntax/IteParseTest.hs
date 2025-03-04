@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
 
-module IteParseTest where
+module Syntax.IteParseTest where
 
 import Syntax.Compiler (parseAndCompile)
 import Syntax.AST        

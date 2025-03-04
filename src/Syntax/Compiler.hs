@@ -181,7 +181,7 @@ compileDeclForm (bds, consts) form = case form of
     (Atom "=" _ ::: lhs ::: rhs ::: SNil _) -> do 
         lhs_compiled <- compileExp lhs
         rhs_compiled <- compileExp rhs   
-        pure (bds, consts ++ [EqC lhs_compiled rhs_compiled]) -- TODO: fix 2x EqC in deze file?? code-duplication??
+        pure (bds, consts ++ [EqC lhs_compiled rhs_compiled]) -- TODO: fix 2x EqC in deze file?? code duplication??
     _ -> pure (bds, consts)
 
 --------------------------

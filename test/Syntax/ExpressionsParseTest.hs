@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
 
-module ExpressionsParseTest where
+module Syntax.ExpressionsParseTest where
 
 import Syntax.AST
 import Syntax.Compiler (parseAndCompile)

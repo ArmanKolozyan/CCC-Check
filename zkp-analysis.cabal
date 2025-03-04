@@ -48,9 +48,9 @@ executable zkp-analysis-exe
 test-suite all-tests
   type: exitcode-stdio-1.0
   other-modules: 
-      ExpressionsParseTest 
-      FullyConstrainedTest 
-      IteParseTest
+      Syntax.ExpressionsParseTest 
+      Syntax.FullyConstrainedTest 
+      Syntax.IteParseTest
   main-is: TestRunner.hs
   hs-source-dirs: test
   build-depends:
