@@ -19,7 +19,7 @@ runFullyConstrainedTest = do
     content <- readFile testFile
     case parseAndCompile content of
         Left err -> do
-            putStrLn $ "Parsing failed with error: " ++ err
+            putStrLn $ "FAILURE: Parsing failed with error: " ++ err
             return False
         Right program -> do
             let expectedEnv = Map.fromList [("x", CirCVal (singleton @IntKey (Constant 3)))]
@@ -28,7 +28,7 @@ runFullyConstrainedTest = do
             -- First check: does the environment match 'expectedEnv'?
             if env /= expectedEnv
                 then do
-                    putStrLn "Constant propagation environment does not match"
+                    putStrLn "FAILURE: Constant propagation environment does not match"
                     putStrLn $ "Expected: " ++ show expectedEnv
                     putStrLn $ "Got: " ++ show env
                     return False
@@ -38,8 +38,8 @@ runFullyConstrainedTest = do
                     -- Second check: is the environment fully constrained?
                     if not (isFullyConstrained env)
                         then do
-                            putStrLn "isFullyConstrained should return True, but it returned False"
+                            putStrLn "FAILURE: isFullyConstrained should return True, but it returned False"
                             return False
                         else do
-                            putStrLn "isFullyConstrained returned True"
+                            putStrLn "SUCCESS: isFullyConstrained returned True"
                             return True

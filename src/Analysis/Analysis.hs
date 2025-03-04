@@ -104,7 +104,7 @@ evalCP env exp = case exp of
 --    Otherwise, we join the current CP value with the CP value from the right-hand side.
 -- 4. The resulting unified CP value is wrapped back into a 'CirCVal' and used to update the environment.
 applyCPConstraint :: Env -> Constraint -> Env
-applyCPConstraint env (Eq (Var x) e2) =
+applyCPConstraint env (EqC (Var x) e2) =
   let current = Map.findWithDefault topCirC x env
       v2      = evalCP env e2
       newVal  = case selectCP current of
@@ -136,6 +136,10 @@ constantProp prog =
     let env0 = initEnv prog
         finalEnv = propagateCP (constraints prog) env0
     in finalEnv
+
+-- | Returns the range associated with each variable.
+giveRangeValues :: Env -> [(String, CirCVal)]
+giveRangeValues = Map.toList
 
 -- | Checks whether every variable in the environment has a unique constant value.
 -- It does so by checking whether the CP value from each 'CirCVal' is a 'Constant'.

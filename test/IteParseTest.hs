@@ -14,7 +14,7 @@ runIteParsingTest = do
     content <- readFile testFile
     case parseAndCompile content of
       Left err -> do
-          putStrLn $ "Parsing or compilation failed with error: " ++ err
+          putStrLn $ "FAILURE: Parsing or compilation failed with error: " ++ err
           return False
       Right program -> do
           -- we want to confirm that the Program’s computations contain 
