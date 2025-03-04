@@ -168,22 +168,6 @@ compileDeclare (Atom "declare" _ ::: (varDefs ::: constrForms ::: SNil _)) = do
 compileDeclare e =
     throwError $ "Invalid (declare ...): " ++ show e
 
-
--- | Compiles an individual declaration. It checks whether a variable is defined
--- or a constraint is added.
-compileDeclForm :: MonadCompile m => ([Binding], [Constraint]) -> SExp -> m ([Binding], [Constraint])
-compileDeclForm (bds, consts) form = case form of
-    -- (temporary) variable
-    (Atom varName _ ::: sortExp ::: SNil _) -> do
-        sort <- compileSort sortExp
-        pure (bds ++ [Binding varName sort], consts)   
-    -- constraint
-    (Atom "=" _ ::: lhs ::: rhs ::: SNil _) -> do 
-        lhs_compiled <- compileExp lhs
-        rhs_compiled <- compileExp rhs   
-        pure (bds, consts ++ [EqC lhs_compiled rhs_compiled]) -- TODO: fix 2x EqC in deze file?? code duplication??
-    _ -> pure (bds, consts)
-
 --------------------------
 -- 6) Expression
 
