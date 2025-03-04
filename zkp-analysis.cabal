@@ -45,9 +45,9 @@ executable zkp-analysis-exe
     , containers
   default-language: Haskell2010
 
-test-suite fully-constrained-test
+test-suite all-tests
   type: exitcode-stdio-1.0
-  main-is: FullyConstrainedTest.hs
+  main-is: TestRunner.hs
   hs-source-dirs: test
   build-depends:
       base >4.7 && <5
