@@ -1,0 +1,45 @@
+(computations 
+    (main 
+        (computation 
+            (metadata
+                (parties prover verifier)
+                (inputs
+                    (return 
+                        (mod 2))
+                    (x 
+                        (mod 2))
+                    (y 
+                        (mod 2)))
+                (commitments))
+
+            (precompute
+                (
+                    (return 
+                        (mod 2)))
+                (declare
+                    (
+                        (x 
+                            (mod 2)) 
+                        (y 
+                            (mod 2)))
+                    (ite 
+                        (and 
+                            (or 
+                                (> x y) 
+                                (< x 10)) 
+                            (or 
+                                (>= y 5) 
+                                (or 
+                                    (<= x 2) 
+                                    (not x)))) 
+                        (+ 
+                            (- x 2) y) 
+                        (* x y))))
+
+            (declare
+                (
+                    (x 
+                        (mod 2)) 
+                    (y 
+                        (mod 2)))
+                (= x y)))))
