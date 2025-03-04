@@ -157,7 +157,7 @@ compileConstraints :: MonadCompile m => SExp -> m [Constraint]
 compileConstraints (Atom "=" _ ::: lhs ::: rhs ::: SNil _) = do
     lhs_compiled <- compileExp lhs
     rhs_compiled <- compileExp rhs
-    pure [Eq lhs_compiled rhs_compiled]
+    pure [EqC lhs_compiled rhs_compiled]
 
 -- | Compiles a declare block by extracting variable declarations and constraints.
 compileDeclare :: MonadCompile m => SExp -> m ([Binding], [Constraint])
@@ -178,10 +178,10 @@ compileDeclForm (bds, consts) form = case form of
         sort <- compileSort sortExp
         pure (bds ++ [Binding varName sort], consts)   
     -- constraint
-    (Atom "==" _ ::: lhs ::: rhs ::: SNil _) -> do 
+    (Atom "=" _ ::: lhs ::: rhs ::: SNil _) -> do 
         lhs_compiled <- compileExp lhs
         rhs_compiled <- compileExp rhs   
-        pure (bds, consts ++ [Eq lhs_compiled rhs_compiled])
+        pure (bds, consts ++ [EqC lhs_compiled rhs_compiled]) -- TODO: fix 2x EqC in deze file?? code-duplication??
     _ -> pure (bds, consts)
 
 --------------------------
@@ -201,6 +201,10 @@ compileExp (Atom "+" _ ::: e1 ::: e2 ::: SNil _) = do
     lhs_compiled <- compileExp e1
     rhs_compiled <- compileExp e2
     pure (Add lhs_compiled rhs_compiled)
+compileExp (Atom "-" _ ::: e1 ::: e2 ::: SNil _) = do
+    lhs_compiled <- compileExp e1
+    rhs_compiled <- compileExp e2
+    pure (Sub lhs_compiled rhs_compiled)    
 compileExp (Atom "*" _ ::: e1 ::: e2 ::: SNil _) = do
     lhs_compiled <- compileExp e1
     rhs_compiled <- compileExp e2
@@ -209,7 +213,38 @@ compileExp (Atom "ite" _ ::: cond ::: cons ::: alt ::: SNil _) = do
     cond_compiled <- compileExp cond
     cons_compiled <- compileExp cons
     alt_compiled  <- compileExp alt
-    pure (Ite cond_compiled cons_compiled alt_compiled)    
+    pure (Ite cond_compiled cons_compiled alt_compiled)
+compileExp (Atom "=" _ ::: e1 ::: e2 ::: SNil _) = do
+    e1_compiled <- compileExp e1
+    e2_compiled <- compileExp e2
+    pure (Eq e1_compiled e2_compiled)
+compileExp (Atom ">" _ ::: e1 ::: e2 ::: SNil _) = do
+    e1_compiled <- compileExp e1
+    e2_compiled <- compileExp e2
+    pure (Gt e1_compiled e2_compiled)
+compileExp (Atom "<" _ ::: e1 ::: e2 ::: SNil _) = do
+    e1_compiled <- compileExp e1
+    e2_compiled <- compileExp e2
+    pure (Lt e1_compiled e2_compiled)
+compileExp (Atom ">=" _ ::: e1 ::: e2 ::: SNil _) = do
+    e1_compiled <- compileExp e1
+    e2_compiled <- compileExp e2
+    pure (Gte e1_compiled e2_compiled)
+compileExp (Atom "<=" _ ::: e1 ::: e2 ::: SNil _) = do
+    e1_compiled <- compileExp e1
+    e2_compiled <- compileExp e2
+    pure (Lte e1_compiled e2_compiled)
+compileExp (Atom "and" _ ::: e1 ::: e2 ::: SNil _) = do
+    e1_compiled <- compileExp e1
+    e2_compiled <- compileExp e2
+    pure (And e1_compiled e2_compiled)  
+compileExp (Atom "or" _ ::: e1 ::: e2 ::: SNil _) = do
+    e1_compiled <- compileExp e1
+    e2_compiled <- compileExp e2
+    pure (Or e1_compiled e2_compiled)      
+compileExp (Atom "not" _ ::: exp ::: SNil _) = do
+    exp_compiled <- compileExp exp
+    pure (Not exp_compiled)                              
 -- compileExp (Atom "tuple" _ ::: rest) = do TODO: support tuples
 compileExp e = throwError $ "Unsupported expression: " ++ show e
 

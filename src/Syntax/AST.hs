@@ -28,17 +28,27 @@ data Sort
 
 -- | Minimal set of expressions: variables, field elements (currently handled
 -- as integers), and arithmetic.
+-- TODO: support more operators from https://zokrates.github.io/language/operators.html
 data Expression
   = Var String
   | Int Integer
   | Add Expression Expression
+  | Sub Expression Expression
   | Mul Expression Expression
   | Ite Expression Expression Expression
+  | Eq Expression Expression
+  | Gt Expression Expression
+  | Lt Expression Expression
+  | Gte Expression Expression
+  | Lte Expression Expression
+  | And Expression Expression
+  | Or Expression Expression
+  | Not Expression
   deriving (Show, Eq)
 
 -- | Minimal set of constraints: equality.
 data Constraint
-  = Eq Expression Expression
+  = EqC Expression Expression
   deriving (Show, Eq)
 
 {-
