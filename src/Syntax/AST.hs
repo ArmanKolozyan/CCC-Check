@@ -23,7 +23,7 @@ data Binding = Binding
 -- | The sorts we are interested in. Currently, only field elements are included,
 --   as they are the primary type supported by Circom.
 data Sort
-  = FieldMod Integer
+  = FieldMod Integer | Bool | BitVector Integer
   deriving (Show, Eq)
 
 -- | Minimal set of expressions: variables, field elements (currently handled
@@ -33,6 +33,7 @@ data Expression
   | Int Integer
   | Add Expression Expression
   | Mul Expression Expression
+  | Ite Expression Expression Expression
   deriving (Show, Eq)
 
 -- | Minimal set of constraints: equality.

@@ -205,6 +205,11 @@ compileExp (Atom "*" _ ::: e1 ::: e2 ::: SNil _) = do
     lhs_compiled <- compileExp e1
     rhs_compiled <- compileExp e2
     pure (Mul lhs_compiled rhs_compiled)
+compileExp (Atom "ite" _ ::: cond ::: cons ::: alt ::: SNil _) = do
+    cond_compiled <- compileExp cond
+    cons_compiled <- compileExp cons
+    alt_compiled  <- compileExp alt
+    pure (Ite cond_compiled cons_compiled alt_compiled)    
 -- compileExp (Atom "tuple" _ ::: rest) = do TODO: support tuples
 compileExp e = throwError $ "Unsupported expression: " ++ show e
 
@@ -218,4 +223,8 @@ compileExp e = throwError $ "Unsupported expression: " ++ show e
 compileSort :: MonadCompile m => SExp -> m Sort
 compileSort (Atom "mod" _ ::: Num n _ ::: SNil _) =
   pure (FieldMod n)
+compileSort (Atom "bool" _) =
+  pure Bool
+compileSort (Atom "bv" _ ::: Num n _ ::: SNil _) =
+  pure (BitVector n)    
 compileSort e = throwError $ "Unsupported sort: " ++ show e
