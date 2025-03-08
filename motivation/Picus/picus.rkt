@@ -132,6 +132,14 @@
                       "valid file extension: ~a, got ~a")
     source)))
 
+;; Function to log the range vector.
+(define (log-range-vec)
+  (picus:log-main "Variable Ranges:")
+  (for ([i (in-range (vector-length dpvl::range-vec))])
+    (define var-name (format "x~a" i))
+    (define range (vector-ref dpvl::range-vec i))
+    (picus:log-main "possible values for ~a: ~a" var-name range)))     
+
 (define (main)
   (define r0 (reader #:opt-level arg-opt-level))
   (send r0 validate arg-wtns)
@@ -233,6 +241,7 @@
   (picus:log-debug "final known set ~e" res-ks)
   (picus:log-debug "final unknown set ~e" res-us)
   (picus:log-debug "~a uniqueness: ~a" (if arg-strong "strong" "weak") res)
+  (log-range-vec) ;; logging the range vector
   (picus:log-accounting #:type "known_size"
                         #:value (set-count res-ks)
                         #:msg "Number of inferred known signals")
