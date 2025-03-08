@@ -15,7 +15,8 @@
          "../concretize.rkt")
 (provide apply-algorithm
          current-selector
-         current-solver)
+         current-solver
+         :range-vec)
 
 ; ======== module global variables ======== ;
 
