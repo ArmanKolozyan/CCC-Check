@@ -1,0 +1,29 @@
+Picus Variable Ranges Analysis for secureum-zk-2023
+================================================================================
+
+### Benchmark: ./benchmarks/secureum-zk-2023/unary.circom
+x0: #<set: 1>
+x1: bottom
+x2: bottom
+x3: bottom
+x4: bottom
+x5: #<set: 0 1>
+x6: #<set: 0 1>
+x7: #<set: 0 1>
+x8: bottom
+x9: bottom
+x10: bottom
+x11: bottom
+x12: bottom
+x13: bottom
+x14: bottom
+x15: bottom
+Restricted variables: 4/16
+
+================================================================================
+
+### Benchmark: ./benchmarks/secureum-zk-2023/libs/comparators.circom
+Restricted variables: 0/0
+
+================================================================================
+

@@ -1,0 +1,17 @@
+Picus Variable Ranges Analysis for civer-comparison
+================================================================================
+
+### Benchmark: ./benchmarks/civer-comparison/ConstrainedDecoder.circom
+x0: #<set: 1>
+x1: bottom
+x2: bottom
+x3: bottom
+x4: bottom
+x5: bottom
+x6: bottom
+x7: #<set: 0 1>
+x8: bottom
+Restricted variables: 2/9
+
+================================================================================
+
