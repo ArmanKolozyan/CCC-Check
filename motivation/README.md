@@ -1,1 +1,57 @@
-This folder contains a value analysis experiment, which serves as one of the main motivations for our research.
+# Evaluating the Effectiveness of Value Inferencing in PICUS
+
+
+## Context
+
+PICUS ([GitHub](https://github.com/Veridise/Picus), [Paper](https://dl.acm.org/doi/10.1145/3591282)) is a tool that combines SMT solving with static analysis to detect underconstrained bugs in R1CS. The role of the static analysis component is to reduce the number of timeouts in SMT solving, as solving constraints over large prime fields can be computationally expensive.
+
+Static analysis contributes to improving SMT solving efficiency in two ways:
+
+1. Uniqueness propagation: If a variable is guaranteed to have a unique value, this information is added as a constraint.
+2. Value inferencing: If a variable is constrained to a certain range of values, this information is added as a constraint.
+
+## Experiment
+
+While the paper evaluates how SMT solving performs without static analysis (see Figure 11 in the paper), it is unclear how effective the value inferencing phase (point 2 above) is and much it contributes to reducing timeouts. 
+
+To investigate this, we conducted an experiment to answer the following questions:
+1. How many variables are successfully restricted to a certain range of values?
+2. To what ranges are they restricted?
+
+To systematically evaluate the impact of value inferencing, we wrote a Python script (`ranges_collector.py`) to run PICUS on all its benchmark files and collect range constraints for each variable.  A timeout of 3 minutes per benchmark was imposed. We then wrote a data analysis script (`ranges_analyzer.ipynb`) to compute statistics on the results.
+
+Below is a summary of the main results:
+
+| Metric | Value |
+|--------|-------|
+| **Total benchmarks analyzed** | 559 |
+| **Total restricted variables** | 152,776 / 4,504,380 |
+| **Percentage of restricted variables** | 3.39% |
+| **Average percentage of restricted variables per benchmark** | 18.43% |
+| **Total number of timeouts** | 142 / 559 |
+
+We can conclude from this that the vast majority of variables seem to remain unconstrained. Moreover, the results clearly show that all constrained variables were restricted to the `{0,1}` range. This indicates that only binary constraints are being propagated. The low percentage of restricted variables (3.39%) suggests that the value inference mechanisms in PICUS are either not fully implemented and/or are not fully effective.
+
+## Problems
+
+After looking deeper into the code and the results, it seems that the value inferencing in PICUS is limited in scope and does not fully implement all possible inference rules described in the paper. The main issues identified are:
+
+- **`binary01-lemma`** identifies variables that must be either 0 or 1 by detecting constraints of the form $x * (x - 1) = 0$. This equation enforces that `x` can only take values from {0,1} because any other value would result in a nonzero product. The lemma is only applied when the possible values are explicitly {0,1}. Other similar constraints, such as $(x-a)(x-b) = 0$ for arbitrary $a, b$, are not handled.
+
+- **`aboz-lemma`** From a high-level perspective, the “all-but-one-zero” (ABOZ) lemma says that if you have a collection of variables $y_0,...,y_n$ and a single “selector” x such that
+    1. For each $i$, $y_i*(x−i)=0$
+    2. $y_0+...+y_n$ = some constant c
+
+    then exactly one of $y_0,...,y_n$ must be `c` and all the others must be zero, provided `x` is already known (unique) to be one of the integers $0,...,n$. The version in PICUS supports only a a two-value (`n=1`) special case of ABOZ.
+
+- **`basis2-lemma`** identifies cases where a variable is expressed as a sum of weighted powers of 2. The constraints have the form $z = 2^0 x_0 + 2^1 x_1 + \dots + 2^n x_n$ where $x_i$ are binary variables. The lemma only handles strict powers-of-two expansions, it does not generalize to arbitrary bases.
+
+## Proposed Improvements
+
+To improve the value inferencing, we can take the following steps:
+
+1. Implementing a more general and complete version of the inference rules described in the paper, as discussed above.
+
+2. Adding more general pattern-matching techniques to capture value constraints in a wider variety of cases beyond the ones mentioned in the paper.
+
+
