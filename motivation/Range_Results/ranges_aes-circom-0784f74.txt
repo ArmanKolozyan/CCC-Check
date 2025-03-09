@@ -4,6 +4,8 @@ Picus Variable Ranges Analysis for aes-circom-0784f74
 ### Benchmark: ./benchmarks/aes-circom-0784f74/aes_256_ctr_test.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/aes-circom-0784f74/gfmul_int_test.circom
@@ -154129,20 +154131,28 @@ Restricted variables: 129/154115
 ### Benchmark: ./benchmarks/aes-circom-0784f74/aes_256_encrypt_test.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/aes-circom-0784f74/polyval_test.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/aes-circom-0784f74/aes_256_key_expansion_test.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/aes-circom-0784f74/gcm_siv_dec_2_keys_test.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
@@ -178986,6 +178996,8 @@ Restricted variables: 1/24833
 
 ### Benchmark: ./benchmarks/aes-circom-0784f74/gcm_siv_enc_2_keys_test.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 

@@ -17632,5 +17632,7 @@ Restricted variables: 1/17623
 ### Benchmark: ./benchmarks/semaphore-0f0fc95/tree.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 

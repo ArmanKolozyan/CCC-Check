@@ -15,6 +15,8 @@ Restricted variables: 2/6
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/BabyPbk@babyjub@circomlib.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/BinSum@binsum@circomlib_32_2.circom
@@ -514,10 +516,14 @@ Restricted variables: 1/63
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/WindowMulFix@escalarmulfix@circomlib.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Window4@pedersen@circomlib.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -553,6 +559,8 @@ Restricted variables: 18/25
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Pedersen@pedersen@circomlib_64.circom
 Restricted variables: 0/0
+
+PICUS
 
 ================================================================================
 
@@ -677,6 +685,8 @@ Restricted variables: 34/41
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Num2BitsNeg@bitify@circomlib_32.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -2766,6 +2776,8 @@ Restricted variables: 34/41
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Sha256compression@sha256compression@circomlib.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/SMTVerifierSM@smtverifiersm@circomlib.circom
@@ -2791,6 +2803,8 @@ Restricted variables: 1/16
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Pedersen@pedersen_old@circomlib_32.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -2850,10 +2864,14 @@ Restricted variables: 18/25
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Pedersen@pedersen_old@circomlib_16.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Pedersen@pedersen@circomlib_128.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -2872,15 +2890,21 @@ Restricted variables: 1/7
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Pedersen@pedersen_old@circomlib_128.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Num2Bits@bitify@circomlib_256.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Sha256_2@sha256_2@circomlib.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -48563,6 +48587,8 @@ Restricted variables: 1/7
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Num2BitsNeg@bitify@circomlib_254.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/SMTHash1@smthash_poseidon@circomlib.circom
@@ -49519,10 +49545,14 @@ Restricted variables: 1/8
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Pedersen@pedersen@circomlib_8.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Pedersen@pedersen@circomlib_256.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -49663,6 +49693,8 @@ Restricted variables: 129/130
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Pedersen@pedersen_old@circomlib_256.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -50425,6 +50457,8 @@ Restricted variables: 1/743
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Num2BitsNeg@bitify@circomlib_256.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/MontgomeryAdd@montgomery@circomlib.circom
@@ -50443,15 +50477,21 @@ Restricted variables: 1/8
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Pedersen@pedersen_old@circomlib_254.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Pedersen@pedersen@circomlib_254.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Num2Bits@bitify@circomlib_254.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -50468,20 +50508,28 @@ Restricted variables: 1/5
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/T1@t1@circomlib.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Num2BitsNeg@bitify@circomlib_128.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Point2Bits_Strict@pointbits@circomlib.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Num2Bits_strict@bitify@circomlib.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -51236,6 +51284,8 @@ Restricted variables: 1/743
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Num2BitsNeg@bitify@circomlib_64.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Bits2Num@bitify@circomlib_8.circom
@@ -51332,10 +51382,14 @@ Restricted variables: 65/66
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/SigmaPlus@sigmaplus@circomlib.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Pedersen@pedersen_old@circomlib_64.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -52274,10 +52328,14 @@ Restricted variables: 10/17
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Pedersen@pedersen_old@circomlib_253.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Pedersen@pedersen@circomlib_253.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -52335,6 +52393,8 @@ Restricted variables: 1/5
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Pedersen@pedersen@circomlib_16.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -52865,6 +52925,8 @@ Restricted variables: 254/255
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/T2@t2@circomlib.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/SMTProcessorSM@smtprocessorsm@circomlib.circom
@@ -52894,6 +52956,8 @@ Restricted variables: 1/20
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Pedersen@pedersen@circomlib_32.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -55959,6 +56023,8 @@ Restricted variables: 1/207
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Bits2Point_Strict@pointbits@circomlib.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Bits2Num@bitify@circomlib_128.circom
@@ -56098,6 +56164,8 @@ Restricted variables: 1/130
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/BinSum@binsum@circomlib_32_5.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -79372,6 +79440,8 @@ Restricted variables: 1/4
 
 ### Benchmark: ./benchmarks/circomlibex-cff5ab6/Main@main@circomlib.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 

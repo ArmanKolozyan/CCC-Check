@@ -4,10 +4,14 @@ Picus Variable Ranges Analysis for circom-bigint-7505e5c
 ### Benchmark: ./benchmarks/circom-bigint-7505e5c/test_bigmod_22.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circom-bigint-7505e5c/test_bigmod_32.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -219,6 +223,8 @@ Restricted variables: 12/39
 
 ### Benchmark: ./benchmarks/circom-bigint-7505e5c/test_bigmult_23.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -441,6 +447,8 @@ Restricted variables: 19/73
 
 ### Benchmark: ./benchmarks/circom-bigint-7505e5c/test_bigmult_22.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 

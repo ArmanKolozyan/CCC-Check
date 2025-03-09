@@ -290,15 +290,21 @@ Restricted variables: 1/108
 ### Benchmark: ./benchmarks/gnark-plonky2-verifier/pure/mul-add.timeout.sr1cs
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/gnark-plonky2-verifier/pure/reduce.timeout.sr1cs
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/gnark-plonky2-verifier/pure/inverse.timeout.sr1cs
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 

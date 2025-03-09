@@ -4,50 +4,70 @@ Picus Variable Ranges Analysis for buggy-mix
 ### Benchmark: ./benchmarks/buggy-mix/tornado-core-ce97895/mux3.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/tornado-core-ce97895/escalarmulfix.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/tornado-core-ce97895/aliascheck.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/tornado-core-ce97895/binsum.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/tornado-core-ce97895/comparators.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/tornado-core-ce97895/pedersen.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/tornado-core-ce97895/montgomery.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/tornado-core-ce97895/mimcsponge.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/tornado-core-ce97895/compconstant.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/tornado-core-ce97895/merkleTree.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
@@ -52029,60 +52049,84 @@ Restricted variables: 497/51965
 ### Benchmark: ./benchmarks/buggy-mix/tornado-core-ce97895/bitify.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/min0-tornado-core-ce97895/mux3.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/min0-tornado-core-ce97895/escalarmulfix.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/min0-tornado-core-ce97895/aliascheck.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/min0-tornado-core-ce97895/binsum.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/min0-tornado-core-ce97895/comparators.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/min0-tornado-core-ce97895/pedersen.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/min0-tornado-core-ce97895/montgomery.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/min0-tornado-core-ce97895/mimcsponge.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/min0-tornado-core-ce97895/compconstant.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/min0-tornado-core-ce97895/merkleTree.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/min0-tornado-core-ce97895/babyjub.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
@@ -52190,10 +52234,14 @@ Restricted variables: 1/96
 ### Benchmark: ./benchmarks/buggy-mix/min0-tornado-core-ce97895/bitify.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/iden3-core-3a3a300/idOwnershipBySignatureWithRelay.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
@@ -254687,140 +254735,196 @@ Restricted variables: 7482/202482
 ### Benchmark: ./benchmarks/buggy-mix/iden3-core-3a3a300/authenticationWithRelay.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/iden3-core-3a3a300/stateTransition.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/iden3-core-3a3a300/authentication.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/iden3-core-3a3a300/idOwnershipBySignature.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/iden3-core-3a3a300/utils/claimUtils.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/iden3-core-3a3a300/utils/treeUtils.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/iden3-core-3a3a300/query/query.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/iden3-core-3a3a300/query/credentialAtomicQueryMTP.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
-### Benchmark: ./benchmarks/buggy-mix/iden3-core-3a3a300/query/credentialAtomicQueryMTPWithRelay.circom
+### Benchmark: ./benchmarks/buggy-mix/iden3-core-3a3a300/query credentialAtomicQueryMTPWithRelay.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/iden3-core-3a3a300/query/comparators.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/iden3-core-3a3a300/query/credentialAtomicQuerySig.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/re-tornado-core-ce97895/mux3.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/re-tornado-core-ce97895/escalarmulfix.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/re-tornado-core-ce97895/aliascheck.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/re-tornado-core-ce97895/binsum.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/re-tornado-core-ce97895/comparators.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/re-tornado-core-ce97895/pedersen.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/re-tornado-core-ce97895/montgomery.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/re-tornado-core-ce97895/mimcsponge.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/re-tornado-core-ce97895/compconstant.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/re-tornado-core-ce97895/merkleTree.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/re-tornado-core-ce97895/babyjub.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/re-tornado-core-ce97895/withdraw.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/re-tornado-core-ce97895/bitify.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/circom-ecdsa-436665b/bigint.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/circom-ecdsa-436665b/bigint_func.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/circom-ecdsa-436665b/test-bigmod22.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/circomlib-79d3034/mimcsponge.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
@@ -254871,75 +254975,105 @@ Restricted variables: 1/39
 ### Benchmark: ./benchmarks/buggy-mix/hermez-network-971c89f/rollup-tx.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/hermez-network-971c89f/rollup-tx-states.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/hermez-network-971c89f/test-rollup-main-L1.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/hermez-network-971c89f/hash-inputs.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/hermez-network-971c89f/decode-tx.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/hermez-network-971c89f/fee-tx.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/hermez-network-971c89f/balance-updater.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/hermez-network-971c89f/fee-accumulator.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/hermez-network-971c89f/rollup-main.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/hermez-network-971c89f/rq-tx-verifier.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/hermez-network-971c89f/withdraw.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/hermez-network-971c89f/lib/decode-float.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/hermez-network-971c89f/lib/fee-table-selector.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/hermez-network-971c89f/lib/hash-state.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/buggy-mix/hermez-network-971c89f/lib/utils-bjj.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 

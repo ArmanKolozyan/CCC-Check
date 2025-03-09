@@ -4,15 +4,21 @@ Picus Variable Ranges Analysis for zk-SQL-4c3626d
 ### Benchmark: ./benchmarks/zk-SQL-4c3626d/update.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/zk-SQL-4c3626d/utils.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/zk-SQL-4c3626d/delete.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -5269,6 +5275,8 @@ Restricted variables: 1/5246
 
 ### Benchmark: ./benchmarks/zk-SQL-4c3626d/hashTable.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 

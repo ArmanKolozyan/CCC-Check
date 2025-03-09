@@ -25,5 +25,7 @@ Restricted variables: 4/16
 ### Benchmark: ./benchmarks/secureum-zk-2023/libs/comparators.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 

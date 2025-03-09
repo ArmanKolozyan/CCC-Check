@@ -79943,10 +79943,14 @@ Restricted variables: 2312/79934
 ### Benchmark: ./benchmarks/hydra-2010a65/common/verify-merkle-path.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/hydra-2010a65/common/verify-hydra-commitment.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 

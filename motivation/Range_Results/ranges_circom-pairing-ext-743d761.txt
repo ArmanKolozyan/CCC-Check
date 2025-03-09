@@ -1084,6 +1084,8 @@ Restricted variables: 1/4
 ### Benchmark: ./benchmarks/circom-pairing-ext-743d761/FpMultiply_1_1_2.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circom-pairing-ext-743d761/ModProd_0.circom

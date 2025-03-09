@@ -2673,8 +2673,10 @@ Restricted variables: 1/2667
 
 ================================================================================
 
-### Benchmark: ./benchmarks/zk-group-sigs-1337689-fixed/sign.circom
+### Benchmark: ./benchmarks/k-group-sigs-1337689-fixed/sign.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 

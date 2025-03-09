@@ -1814,15 +1814,21 @@ Restricted variables: 455/1805
 ### Benchmark: ./benchmarks/hermez-network-9a696e3-fixed/test-decode-tx.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/hermez-network-9a696e3-fixed/test-rollup-main-L1.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/hermez-network-9a696e3-fixed/test-fee-accumulator.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -3556,15 +3562,21 @@ Restricted variables: 4/129
 ### Benchmark: ./benchmarks/hermez-network-9a696e3-fixed/test-fee-tx.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/hermez-network-9a696e3-fixed/test-rollup-tx.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/hermez-network-9a696e3-fixed/test-withdraw.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -3720,6 +3732,8 @@ Restricted variables: 1/145
 
 ### Benchmark: ./benchmarks/hermez-network-9a696e3-fixed/test-hash-inputs.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 

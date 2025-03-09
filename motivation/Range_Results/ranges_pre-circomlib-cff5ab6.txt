@@ -4,6 +4,8 @@ Picus Variable Ranges Analysis for pre-circomlib-cff5ab6
 ### Benchmark: ./benchmarks/pre-circomlib-cff5ab6/EscalarMulWindow@escalarmul.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/pre-circomlib-cff5ab6/Num2Bits@bitify.circom
@@ -81,10 +83,14 @@ Restricted variables: 1/23
 ### Benchmark: ./benchmarks/pre-circomlib-cff5ab6/SegmentMulFix@escalarmulfix.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/pre-circomlib-cff5ab6/Bits2Point_Strict@pointbits.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -123,15 +129,21 @@ Restricted variables: 2/5
 ### Benchmark: ./benchmarks/pre-circomlib-cff5ab6/EscalarMulFix@escalarmulfix.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/pre-circomlib-cff5ab6/EscalarMul@escalarmul.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/pre-circomlib-cff5ab6/BabyPbk@babyjub.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -34457,10 +34469,14 @@ Restricted variables: 1/183
 ### Benchmark: ./benchmarks/pre-circomlib-cff5ab6/Point2Bits_Strict@pointbits.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/pre-circomlib-cff5ab6/Segment@pedersen.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -34485,10 +34501,14 @@ Restricted variables: 1/4
 ### Benchmark: ./benchmarks/pre-circomlib-cff5ab6/Mix@poseidon.circom
 Restricted variables: 0/0
 
+ERROR
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/pre-circomlib-cff5ab6/Num2Bits_strict@bitify.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
@@ -96663,6 +96683,8 @@ Restricted variables: 1/63
 ### Benchmark: ./benchmarks/pre-circomlib-cff5ab6/EscalarMulAny@escalarmulany.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/pre-circomlib-cff5ab6/IsEqual@comparators.circom
@@ -97234,6 +97256,8 @@ Restricted variables: 1/259
 
 ### Benchmark: ./benchmarks/pre-circomlib-cff5ab6/Ark@poseidon.circom
 Restricted variables: 0/0
+
+ERROR
 
 ================================================================================
 

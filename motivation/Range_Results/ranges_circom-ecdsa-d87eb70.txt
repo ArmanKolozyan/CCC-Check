@@ -4,6 +4,8 @@ Picus Variable Ranges Analysis for circom-ecdsa-d87eb70
 ### Benchmark: ./benchmarks/circom-ecdsa-d87eb70/ecdsa_verify.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circom-ecdsa-d87eb70/secp256k1_poc.circom
@@ -1303,20 +1305,28 @@ Restricted variables: 1103/1289
 ### Benchmark: ./benchmarks/circom-ecdsa-d87eb70/secp256k1_add.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circom-ecdsa-d87eb70/secp256k1_scalarmult.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
 ### Benchmark: ./benchmarks/circom-ecdsa-d87eb70/ecdsa.circom
 Restricted variables: 0/0
 
+TIME OUT
+
 ================================================================================
 
 ### Benchmark: ./benchmarks/circom-ecdsa-d87eb70/secp256k1_double.circom
 Restricted variables: 0/0
+
+TIME OUT
 
 ================================================================================
 
