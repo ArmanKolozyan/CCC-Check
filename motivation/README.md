@@ -18,7 +18,7 @@ To investigate this, we conducted an experiment to answer the following question
 1. How many variables are successfully restricted to a certain range of values?
 2. To what ranges are they restricted?
 
-To systematically evaluate the impact of value inferencing, we wrote a Python script (`ranges_collector.py`) to run PICUS on all its benchmark files and collect range constraints for each variable.  A timeout of 3 minutes per benchmark was imposed. We then wrote a data analysis script (`ranges_analyzer.ipynb`) to compute statistics on the results.
+To systematically evaluate the impact of value inferencing, we wrote a Python script (`Analysis/ranges_collector.py`) to run PICUS on all its benchmark files and collect range constraints for each variable.  A timeout of 3 minutes per benchmark was imposed. We then wrote a data analysis script (`Analysis/ranges_analyzer.ipynb`) to compute statistics on the results.
 
 Below is a summary of the main results:
 
@@ -53,5 +53,19 @@ To improve the value inferencing, we can take the following steps:
 1. Implementing a more general and complete version of the inference rules described in the paper, as discussed above.
 
 2. Adding more general pattern-matching techniques to capture value constraints in a wider variety of cases beyond the ones mentioned in the paper.
+
+## Examples
+
+In this section, we present examples to demonstrate the benefits of a more general value inferencer.
+
+### toBinary
+
+Consider the `Examples/toBinary.circom` file, which defines a circuit that sets `out` to 1 if `in` is nonzero and 0 otherwise. Mathematically, `out` can only be 0 or 1:
+
+- If `in = 0`, the product `in*(1 - out)` must be 0, forcing `out` to 0.
+- If `in ≠ 0`, then `inv = 1/in`, so `out = in*inv = 1`.
+
+However, since the existing lemmas in PICUS do not match these constraints directly, PICUS fails to recognize that `out ∈ {0,1}`. To detect this automatically, we can introduce a rule for constraints of the form `a*(1 - b) === 0`, combined with `b <== a*c`. If we see `b = a * something` and simultaneously `a*(1 - b) = 0`, we conclude that if `a=0` then `b=0`, and if `a≠0` then `b=1`.
+
 
 
