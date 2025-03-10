@@ -92,5 +92,14 @@ The `WrongOr.circom` example uses the `OR` gate from Circomlib but does not expl
 
 This assumes that `a` and `b` are binary. However, if we input `a = 2` and `b = 2`, we expect `result = 1`, but the formula actually computes `2 + 2 - (2 * 2) = 0`, which is not what we expect. A naive fix would be to add constraints in the OR gate enforcing that `a` and `b` are binary. However, this would significantly increase the number of constraints, which would make proof generation slower. To address this, Circom introduced Signal Tagging, where variables can be annotated as `{binary}` to indicate they should only take values in `{0,1}`. However, these tags are not actually enforced at compile-time, which means incorrect values can still propagate through the circuit. With value inferencing, we can statically verify whether variables marked as `{binary}` are truly constrained to binary values.
 
+### overflow
+
+Sources: https://hackmd.io/@blockdev/Bk_-jRkXa, https://github.com/0xPARC/zk-bug-tracker?tab=readme-ov-file#3-arithmetic-overunder-flows, https://github.com/0xPARC/zk-bug-tracker?tab=readme-ov-file#4-mismatching-bit-lengths, https://gist.github.com/LCamel/4638804256815beb78e672b3716d0626
+
+extra: https://www.rareskills.io/post/circom-aliascheck
+
+
+TO THINK: hun verschil moet in n bits kunnen voorgesteld worden, kunnen we geen overflow bereiken zonder iets met p te doen?
+
 
 
