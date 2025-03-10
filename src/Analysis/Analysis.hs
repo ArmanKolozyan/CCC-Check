@@ -70,26 +70,10 @@ initEnv prog =
 -- result. Otherwise, it returns Top. The result is wrapped back into a 'CirCVal' using 'injectInt'.
 evalCP :: Env -> Expression -> CirCVal
 evalCP env exp = case exp of
-    Var x -> fromMaybe topCirC (Map.lookup x env)
-    Int i -> num i    
-    Add e1 e2 -> 
-        let v1 = evalCP env e1
-            v2 = evalCP env e2
-            cp1 = selectCP v1
-            cp2 = selectCP v2
-            cpSum = case (cp1, cp2) of
-                (Constant a, Constant b) -> Constant (a + b)
-                _                        -> Top
-        in injectCPInt cpSum 
-    Mul e1 e2 -> 
-        let v1 = evalCP env e1
-            v2 = evalCP env e2
-            cp1 = selectCP v1
-            cp2 = selectCP v2
-            cpProd = case (cp1, cp2) of
-                (Constant a, Constant b) -> Constant (a * b)
-                _                        -> Top
-        in injectCPInt cpProd              
+    Var x   -> fromMaybe topCirC (Map.lookup x env)
+    Int i   -> num i    
+    Add e1 e2 -> injectCPInt $ liftA2 (+) (selectCP $ evalCP env e1) (selectCP $ evalCP env e2)
+    Mul e1 e2 -> injectCPInt $ liftA2 (*) (selectCP $ evalCP env e1) (selectCP $ evalCP env e2)
 
 ----------------------------------
 -- 4) Constraint Application
