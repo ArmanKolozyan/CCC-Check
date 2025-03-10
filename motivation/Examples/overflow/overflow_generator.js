@@ -21,12 +21,23 @@ for (var x = 0; x < p; x++) {
     }
 }
 
+// printing grid
+
 console.log("\nB: can pass Num2Bits   L: and LessThan == 1   F: but false positive\n");
-for (var y = p - 1; y >= 0; y--) {
-    var s = "";
-    for (var x = 0; x < p; x++) {
-        s += fp[x][y];
-    }
-    console.log(s);
+
+// printing column numbers (X-axis)
+process.stdout.write("   ");
+for (var x = 0; x < p; x++) {
+    process.stdout.write(x.toString().padStart(2, " ") + " ");
 }
-console.log();
+console.log("\n   " + "-".repeat(3 * p)); // horizontal separator
+
+// printing grid with row numbers
+for (var y = 0; y < p; y++) {
+    process.stdout.write(y.toString().padStart(2, " ") + "| "); //row label
+    for (var x = 0; x < p; x++) {
+        process.stdout.write(fp[x][y] + "  ");
+    }
+    console.log();
+}
+console.log
