@@ -58,6 +58,23 @@ To improve the value inferencing, we can take the following steps:
 
 In this section, we present examples to demonstrate the benefits of a more general value inferencer.
 
+### simpleMult
+
+The `simpleMult.circom` example illustrates another limitation in PICUS's value inference. The circuit defines the following constraint:
+
+`in * (in - 2) === 0`
+
+Mathematically, this enforces that `in` must be either `0` or `2`. However, PICUS does not successfully restrict `in` to these values; it remains unconstrained in the analysis.
+When writing sing the constraint:
+
+`in * (in - 1) === 0`
+
+PICUS does successfully infer that `in` must be either `0` or `1`. This illustrates that the `binary01-lemma` is specifically designed to detect only `{0,1}` patterns. Moreover, no ranges are inferred when flipping the constraint:
+
+`0 === in * (in - 1);`
+
+Despite being mathematically equivalent, PICUS does not infer that `in` is binary in this case. This suggests that its pattern-matching mechanism is sensitive to the order of terms rather than the underlying mathematical structure.
+
 ### toBinary
 
 Consider the `Examples/toBinary.circom` file, which defines a circuit that sets `out` to 1 if `in` is nonzero and 0 otherwise. Mathematically, `out` can only be 0 or 1:
@@ -70,7 +87,9 @@ However, since the existing lemmas in PICUS do not match these constraints direc
 ### wrongOr
 
 The `WrongOr.circom` example uses the `OR` gate from Circomlib but does not explicitly constrain its inputs to be binary. The `OR` gate in Circomlib is implemented as:
+
 `out <== a + b - a * b;`
+
 This assumes that `a` and `b` are binary. However, if we input `a = 2` and `b = 2`, we expect `result = 1`, but the formula actually computes `2 + 2 - (2 * 2) = 0`, which is not what we expect. A naive fix would be to add constraints in the OR gate enforcing that `a` and `b` are binary. However, this would significantly increase the number of constraints, which would make proof generation slower. To address this, Circom introduced Signal Tagging, where variables can be annotated as `{binary}` to indicate they should only take values in `{0,1}`. However, these tags are not actually enforced at compile-time, which means incorrect values can still propagate through the circuit. With value inferencing, we can statically verify whether variables marked as `{binary}` are truly constrained to binary values.
 
 
