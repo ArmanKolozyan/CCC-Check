@@ -67,5 +67,11 @@ Consider the `Examples/toBinary.circom` file, which defines a circuit that sets 
 
 However, since the existing lemmas in PICUS do not match these constraints directly, PICUS fails to recognize that `out ∈ {0,1}`. To detect this automatically, we can introduce a rule for constraints of the form `a*(1 - b) === 0`, combined with `b <== a*c`. If we see `b = a * something` and simultaneously `a*(1 - b) = 0`, we conclude that if `a=0` then `b=0`, and if `a≠0` then `b=1`.
 
+### wrongOr
+
+The `WrongOr.circom` example uses the `OR` gate from Circomlib but does not explicitly constrain its inputs to be binary. The `OR` gate in Circomlib is implemented as:
+`out <== a + b - a * b;`
+This assumes that `a` and `b` are binary. However, if we input `a = 2` and `b = 2`, we expect `result = 1`, but the formula actually computes `2 + 2 - (2 * 2) = 0`, which is not what we expect. A naive fix would be to add constraints in the OR gate enforcing that `a` and `b` are binary. However, this would significantly increase the number of constraints, which would make proof generation slower. To address this, Circom introduced Signal Tagging, where variables can be annotated as `{binary}` to indicate they should only take values in `{0,1}`. However, these tags are not actually enforced at compile-time, which means incorrect values can still propagate through the circuit. With value inferencing, we can statically verify whether variables marked as `{binary}` are truly constrained to binary values.
+
 
 
