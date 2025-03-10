@@ -29,7 +29,7 @@ import Data.Map (Map)
 -- VRAAG: als je CP wilt doen voor alle mogelijke types, heb je dan een sparse labeled product nodig?
 -- Of is het enkel als je CP wilt doen voor een bepaalde type, interval domain wilt gebruiken voor een ander
 -- type, etc.?
-data CirCKey = IntKey deriving (Eq, Ord, Show)    
+data CirCKey = IntKey | BoolKey deriving (Eq, Ord, Show)    
 
 -- This is necessary for the infrastructure promoting
 -- data constructors to types and the other way around.
@@ -44,7 +44,7 @@ $(genHKeys ''CirCKey)
 -- which is a constant-propagation lattice over integers. This design is
 -- extensible: we can later add more keys (and thus more abstract
 -- properties) without changing the rest of the analysis infrastructure.
-type M = '[IntKey ::-> CP Integer]
+type M = '[IntKey ::-> CP Integer, BoolKey ::-> CP Bool]
 
 -- | 'CirCVal' represents the abstract values of our program.
 --

@@ -8,7 +8,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Analysis.Analysis (constantProp, isFullyConstrained) where
+module Analysis.Analysis (constantProp, isFullyConstrained, selectCP) where
 
 import Prelude hiding (iterate)
 import qualified Data.Map as Map
@@ -35,10 +35,24 @@ selectCP (CirCVal hmap) =
     [cpVal] -> cpVal
     _       -> Top
 
+-- | Extracts the CP Bool stored at our SBoolKey from a CirCVal.
+selectCPBool :: CirCVal -> CP Bool
+selectCPBool (CirCVal hmap) =
+  case mapList (\s assoc -> case s of
+                              SBoolKey -> assoc
+                              _        -> Top) hmap of
+    [cpVal] -> cpVal
+    _       -> Top
+
 -- | Wraps a CP Integer back into a CirCVal.
 -- It creates an HMap containing a single field using the 'singleton' function.
 injectCPInt :: CP Integer -> CirCVal
 injectCPInt = CirCVal . singleton @IntKey
+
+-- | Wraps a CP Bool back into a CirCVal.
+injectCPBool :: CP Bool -> CirCVal
+injectCPBool = CirCVal . singleton @BoolKey
+
 
 -- | Top represented as a CirC Value.
 topCirC :: CirCVal
@@ -73,7 +87,25 @@ evalCP env exp = case exp of
     Var x   -> fromMaybe topCirC (Map.lookup x env)
     Int i   -> num i    
     Add e1 e2 -> injectCPInt $ liftA2 (+) (selectCP $ evalCP env e1) (selectCP $ evalCP env e2)
+    Sub e1 e2 -> injectCPInt $ liftA2 (-) (selectCP $ evalCP env e1) (selectCP $ evalCP env e2)
     Mul e1 e2 -> injectCPInt $ liftA2 (*) (selectCP $ evalCP env e1) (selectCP $ evalCP env e2)
+
+    And e1 e2 -> injectCPBool $ liftA2 (&&) (selectCPBool $ evalCP env e1) (selectCPBool $ evalCP env e2)
+    Or e1 e2  -> injectCPBool $ liftA2 (||) (selectCPBool $ evalCP env e1) (selectCPBool $ evalCP env e2)
+    Not e1    -> injectCPBool $ fmap not (selectCPBool $ evalCP env e1)
+
+    Lt e1 e2  -> injectCPBool $ liftA2 (<) (selectCP $ evalCP env e1) (selectCP $ evalCP env e2)
+    Gt e1 e2  -> injectCPBool $ liftA2 (>) (selectCP $ evalCP env e1) (selectCP $ evalCP env e2)
+    Lte e1 e2 -> injectCPBool $ liftA2 (<=) (selectCP $ evalCP env e1) (selectCP $ evalCP env e2)
+    Gte e1 e2 -> injectCPBool $ liftA2 (>=) (selectCP $ evalCP env e1) (selectCP $ evalCP env e2)
+    
+    Ite cond t e -> 
+      case selectCPBool (evalCP env cond) of
+        Constant True  -> evalCP env t
+        Constant False -> evalCP env e
+        Top            -> topCirC
+    
+    Eq e1 e2 -> injectCPBool $ liftA2 (==) (selectCP $ evalCP env e1) (selectCP $ evalCP env e2)
 
 ----------------------------------
 -- 4) Constraint Application
