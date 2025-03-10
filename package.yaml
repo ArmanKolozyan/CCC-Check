@@ -3,13 +3,22 @@ version: 0.1
 
 library:
   source-dirs: src
-
-dependencies:
-  - base > 4.7 && < 5
-  - rio
-  - maf2-syntax
-  - maf2-domains
-  - maf2-analysis
+  exposed-modules:
+    - Analysis.Analysis
+    - Domain.Domain
+    - Syntax.AST
+    - Syntax.Compiler
+  other-modules:
+    - Paths_zkp_analysis
+  dependencies:
+    - base > 4.7 && < 5
+    - rio
+    - maf2-syntax
+    - maf2-domains
+    - maf2-analysis
+    - mtl
+    - singletons
+    - containers
 
 executables:
   zkp-analysis-exe:
@@ -17,3 +26,28 @@ executables:
     main: Main.hs
     dependencies:
       - zkp-analysis
+      - rio
+      - base > 4.7 && < 5
+      - maf2-analysis
+      - maf2-domains
+      - maf2-syntax
+      - containers
+    other-modules:
+      - Paths_zkp_analysis
+
+tests:
+  all-tests:
+    main: TestRunner.hs
+    source-dirs: test
+    dependencies:
+      - base > 4.7 && < 5
+      - rio
+      - maf2-analysis
+      - maf2-domains
+      - maf2-syntax
+      - zkp-analysis
+      - containers
+    other-modules:
+      - Syntax.ExpressionsParseTest
+      - Syntax.FullyConstrainedTest
+      - Syntax.IteParseTest
