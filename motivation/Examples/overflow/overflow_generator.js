@@ -1,0 +1,32 @@
+// THIS CODE IS BASED ON: https://gist.github.com/LCamel/4638804256815beb78e672b3716d0626
+
+const p = 23;
+const N = 2;
+var fp = []; // false positive
+
+for (var x = 0; x < p; x++) {
+    fp[x] = [];
+    for (var y = 0; y < p; y++) {
+        fp[x][y] = ' ';
+        const diff = (x + (1 << N) - y + p) % p;
+        if (diff < (1 << (N + 1))) {       // can pass Num2Bits
+            fp[x][y] = 'B';
+            if ((diff & (1 << N)) == 0) {  // the logic of LessThan for "true"
+                fp[x][y] = 'L';
+                if (x >= y) {           // false positive
+                    fp[x][y] = 'F';
+                }
+            }
+        }
+    }
+}
+
+console.log("\nB: can pass Num2Bits   L: and LessThan == 1   F: but false positive\n");
+for (var y = p - 1; y >= 0; y--) {
+    var s = "";
+    for (var x = 0; x < p; x++) {
+        s += fp[x][y];
+    }
+    console.log(s);
+}
+console.log();
