@@ -49,14 +49,16 @@ test-suite all-tests
   type: exitcode-stdio-1.0
   other-modules:
       Syntax.ExpressionsParseTest
-      Syntax.FullyConstrainedTest
+      Analysis.FullyConstrainedTest
       Syntax.IteParseTest
+      Analysis.ExpressionsAnalysisTest
   main-is: TestRunner.hs
   hs-source-dirs:
       test
   build-depends:
       base >4.7 && <5
     , containers
+    , hspec
     , maf2-analysis
     , maf2-domains
     , maf2-syntax

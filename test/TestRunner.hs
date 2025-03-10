@@ -1,18 +1,12 @@
 module Main where
 
-import Syntax.FullyConstrainedTest (runFullyConstrainedTest)
-import Syntax.IteParseTest (runIteParsingTest)
-import Syntax.ExpressionsParseTest (runExpressionParsingTest)
-import System.Exit (exitFailure)
+import Test.Hspec
+import qualified Syntax.ExpressionsParseTest
+import qualified Analysis.FullyConstrainedTest
+import qualified Syntax.IteParseTest
 
 main :: IO ()
-main = do
-  res1 <- runFullyConstrainedTest
-  putStrLn "--------"
-  res2 <- runIteParsingTest
-  putStrLn "--------"
-  res3 <- runExpressionParsingTest
-  putStrLn "--------"
-  if not (res1 && res2)
-    then exitFailure
-    else putStrLn "All tests succeeded!"
+main = hspec $ do
+    Syntax.ExpressionsParseTest.spec
+    Analysis.FullyConstrainedTest.spec
+    Syntax.IteParseTest.spec

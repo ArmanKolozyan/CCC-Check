@@ -47,7 +47,9 @@ tests:
       - maf2-syntax
       - zkp-analysis
       - containers
+      - hspec
     other-modules:
       - Syntax.ExpressionsParseTest
-      - Syntax.FullyConstrainedTest
+      - Analysis.FullyConstrainedTest
       - Syntax.IteParseTest
+      - Analysis.ExpressionsAnalysisTest
