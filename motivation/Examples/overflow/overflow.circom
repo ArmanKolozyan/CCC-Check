@@ -10,7 +10,7 @@ template Withdraw() {
 
     component lt = LessThan(2);
     lt.in[0] <== withdrawAmount;
-    lt.in[1] <== currentBalance + 1;
+    lt.in[1] <== currentBalance;
 
     validWithdraw <== lt.out;
 }
