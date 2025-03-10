@@ -99,7 +99,20 @@ Sources: https://hackmd.io/@blockdev/Bk_-jRkXa, https://github.com/0xPARC/zk-bug
 extra: https://www.rareskills.io/post/circom-aliascheck
 
 
-TO THINK: hun verschil moet in n bits kunnen voorgesteld worden, kunnen we geen overflow bereiken zonder iets met p te doen?
 
 
+## TO DO
+
+### overflow
+
+* bug uitleggen
+* TO THINK: hun verschil moet in n bits kunnen voorgesteld worden, kunnen we geen overflow bereiken zonder iets met p te doen?
+
+### Research Objectives
+
+* sectie schrijven
+* verband met https://github.com/0xPARC/zk-bug-tracker?tab=readme-ov-file#4-mismatching-bit-lengths
+* verband met signal tagging => discrepancies
+* verband met SMT solving
+* verband met CirC
 
