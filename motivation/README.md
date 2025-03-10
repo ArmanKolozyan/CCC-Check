@@ -65,7 +65,7 @@ The `simpleMult.circom` example illustrates another limitation in PICUS's value 
 `in * (in - 2) === 0`
 
 Mathematically, this enforces that `in` must be either `0` or `2`. However, PICUS does not successfully restrict `in` to these values; it remains unconstrained in the analysis.
-When writing sing the constraint:
+When writing the following constraint:
 
 `in * (in - 1) === 0`
 
