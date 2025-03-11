@@ -1,0 +1,5 @@
+def main(private bool a, field b) {
+    u8 b = 256; // detected error: Expression `256` of type `{integer}` cannot be assigned to `u8 b` of type `u8`
+    return;
+}
+

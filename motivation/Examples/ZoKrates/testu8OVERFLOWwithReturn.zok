@@ -1,0 +1,4 @@
+def main() -> u8 {
+    u8 b = 255 + 10; // passes without detection
+    return b; // passes without detection
+}
