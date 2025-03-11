@@ -1,0 +1,9 @@
+def main(u8 a) -> u8 {
+    return a;
+}
+// 256 as input 
+// => ERROR: Execution failed: Sum check failed
+//           The default ZoKrates interpreter should not yield this error. Please open an issue.
+
+// https://zokrates.github.io/language/types.html
+// => "Similarly to booleans, unsigned integer inputs of the main function only accept values of the appropriate range."
