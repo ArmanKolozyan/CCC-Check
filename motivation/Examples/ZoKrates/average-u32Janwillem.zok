@@ -1,0 +1,13 @@
+from "utils/casts" import cast;
+
+const u32 N = 10;
+
+def main(private u32[N] a) -> u32 {
+    u32 mut sum = 0;
+    for u32 i in 0..N {
+        sum = sum + a[i];
+    }
+    u32 avg = sum / N;  // floor division
+    // log("sum = {}, n = {}, avg = {}", sum, N, avg);
+    return avg;
+}
