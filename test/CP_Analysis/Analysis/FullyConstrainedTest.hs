@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Analysis.FullyConstrainedTest where
+module CP_Analysis.Analysis.FullyConstrainedTest where
 
 import Syntax.Compiler (parseAndCompile)
 import Analysis.Analysis (constantProp, isFullyConstrained)

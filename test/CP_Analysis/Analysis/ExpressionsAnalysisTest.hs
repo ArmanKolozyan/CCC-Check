@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Analysis.ExpressionsAnalysisTest where
+module CP_Analysis.Analysis.ExpressionsAnalysisTest where
 
 import Syntax.AST
 import Analysis.Analysis

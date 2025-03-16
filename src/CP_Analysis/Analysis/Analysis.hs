@@ -90,8 +90,8 @@ evalCP env exp = case exp of
     Sub e1 e2 -> injectCPInt $ liftA2 (-) (selectCP $ evalCP env e1) (selectCP $ evalCP env e2)
     Mul e1 e2 -> injectCPInt $ liftA2 (*) (selectCP $ evalCP env e1) (selectCP $ evalCP env e2)
 
-    And e1 e2 -> injectCPBool $ liftA2 (&&) (selectCPBool $ evalCP env e1) (selectCPBool $ evalCP env e2)
-    Or e1 e2  -> injectCPBool $ liftA2 (||) (selectCPBool $ evalCP env e1) (selectCPBool $ evalCP env e2)
+    And exprs -> injectCPBool $ Prelude.foldr (liftA2 (&&) . selectCPBool . evalCP env) (pure True) exprs
+    Or exprs  -> injectCPBool $ Prelude.foldr (liftA2 (||) . selectCPBool . evalCP env) (pure False) exprs
     Not e1    -> injectCPBool $ fmap not (selectCPBool $ evalCP env e1)
 
     Lt e1 e2  -> injectCPBool $ liftA2 (<) (selectCP $ evalCP env e1) (selectCP $ evalCP env e2)

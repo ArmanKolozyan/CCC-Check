@@ -2,7 +2,9 @@ name: zkp-analysis
 version: 0.1
 
 library:
-  source-dirs: src
+  source-dirs: 
+    - src
+    - src/CP_Analysis
   exposed-modules:
     - Analysis.Analysis
     - Domain.Domain
@@ -50,6 +52,6 @@ tests:
       - hspec
     other-modules:
       - Syntax.ExpressionsParseTest
-      - Analysis.FullyConstrainedTest
+      - CP_Analysis.Analysis.FullyConstrainedTest
       - Syntax.IteParseTest
-      - Analysis.ExpressionsAnalysisTest
+      - CP_Analysis.Analysis.ExpressionsAnalysisTest
