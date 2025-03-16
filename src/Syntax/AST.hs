@@ -1,6 +1,7 @@
 
 module Syntax.AST (Program (..), Binding (..), Sort (..), Expression (..), Constraint (..)) where
 
+import Data.Set (Set)
 -- | An AST representation of a CirC-IR program. It only contains the
 --   components relevant for bug detection. Information about parties,
 --   commitments, etc. is thus omitted.
@@ -15,7 +16,8 @@ data Program = Program
 
 -- | A binding contains the name and the sort.
 data Binding = Binding
-  { name :: String,
+  { id :: Int,
+    name :: String,
     sort :: Sort
   }
   deriving (Show, Eq)
@@ -50,12 +52,11 @@ data Expression
 
 -- | Minimal set of constraints: equality.
 data Constraint
-  = EqC Expression Expression
-  | AndC [Constraint]
-  | OrC [Constraint]
-  | NotC Constraint
+  = EqC Int Expression Expression
+  | AndC Int [Constraint]
+  | OrC Int [Constraint]
+  | NotC Int Constraint
   deriving (Show, Eq)
-
 {-
 TODO:
 - add support for set_default_modulus

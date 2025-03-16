@@ -6,15 +6,45 @@ module Syntax.Compiler (compile, parseAndCompile) where
 import Syntax.AST
 import Control.Monad ((>=>))
 import Control.Monad.Except
+import Control.Monad.State
 import Data.Char (isDigit)
 
 import Syntax.Scheme.Parser
+
+
+data CompilerState = CompilerState 
+    {
+        nextVarID :: Int,
+        nextConstraintID :: Int
+    }
+
+
+emptyState :: CompilerState
+emptyState = CompilerState
+    {
+        nextVarID = 0,
+        nextConstraintID = 0
+    }
+
+genVarID :: MonadCompile m => m Int
+genVarID = do
+    st <- get
+    let newID = nextVarID st
+    put st {nextVarID = newID + 1}
+    return newID
+
+genConstraintID :: MonadCompile m => m Int
+genConstraintID = do
+    st <- get
+    let newID = nextConstraintID st
+    put st {nextConstraintID = newID + 1}
+    return newID
 
 --------------------------
 -- 1) Top-level
 --------------------------
 
-type MonadCompile m = (MonadError String m)
+type MonadCompile m = (MonadError String m, MonadState CompilerState m)
 
 -- | Takes a top-level s-expression (SExp) and produces our Program AST.
 compile :: MonadCompile m => SExp -> m Program
@@ -25,7 +55,12 @@ compile sexp =
 
 -- | parses and compiles the given IR representation to AST nodes.
 parseAndCompile :: String -> Either String Program
-parseAndCompile = fmap head . parseSexp >=> compile
+parseAndCompile input = do
+    sexps <- parseSexp input  -- parse input into a list of SExps
+    case sexps of
+        (firstSexp : _) -> evalStateT (compile firstSexp) emptyState  -- compile first SExp with state
+        []              -> Left "Error: No expressions to compile"
+
 
 --------------------------
 -- 2) Computation
@@ -108,7 +143,8 @@ compileInput acc form = case form of
     (Atom "return" _ ::: _) -> pure acc  -- ignoring "return" var
     (Atom varName _ ::: sortExp ::: _ ::: SNil _) -> do
         sort <- compileSort sortExp
-        pure (acc ++ [Binding varName sort]) 
+        id <- genVarID
+        pure (acc ++ [Binding id varName sort]) 
     _ -> pure acc 
 
 --------------------------
@@ -149,26 +185,28 @@ compilePreForm (vars, exps) preForm = case preForm of
 compileVariableDefinitions :: MonadCompile m => [Binding] -> SExp -> m [Binding]
 compileVariableDefinitions acc (Atom varName _ ::: sortExp ::: SNil _) = do
     sort <- compileSort sortExp
-    pure (acc ++ [Binding varName sort])
+    id <- genVarID
+    pure (acc ++ [Binding id varName sort])
 compileVariableDefinitions acc _ = pure acc
 
 -- | Extracts only the constraints from a declare block.
 compileConstraint :: MonadCompile m => SExp -> m Constraint
-compileConstraint constraint = case constraint of
-    -- If it's (Atom "=" _ ::: lhs ::: rhs) => eq constraint
-    (Atom "=" _ ::: lhs ::: rhs ::: SNil _) -> do
-      lhsE <- compileExp lhs
-      rhsE <- compileExp rhs
-      pure $ EqC lhsE rhsE
-    (Atom "and" _ ::: rest) -> do
-      constrs <- parseListOfConstrs rest
-      pure $ AndC constrs
-    (Atom "or" _ ::: rest) -> do
-      constrs <- parseListOfConstrs rest
-      pure $ OrC constrs
-    (Atom "not" _ ::: exp ::: SNil _) -> do
-      constr <- compileConstraint exp
-      pure $ NotC constr   
+compileConstraint constraint = do
+    id <- genConstraintID
+    case constraint of
+        (Atom "=" _ ::: lhs ::: rhs ::: SNil _) -> do
+            lhsE <- compileExp lhs
+            rhsE <- compileExp rhs
+            pure $ EqC id lhsE rhsE
+        (Atom "and" _ ::: rest) -> do
+            constrs <- parseListOfConstrs rest
+            pure $ AndC id constrs
+        (Atom "or" _ ::: rest) -> do
+            constrs <- parseListOfConstrs rest
+            pure $ OrC id constrs
+        (Atom "not" _ ::: exp ::: SNil _) -> do
+            constr <- compileConstraint exp
+            pure $ NotC id constr   
 
 -- | Compiles a declare block by extracting variable declarations and constraints.
 compileDeclare :: MonadCompile m => SExp -> m ([Binding], [Constraint])

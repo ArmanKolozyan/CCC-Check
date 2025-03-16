@@ -69,7 +69,7 @@ topCirC = injectCPInt Top
 initEnv :: Program -> Env
 initEnv prog = 
     let allBinds = inputs prog ++ computationVars prog ++ constraintVars prog
-        initBinding (Binding n _) = (n, topCirC)
+        initBinding (Binding _ n _) = (n, topCirC)
     in Map.fromList (Prelude.map initBinding allBinds)   
 
 ----------------------------------
@@ -120,7 +120,7 @@ evalCP env exp = case exp of
 --    Otherwise, we join the current CP value with the CP value from the right-hand side.
 -- 4. The resulting unified CP value is wrapped back into a 'CirCVal' and used to update the environment.
 applyCPConstraint :: Env -> Constraint -> Env
-applyCPConstraint env (EqC (Var x) e2) =
+applyCPConstraint env (EqC _ (Var x) e2) =
   let current = Map.findWithDefault topCirC x env
       v2      = evalCP env e2
       newVal  = case selectCP current of
