@@ -95,6 +95,9 @@ This assumes that `a` and `b` are binary. However, if we input `a = 2` and `b = 
 ### overflow
 
 Sources: https://hackmd.io/@blockdev/Bk_-jRkXa, https://github.com/0xPARC/zk-bug-tracker?tab=readme-ov-file#3-arithmetic-overunder-flows, https://github.com/0xPARC/zk-bug-tracker?tab=readme-ov-file#4-mismatching-bit-lengths, https://gist.github.com/LCamel/4638804256815beb78e672b3716d0626
+https://github.com/0xPARC/zk-bug-tracker/blob/main/README.md#1-dark-forest-v03-missing-bit-length-check
+https://blog.zkga.me/df-init-circuit
+https://www.rareskills.io/post/circom-aliascheck
 
 extra: https://www.rareskills.io/post/circom-aliascheck
 
@@ -114,5 +117,6 @@ extra: https://www.rareskills.io/post/circom-aliascheck
 * verband met https://github.com/0xPARC/zk-bug-tracker?tab=readme-ov-file#4-mismatching-bit-lengths
 * verband met signal tagging => discrepancies
 * verband met SMT solving
+* verband met underconstrained bugs: ranges vergelijken 
 * verband met CirC
 
