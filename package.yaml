@@ -5,9 +5,12 @@ library:
   source-dirs: 
     - src
     - src/CP_Analysis
+    - src/Value_Inferencer
   exposed-modules:
-    - Analysis.Analysis
-    - Domain.Domain
+    - ValueAnalysis.Analysis
+    - ValueDomain.Domain
+    - CPAnalysis.Analysis
+    - CPDomain.Domain
     - Syntax.AST
     - Syntax.Compiler
   other-modules:

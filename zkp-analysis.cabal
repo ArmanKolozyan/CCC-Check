@@ -10,8 +10,10 @@ build-type:     Simple
 
 library
   exposed-modules:
-      Analysis.Analysis
-      Domain.Domain
+      ValueAnalysis.Analysis
+      ValueDomain.Domain
+      CPAnalysis.Analysis
+      CPDomain.Domain
       Syntax.AST
       Syntax.Compiler
   other-modules:
@@ -19,6 +21,7 @@ library
   hs-source-dirs:
       src
       src/CP_Analysis
+      src/Value_Inferencer
   build-depends:
       base >4.7 && <5
     , containers

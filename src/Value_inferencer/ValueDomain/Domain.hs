@@ -14,7 +14,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Domain.Domain where
+module ValueDomain.Domain where
 
 import Data.Singletons
 import Domain (inject)

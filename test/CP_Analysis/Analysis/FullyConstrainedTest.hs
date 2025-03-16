@@ -4,10 +4,10 @@
 module CP_Analysis.Analysis.FullyConstrainedTest where
 
 import Syntax.Compiler (parseAndCompile)
-import Analysis.Analysis (constantProp, isFullyConstrained)
+import CPAnalysis.Analysis (constantProp, isFullyConstrained)
 import qualified Data.Map as Map
 import Data.TypeLevel.HMap (singleton)
-import Domain.Domain
+import CPDomain.Domain
 import Lattice.ConstantPropagationLattice
 import Test.Hspec
 

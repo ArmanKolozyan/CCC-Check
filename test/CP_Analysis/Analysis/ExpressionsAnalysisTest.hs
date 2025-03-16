@@ -4,10 +4,9 @@
 module CP_Analysis.Analysis.ExpressionsAnalysisTest where
 
 import Syntax.AST
-import Analysis.Analysis
+import CPAnalysis.Analysis
 import qualified Data.Map as Map
-import Domain.Domain
-import Data.TypeLevel.HMap (singleton)
+import CPDomain.Domain
 import Lattice.ConstantPropagationLattice
 import Test.Hspec
 

@@ -8,7 +8,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Analysis.Analysis (constantProp, isFullyConstrained, selectCP) where
+module CPAnalysis.Analysis (constantProp, isFullyConstrained, selectCP) where
 
 import Prelude hiding (iterate)
 import qualified Data.Map as Map
@@ -17,7 +17,7 @@ import Lattice.ConstantPropagationLattice
 import Lattice.Class (Joinable(join))
 import Data.Maybe (fromMaybe)
 import Syntax.AST
-import Domain.Domain
+import CPDomain.Domain
 
 ----------------------------------
 -- 1) Helper Functions

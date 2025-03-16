@@ -16,7 +16,7 @@ data Program = Program
 
 -- | A binding contains the name and the sort.
 data Binding = Binding
-  { id :: Int,
+  { vid :: Int,
     name :: String,
     sort :: Sort
   }
@@ -57,6 +57,7 @@ data Constraint
   | OrC Int [Constraint]
   | NotC Int Constraint
   deriving (Show, Eq)
+
 {-
 TODO:
 - add support for set_default_modulus
