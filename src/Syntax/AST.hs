@@ -43,14 +43,17 @@ data Expression
   | Lt Expression Expression
   | Gte Expression Expression
   | Lte Expression Expression
-  | And Expression Expression
-  | Or Expression Expression
+  | And [Expression]
+  | Or [Expression]
   | Not Expression
   deriving (Show, Eq)
 
 -- | Minimal set of constraints: equality.
 data Constraint
   = EqC Expression Expression
+  | AndC [Constraint]
+  | OrC [Constraint]
+  | NotC Constraint
   deriving (Show, Eq)
 
 {-

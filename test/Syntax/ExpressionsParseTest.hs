@@ -16,8 +16,7 @@ spec = describe "Expression Parsing" $ do
             Right program -> computations program `shouldContain` [expectedExpr]
   where
     expectedExpr = Ite
-        (And (Or (Gt (Var "x") (Var "y")) (Lt (Var "x") (Int 10)))
-             (Or (Gte (Var "y") (Int 5))
-                 (Or (Lte (Var "x") (Int 2)) (Not (Var "x")))))
+        (And [Or [Gt (Var "x") (Var "y"), Lt (Var "x") (Int 10)],
+              Or [Gte (Var "y") (Int 5), Or [Lte (Var "x") (Int 2), Not (Var "x")]]])
         (Add (Sub (Var "x") (Int 2)) (Var "y"))
         (Mul (Var "x") (Var "y"))

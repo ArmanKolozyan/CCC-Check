@@ -153,18 +153,31 @@ compileVariableDefinitions acc (Atom varName _ ::: sortExp ::: SNil _) = do
 compileVariableDefinitions acc _ = pure acc
 
 -- | Extracts only the constraints from a declare block.
-compileConstraints :: MonadCompile m => SExp -> m [Constraint]
-compileConstraints (Atom "=" _ ::: lhs ::: rhs ::: SNil _) = do
-    lhs_compiled <- compileExp lhs
-    rhs_compiled <- compileExp rhs
-    pure [EqC lhs_compiled rhs_compiled]
+compileConstraint :: MonadCompile m => SExp -> m Constraint
+compileConstraint constraint = case constraint of
+    -- If it's (Atom "=" _ ::: lhs ::: rhs) => eq constraint
+    (Atom "=" _ ::: lhs ::: rhs ::: SNil _) -> do
+      lhsE <- compileExp lhs
+      rhsE <- compileExp rhs
+      pure $ EqC lhsE rhsE
+    (Atom "and" _ ::: rest) -> do
+      constrs <- parseListOfConstrs rest
+      pure $ AndC constrs
+    (Atom "or" _ ::: rest) -> do
+      constrs <- parseListOfConstrs rest
+      pure $ OrC constrs
+    (Atom "not" _ ::: exp ::: SNil _) -> do
+      constr <- compileConstraint exp
+      pure $ NotC constr   
 
 -- | Compiles a declare block by extracting variable declarations and constraints.
 compileDeclare :: MonadCompile m => SExp -> m ([Binding], [Constraint])
 compileDeclare (Atom "declare" _ ::: (varDefs ::: constrForms ::: SNil _)) = do
     vars <- sfoldlM compileVariableDefinitions [] varDefs
-    constraints <- compileConstraints constrForms
-    pure (vars, constraints)
+    constraint <- compileConstraint constrForms
+    pure (vars, [constraint]) 
+    -- TODO: check ^ of er meerdere constrs onder elkaar kunnen, of moet het dan altijd (AND ...) zijn?
+    -- indien laatste, dan fine.
 compileDeclare e =
     throwError $ "Invalid (declare ...): " ++ show e
 
@@ -173,6 +186,16 @@ compileDeclare e =
 
 -- Variables, field elements (currently handled as integers), and arithmetic.
 --------------------------        
+
+parseListOfExps :: MonadCompile m => SExp -> m [Expression]
+parseListOfExps (SNil _)        = pure []
+parseListOfExps (sub ::: subs)  = (:) <$> compileExp sub <*> parseListOfExps subs
+parseListOfExps bad             = throwError $ "Expected list of expressions, got " ++ show bad
+
+parseListOfConstrs :: MonadCompile m => SExp -> m [Constraint]
+parseListOfConstrs (SNil _)        = pure []
+parseListOfConstrs (sub ::: subs)  = (:) <$> compileConstraint sub <*> parseListOfConstrs subs
+parseListOfConstrs bad             = throwError $ "Expected list of constraints, got " ++ show bad
 
 -- | Compiles a single expression.
 compileExp :: MonadCompile m => SExp -> m Expression
@@ -218,14 +241,12 @@ compileExp (Atom "<=" _ ::: e1 ::: e2 ::: SNil _) = do
     e1_compiled <- compileExp e1
     e2_compiled <- compileExp e2
     pure (Lte e1_compiled e2_compiled)
-compileExp (Atom "and" _ ::: e1 ::: e2 ::: SNil _) = do
-    e1_compiled <- compileExp e1
-    e2_compiled <- compileExp e2
-    pure (And e1_compiled e2_compiled)  
-compileExp (Atom "or" _ ::: e1 ::: e2 ::: SNil _) = do
-    e1_compiled <- compileExp e1
-    e2_compiled <- compileExp e2
-    pure (Or e1_compiled e2_compiled)      
+compileExp (Atom "and" _ ::: rest) = do
+  exprs <- parseListOfExps rest
+  pure (And exprs) 
+compileExp (Atom "or" _ ::: rest) = do
+  exprs <- parseListOfExps rest
+  pure (Or exprs)     
 compileExp (Atom "not" _ ::: exp ::: SNil _) = do
     exp_compiled <- compileExp exp
     pure (Not exp_compiled)                              
