@@ -183,6 +183,26 @@ analyzeConstraint (EqC _ (Var xName) (Var yName)) nameToID varStates =
       _ -> Right (False, varStates)
     _ -> Left "Variable name not found in nameToID map"
 
+-- ASSIGN Rule from PICUS paper
+analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
+  | c /= 0 =
+      let omega = inferValues e nameToID varStates
+          cInv = modularInverse c
+          newVals = Set.map (* cInv) omega
+      in case Map.lookup xName nameToID of
+           Nothing -> Left "Variable name not found in nameToID"
+           Just xID ->
+             case Map.lookup xID varStates of
+               Nothing -> Left "Variable state not found in varStates"
+               Just xState ->
+                 case updateValues xState newVals of
+                   Right updatedState ->
+                     let changed = values xState /= values updatedState -- if changes, need to re-queue constraints
+                         updatedMap = if changed then Map.insert xID updatedState varStates else varStates
+                     in Right (changed, updatedMap)
+                   Left errMsg -> Left errMsg
+  | otherwise = Right (False, varStates)
+
 analyzeConstraint _ _ varStates = Right (False, varStates)  -- TODO: Handle other constraints
 
 analyzeConstraints :: Map Int Constraint -> Map String Int -> Map Int [Int] -> Map Int VariableState -> Map Int VariableState
