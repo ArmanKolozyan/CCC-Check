@@ -17,6 +17,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Sequence (Seq, (|>), viewl, ViewL(..))
 import qualified Data.Sequence as Seq
+import Data.Maybe (fromMaybe)
 
 
 --------------------------
@@ -118,9 +119,57 @@ getConstraintID (NotC cid _) = cid
 -- 5) Value Inferencing
 --------------------------
 
+-- | Updates values of a variable and checks consistency.
+updateValues :: VariableState -> Set Integer -> Either String VariableState
+updateValues vState newVals
+  -- if values are already known, we check if newVals is a subset
+  | not (Set.null (values vState)) =
+      if Set.isSubsetOf newVals (values vState)
+      then Right vState { values = newVals }  -- Safe update
+      else Left $ "Inconsistent value inference! New values " ++ show newVals
+                ++ " are not a subset of existing " ++ show (values vState)
+
+  -- if no explicit values exist, we use (possible) bounds to infer potential values
+  | otherwise =
+      let lowerBound = fromMaybe (minimum newVals) (low_b vState)
+          upperBound = fromMaybe (maximum newVals) (upp_b vState)
+          inferredVals = Set.fromList [lowerBound .. upperBound]
+      in if Set.isSubsetOf newVals inferredVals
+         then Right vState { values = newVals }  -- Update safely
+         else Left $ "Value inference contradicts bounds! New values: "
+                  ++ show newVals ++ " do not fit in inferred range "
+                  ++ show (Set.toList inferredVals)
+
+getVarID = Map.lookup
+
+-- | Recursively infers possible values of an expression
+inferValues :: Expression -> Map String Int -> Map Int VariableState -> Set Integer
+inferValues (Int c) _ _ = Set.singleton c
+inferValues (Var xName) nameToID varStates = 
+  case getVarID xName nameToID of
+        Just varID -> maybe Set.empty values (Map.lookup varID varStates)
+        Nothing    -> Set.empty
+inferValues (Add e1 e2) nameToID varStates =
+  Set.fromList [v1 + v2 | v1 <- Set.toList (inferValues e1 nameToID varStates),
+                          v2 <- Set.toList (inferValues e2 nameToID varStates)]
+inferValues (Sub e1 e2) nameToID varStates =
+  Set.fromList [v1 - v2 | v1 <- Set.toList (inferValues e1 nameToID varStates),
+                          v2 <- Set.toList (inferValues e2 nameToID varStates)]
+inferValues (Mul e1 e2) nameToID varStates =
+  Set.fromList [v1 * v2 | v1 <- Set.toList (inferValues e1 nameToID varStates),
+                          v2 <- Set.toList (inferValues e2 nameToID varStates)]
+inferValues _ _ _ = Set.empty -- TODO: Handle other cases properly
+
+-- Helper function: Computes modular inverse
+modularInverse :: Integer -> Integer
+modularInverse c = if c /= 0 then 1 `div` c else error "Division by zero"
+-- TODO: Implement modular inverse properly for field arithmetic.
+
 -- | Applies an "interesting" constraint to update variable states.
-analyzeConstraint :: Map String Int -> Constraint -> Map Int VariableState -> (Bool, Map Int VariableState)
-analyzeConstraint nameToID (EqC _ (Var xName) (Var yName)) varStates =
+analyzeConstraint :: Constraint -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+
+-- Rule 4a from Ecne
+analyzeConstraint (EqC _ (Var xName) (Var yName)) nameToID varStates =
   case (Map.lookup xName nameToID, Map.lookup yName nameToID) of
     (Just x, Just y) -> case (Map.lookup x varStates, Map.lookup y varStates) of
       (Just vx, Just vy) ->
@@ -130,30 +179,32 @@ analyzeConstraint nameToID (EqC _ (Var xName) (Var yName)) varStates =
                            then Map.insert x (vx { values = newValues }) $
                                 Map.insert y (vy { values = newValues }) varStates
                            else varStates
-        in (changed, newVarStates)
-      _ -> (False, varStates)
-    _ -> error "Variable name not found in nameToID map"
-analyzeConstraint _ _ varStates = (False, varStates)  -- TODO: Handle other constraints
+        in Right (changed, newVarStates)
+      _ -> Right (False, varStates)
+    _ -> Left "Variable name not found in nameToID map"
 
+analyzeConstraint _ _ varStates = Right (False, varStates)  -- TODO: Handle other constraints
 
-analyzeConstraints :: Map String Int -> Map Int Constraint -> Map Int [Int] -> Map Int VariableState -> Map Int VariableState
-analyzeConstraints nameToID constraints varToConstraints = loop (initializeQueue (Map.elems constraints))
+analyzeConstraints :: Map Int Constraint -> Map String Int -> Map Int [Int] -> Map Int VariableState -> Map Int VariableState
+analyzeConstraints constraints nameToID varToConstraints = loop (initializeQueue (Map.elems constraints))
   where
     loop :: Seq Int -> Map Int VariableState -> Map Int VariableState
     loop queue vStates =
-      case Seq.viewl queue of
+      case viewl queue of
         Seq.EmptyL -> vStates
         cId :< restQueue ->
           case Map.lookup cId constraints of
             Just constraint ->
-              let (changed, newVarStates) = analyzeConstraint nameToID constraint vStates
-                  newQueue = if changed
+              case analyzeConstraint constraint nameToID vStates of
+                Right (changed, newVarStates) ->
+                  let newQueue = if changed
+                            -- re-queue all constraints that contain the affected variables
                              then let affectedVars = collectVarsFromConstraint Map.empty constraint
                                   in foldl (|>) restQueue (concatMap (\v -> Map.findWithDefault [] v varToConstraints) affectedVars)
                              else restQueue
-              in loop newQueue newVarStates
+                  in loop newQueue newVarStates           
+                Left errMsg -> error errMsg
             Nothing -> loop restQueue vStates
-
 
 --------------------------
 -- 6) Main Analysis
@@ -165,4 +216,4 @@ analyzeProgram (Program inputs compVars constrVars _ constraints) =
       varStates = initializeVarStates (inputs ++ compVars ++ constrVars)
       varToConstraints = buildVarToConstraints nameToID constraints
       constraintMap = Map.fromList [(getConstraintID c, c) | c <- constraints]
-  in analyzeConstraints nameToID constraintMap varToConstraints varStates
+  in analyzeConstraints constraintMap nameToID varToConstraints varStates
