@@ -165,6 +165,15 @@ modularInverse :: Integer -> Integer
 modularInverse c = if c /= 0 then 1 `div` c else error "Division by zero"
 -- TODO: Implement modular inverse properly for field arithmetic.
 
+-- | Helper function: Extracts (x - c) terms from a multiplication expression.
+extractRootFactors :: Expression -> Maybe (String, [Integer])
+extractRootFactors (Mul e1 e2) =
+    case (extractRootFactors e1, extractRootFactors e2) of
+        (Just (x1, cs1), Just (x2, cs2)) | x1 == x2 -> Just (x1, cs1 ++ cs2)
+        _ -> Nothing
+extractRootFactors (Sub (Var xName) (Int c)) = Just (xName, [c])
+extractRootFactors _ = Nothing
+
 -- | Applies an "interesting" constraint to update variable states.
 analyzeConstraint :: Constraint -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
 
@@ -202,6 +211,25 @@ analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
                      in Right (changed, updatedMap)
                    Left errMsg -> Left errMsg
   | otherwise = Right (False, varStates)
+
+-- ROOT Rule from PICUS paper
+analyzeConstraint (EqC _ rootExpr (Int 0)) nameToID varStates =
+    case extractRootFactors rootExpr of
+        Just (xName, rootValues) -> 
+            case Map.lookup xName nameToID of
+                Just xID ->
+                    case Map.lookup xID varStates of
+                        Just xState -> 
+                            let newVals = Set.fromList rootValues
+                            in case updateValues xState newVals of
+                                Right updatedState ->
+                                    let changed = values xState /= values updatedState
+                                        updatedMap = if changed then Map.insert xID updatedState varStates else varStates
+                                    in Right (changed, updatedMap)
+                                Left errMsg -> Left errMsg
+                        Nothing -> Left "Variable state not found in varStates"
+                Nothing -> Left "Variable name not found in nameToID"
+        Nothing -> Right (False, varStates)  -- Not a ROOT constraint
 
 analyzeConstraint _ _ varStates = Right (False, varStates)  -- TODO: Handle other constraints
 

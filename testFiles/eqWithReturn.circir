@@ -1,0 +1,36 @@
+(computations 
+
+  (main 
+    (computation 
+      (metadata
+        (parties  prover verifier)
+        (inputs
+          (return 
+            (mod 52435875175126190479447740508185965837690552500527637822603658699938581184513))
+          (x 
+            (mod 2) 
+            (party 0)))
+        (commitments))
+
+      (precompute
+        (
+          (return 
+            (mod 52435875175126190479447740508185965837690552500527637822603658699938581184513)))
+        (declare
+          (
+            (x 
+              (mod 2))
+)
+          (+ x y)))
+
+
+      (declare
+        (
+          (return 
+            (mod 2))
+          (x 
+            (mod 2))
+)
+        (= x 
+          (+ 1 2))))))
+
