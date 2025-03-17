@@ -130,6 +130,19 @@ applyCPConstraint env (EqC _ (Var x) e2) =
                     in injectCPInt unified
   in Map.insert x newVal env
 
+applyCPConstraint env (EqC _ (Mul (Var x) (Var y)) (Int 0)) =
+  let v1 = Map.findWithDefault topCirC x env
+      v2 = Map.findWithDefault topCirC y env
+  in case (selectCP v1, selectCP v2) of
+       (Constant 0, _) -> env
+       (_, Constant 0) -> env
+       (Constant c, _) | c /= 0 -> Map.insert y (injectCPInt (Constant 0)) env
+       (_, Constant c) | c /= 0 -> Map.insert x (injectCPInt (Constant 0)) env
+       _ -> env  
+
+applyCPConstraint env (AndC _ constraints) =
+  foldl applyCPConstraint env constraints
+
 ----------------------------------
 -- 5) Fixpoint Iteration
 ----------------------------------
