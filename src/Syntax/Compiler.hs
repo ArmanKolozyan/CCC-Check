@@ -141,7 +141,7 @@ compileMetaForm acc form = case form of
 compileInput :: MonadCompile m => [Binding] -> SExp -> m [Binding]
 compileInput acc form = case form of
     (Atom "return" _ ::: _) -> pure acc  -- ignoring "return" var
-    (Atom varName _ ::: sortExp ::: _ ::: SNil _) -> do
+    (Atom varName _ ::: sortExp ::: _ ::: SNil _) -> do -- TODO: make party info optional
         sort <- compileSort sortExp
         id <- genVarID
         pure (acc ++ [Binding id varName sort]) 

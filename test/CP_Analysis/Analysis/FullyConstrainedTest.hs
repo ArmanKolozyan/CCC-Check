@@ -22,3 +22,21 @@ spec = describe "Fully Constrained Test" $ do
                     env = constantProp program
                 env `shouldBe` expectedEnv
                 isFullyConstrained env `shouldBe` True
+
+    it "checks if output is constrained to a constant given the appropriate input" $ do
+        content <- readFile "testFiles/outputConstrained.circir"
+        case parseAndCompile content of
+            Left err -> expectationFailure $ "Parsing failed: " ++ err
+            Right program -> do
+                let expectedOutput = (CirCVal (singleton @IntKey (Constant 0)))
+                    env = constantProp program
+                Map.lookup "o" env `shouldBe` Just expectedOutput
+
+    it "checks if output is not constrained to a constant given the appropriate input" $ do
+        content <- readFile "testFiles/outputNotConstrained.circir"
+        case parseAndCompile content of
+            Left err -> expectationFailure $ "Parsing failed: " ++ err
+            Right program -> do
+                let expectedOutput = (CirCVal (singleton @IntKey Top))
+                    env = constantProp program
+                Map.lookup "o" env `shouldBe` Just expectedOutput
