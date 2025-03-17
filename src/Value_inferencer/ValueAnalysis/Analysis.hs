@@ -180,16 +180,33 @@ analyzeConstraint :: Constraint -> Map String Int -> Map Int VariableState -> Ei
 -- Rule 4a from Ecne
 analyzeConstraint (EqC _ (Var xName) (Var yName)) nameToID varStates =
   case (Map.lookup xName nameToID, Map.lookup yName nameToID) of
-    (Just x, Just y) -> case (Map.lookup x varStates, Map.lookup y varStates) of
-      (Just vx, Just vy) ->
-        let newValues = Set.union (values vx) (values vy)
-            changed = newValues /= values vx || newValues /= values vy
-            newVarStates = if changed
-                           then Map.insert x (vx { values = newValues }) $
-                                Map.insert y (vy { values = newValues }) varStates
-                           else varStates
-        in Right (changed, newVarStates)
-      _ -> Right (False, varStates)
+    (Just xID, Just yID) ->
+      case (Map.lookup xID varStates, Map.lookup yID varStates) of
+        (Just xState, Just yState) ->
+          let xValues = values xState
+              yValues = values yState
+              bothEmpty = Set.null xValues && Set.null yValues
+              oneEmpty = Set.null xValues || Set.null yValues
+          in if bothEmpty
+             then Right (False, varStates)  -- nothing to propagate
+             else if oneEmpty
+                  then let newValues = Set.union xValues yValues
+                           newXState = xState { values = newValues }
+                           newYState = yState { values = newValues }
+                           newVarStates = Map.insert xID newXState $
+                                          Map.insert yID newYState varStates
+                       in Right (True, newVarStates)  -- transferring values
+                  else -- both have values, checking for consistency
+                    case updateValues xState yValues >>= \updatedX ->
+                         updateValues yState xValues >>= \updatedY ->
+                         Right (updatedX, updatedY) of
+                      Right (updatedX, updatedY) ->
+                        let changed = updatedX /= xState || updatedY /= yState
+                            newVarStates = Map.insert xID updatedX $
+                                           Map.insert yID updatedY varStates
+                        in Right (changed, newVarStates)
+                      Left errMsg -> Left errMsg
+        _ -> Right (False, varStates)  -- variables not initialized
     _ -> Left "Variable name not found in nameToID map"
 
 -- ASSIGN Rule from PICUS paper
@@ -229,7 +246,7 @@ analyzeConstraint (EqC _ rootExpr (Int 0)) nameToID varStates =
                                 Left errMsg -> Left errMsg
                         Nothing -> Left "Variable state not found in varStates"
                 Nothing -> Left "Variable name not found in nameToID"
-        Nothing -> Right (False, varStates)  -- Not a ROOT constraint
+        Nothing -> Right (False, varStates)  -- not a ROOT constraint
 
 analyzeConstraint _ _ varStates = Right (False, varStates)  -- TODO: Handle other constraints
 

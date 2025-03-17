@@ -28,7 +28,7 @@ spec = describe "Fully Constrained Test" $ do
         case parseAndCompile content of
             Left err -> expectationFailure $ "Parsing failed: " ++ err
             Right program -> do
-                let expectedOutput = (CirCVal (singleton @IntKey (Constant 0)))
+                let expectedOutput = CirCVal (singleton @IntKey (Constant 0))
                     env = constantProp program
                 Map.lookup "o" env `shouldBe` Just expectedOutput
 
@@ -37,6 +37,8 @@ spec = describe "Fully Constrained Test" $ do
         case parseAndCompile content of
             Left err -> expectationFailure $ "Parsing failed: " ++ err
             Right program -> do
-                let expectedOutput = (CirCVal (singleton @IntKey Top))
+                let expectedOutput = CirCVal (singleton @IntKey Top)
                     env = constantProp program
                 Map.lookup "o" env `shouldBe` Just expectedOutput
+
+
