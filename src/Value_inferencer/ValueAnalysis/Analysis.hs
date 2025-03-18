@@ -120,45 +120,120 @@ getConstraintID (NotC cid _) = cid
 --------------------------
 
 -- | Updates values of a variable and checks consistency.
-updateValues :: VariableState -> Set Integer -> Either String VariableState
-updateValues vState newVals
-  -- if values are already known, we check if newVals is a subset
+updateValues :: VariableState -> ValueDomain -> Either String VariableState
+updateValues vState (KnownValues newVals)
+  -- if values are already known, we check for consistency
   | not (Set.null (values vState)) =
       if Set.isSubsetOf newVals (values vState)
       then Right vState { values = newVals }  -- Safe update
       else Left $ "Inconsistent value inference! New values " ++ show newVals
                 ++ " are not a subset of existing " ++ show (values vState)
-
-  -- if no explicit values exist, we use (possible) bounds to infer potential values
+  -- if no explicit values, we infer from bounds or assign directly
   | otherwise =
       let lowerBound = fromMaybe (minimum newVals) (low_b vState)
           upperBound = fromMaybe (maximum newVals) (upp_b vState)
           inferredVals = Set.fromList [lowerBound .. upperBound]
       in if Set.isSubsetOf newVals inferredVals
-         then Right vState { values = newVals }  -- Update safely
+         then Right vState { values = newVals }  -- Safe update
          else Left $ "Value inference contradicts bounds! New values: "
                   ++ show newVals ++ " do not fit in inferred range "
                   ++ show (Set.toList inferredVals)
 
+updateValues vState (BoundedValues (Just lb) (Just ub))
+  -- if values are already known, we check consistency
+  | not (Set.null (values vState)) =
+      let inferredVals = Set.fromList [lb .. ub]
+      in if Set.isSubsetOf (values vState) inferredVals
+         then Right vState  -- Safe, values already fit
+         else Left $ "Existing values " ++ show (values vState)
+                  ++ " do not fit in inferred range [" ++ show lb ++ ", " ++ show ub ++ "]"
+  -- otherwise, we just update the bounds
+  | otherwise = Right vState { low_b = Just lb, upp_b = Just ub }
+
+updateValues vState _ = Right vState
+
 getVarID = Map.lookup
 
+data ValueDomain
+  = KnownValues (Set Integer)   -- explicitly known values
+  | BoundedValues (Maybe Integer) (Maybe Integer)  -- (lower bound, upper bound)
+  deriving (Eq, Show)
+
+expandBounds :: Maybe Integer -> Maybe Integer -> [Integer]
+expandBounds (Just lb) (Just ub) = [lb .. ub]  -- expands into a list
+expandBounds _ _ = []  -- no meaningful bounds
+
 -- | Recursively infers possible values of an expression
-inferValues :: Expression -> Map String Int -> Map Int VariableState -> Set Integer
-inferValues (Int c) _ _ = Set.singleton c
-inferValues (Var xName) nameToID varStates = 
+-- TODO: fix code duplication
+inferValues :: Expression -> Map String Int -> Map Int VariableState -> ValueDomain
+inferValues (Int c) _ _ = KnownValues (Set.singleton c)
+
+inferValues (Var xName) nameToID varStates =
   case getVarID xName nameToID of
-        Just varID -> maybe Set.empty values (Map.lookup varID varStates)
-        Nothing    -> Set.empty
+    Just varID -> case Map.lookup varID varStates of
+      Just varState ->
+        if not (Set.null (values varState))
+          then KnownValues (values varState)  -- explicit values exist
+          else BoundedValues (low_b varState) (upp_b varState)  -- otherwise, we use inferred bounds
+      Nothing -> BoundedValues Nothing Nothing
+    Nothing -> BoundedValues Nothing Nothing
+
 inferValues (Add e1 e2) nameToID varStates =
-  Set.fromList [v1 + v2 | v1 <- Set.toList (inferValues e1 nameToID varStates),
-                          v2 <- Set.toList (inferValues e2 nameToID varStates)]
+  case (inferValues e1 nameToID varStates, inferValues e2 nameToID varStates) of
+    -- Case 1: both have explicit values
+    (KnownValues v1, KnownValues v2) -> KnownValues (Set.fromList [x + y | x <- Set.toList v1, y <- Set.toList v2])
+    
+    -- Case 2: both have only bounds
+    (BoundedValues (Just lb1) (Just ub1), BoundedValues (Just lb2) (Just ub2)) ->
+        BoundedValues (Just (lb1 + lb2)) (Just (ub1 + ub2))
+
+    -- Case 3: one side has explicit values, the other has bounds
+    (KnownValues v1, BoundedValues (Just lb2) (Just ub2)) ->
+        KnownValues (Set.fromList [x + y | x <- Set.toList v1, y <- [lb2..ub2]])
+    (BoundedValues (Just lb1) (Just ub1), KnownValues v2) ->
+        KnownValues (Set.fromList [x + y | x <- [lb1..ub1], y <- Set.toList v2])
+
+    -- Case 4: if either bound is missing, return unknown bounds
+    _ -> BoundedValues Nothing Nothing
+
 inferValues (Sub e1 e2) nameToID varStates =
-  Set.fromList [v1 - v2 | v1 <- Set.toList (inferValues e1 nameToID varStates),
-                          v2 <- Set.toList (inferValues e2 nameToID varStates)]
+  case (inferValues e1 nameToID varStates, inferValues e2 nameToID varStates) of
+    -- Case 1: both have explicit values
+    (KnownValues v1, KnownValues v2) -> KnownValues (Set.fromList [x - y | x <- Set.toList v1, y <- Set.toList v2])
+
+    -- Case 2: both have only bounds
+    (BoundedValues (Just lb1) (Just ub1), BoundedValues (Just lb2) (Just ub2)) ->
+        BoundedValues (Just (lb1 - ub2)) (Just (ub1 - lb2))  -- Min subtraction gives new lower bound, max gives upper bound
+
+    -- Case 3: one side has explicit values, the other has bounds
+    (KnownValues v1, BoundedValues (Just lb2) (Just ub2)) ->
+        KnownValues (Set.fromList [x - y | x <- Set.toList v1, y <- [lb2..ub2]])
+    (BoundedValues (Just lb1) (Just ub1), KnownValues v2) ->
+        KnownValues (Set.fromList [x - y | x <- [lb1..ub1], y <- Set.toList v2])
+
+    -- Case 4: if either bound is missing, return unknown bounds
+    _ -> BoundedValues Nothing Nothing
+
 inferValues (Mul e1 e2) nameToID varStates =
-  Set.fromList [v1 * v2 | v1 <- Set.toList (inferValues e1 nameToID varStates),
-                          v2 <- Set.toList (inferValues e2 nameToID varStates)]
-inferValues _ _ _ = Set.empty -- TODO: Handle other cases properly
+  case (inferValues e1 nameToID varStates, inferValues e2 nameToID varStates) of
+    -- Case 1: both have explicit values
+    (KnownValues v1, KnownValues v2) -> KnownValues (Set.fromList [x * y | x <- Set.toList v1, y <- Set.toList v2])
+
+    -- Case 2: both have only bounds
+    (BoundedValues (Just lb1) (Just ub1), BoundedValues (Just lb2) (Just ub2)) ->
+        BoundedValues (Just (lb1 * lb2)) (Just (ub1 * ub2))
+
+    -- Case 3: one side has explicit values, the other has bounds
+    (KnownValues v1, BoundedValues (Just lb2) (Just ub2)) ->
+        KnownValues (Set.fromList [x * y | x <- Set.toList v1, y <- [lb2..ub2]])
+    (BoundedValues (Just lb1) (Just ub1), KnownValues v2) ->
+        KnownValues (Set.fromList [x * y | x <- [lb1..ub1], y <- Set.toList v2])
+
+    -- Case 4: if either bound is missing, return unknown bounds
+    _ -> BoundedValues Nothing Nothing
+
+inferValues _ _ _ = BoundedValues Nothing Nothing -- TODO: Handle other cases properly
+
 
 -- Helper function: Computes modular inverse
 modularInverse :: Integer -> Integer
@@ -197,8 +272,8 @@ analyzeConstraint (EqC _ (Var xName) (Var yName)) nameToID varStates =
                                           Map.insert yID newYState varStates
                        in Right (True, newVarStates)  -- transferring values
                   else -- both have values, checking for consistency
-                    case updateValues xState yValues >>= \updatedX ->
-                         updateValues yState xValues >>= \updatedY ->
+                    case updateValues xState (KnownValues yValues) >>= \updatedX ->
+                         updateValues yState (KnownValues xValues) >>= \updatedY ->
                          Right (updatedX, updatedY) of
                       Right (updatedX, updatedY) ->
                         let changed = updatedX /= xState || updatedY /= yState
@@ -214,7 +289,11 @@ analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
   | c /= 0 =
       let omega = inferValues e nameToID varStates
           cInv = modularInverse c
-          newVals = Set.map (* cInv) omega
+          newVals = case omega of
+                      KnownValues vSet -> KnownValues (Set.map (* cInv) vSet) 
+                      BoundedValues (Just lb) (Just ub) ->
+                        BoundedValues (Just (lb * cInv)) (Just (ub * cInv))
+                      _ -> BoundedValues Nothing Nothing 
       in case Map.lookup xName nameToID of
            Nothing -> Left "Variable name not found in nameToID"
            Just xID ->
@@ -238,7 +317,7 @@ analyzeConstraint (EqC _ rootExpr (Int 0)) nameToID varStates =
                     case Map.lookup xID varStates of
                         Just xState -> 
                             let newVals = Set.fromList rootValues
-                            in case updateValues xState newVals of
+                            in case updateValues xState (KnownValues newVals) of
                                 Right updatedState ->
                                     let changed = values xState /= values updatedState
                                         updatedMap = if changed then Map.insert xID updatedState varStates else varStates
