@@ -345,7 +345,7 @@ analyzeConstraints constraints nameToID varToConstraints = loop (initializeQueue
                 Right (changed, newVarStates) ->
                   let newQueue = if changed
                             -- re-queue all constraints that contain the affected variables
-                             then let affectedVars = collectVarsFromConstraint Map.empty constraint
+                             then let affectedVars = collectVarsFromConstraint nameToID constraint
                                   in foldl (|>) restQueue (concatMap (\v -> Map.findWithDefault [] v varToConstraints) affectedVars)
                              else restQueue
                   in loop newQueue newVarStates           
