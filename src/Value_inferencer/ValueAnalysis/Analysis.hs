@@ -8,7 +8,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module ValueAnalysis.Analysis (analyzeProgram) where
+module ValueAnalysis.Analysis (analyzeProgram, VariableState(..)) where
 
 import Syntax.AST
 import Data.Map.Strict (Map)
@@ -247,9 +247,11 @@ extractRootFactors (Mul e1 e2) =
         (Just (x1, cs1), Just (x2, cs2)) | x1 == x2 -> Just (x1, cs1 ++ cs2)
         _ -> Nothing
 extractRootFactors (Sub (Var xName) (Int c)) = Just (xName, [c])
+extractRootFactors (Var xName) = Just (xName, [0]) -- is equivalent to (x - 0)
 extractRootFactors _ = Nothing
 
 -- | Applies an "interesting" constraint to update variable states.
+-- TODO: AndC, OrC, ... !!
 analyzeConstraint :: Constraint -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
 
 -- Rule 4a from Ecne
