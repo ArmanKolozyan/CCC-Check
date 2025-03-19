@@ -473,14 +473,29 @@ decodeSumOfPowers c z terms nameToID varStates0 =
                      let vs' = Map.insert bID updatedSt vs
                      in Right vs'
 
+-- | Helper function to invert the nameToID map
+invertMap :: Map String Int -> Map Int String
+invertMap nmToID =
+  Map.fromList [ (vid, nm) | (nm, vid) <- Map.toList nmToID ]
 
-analyzeConstraints :: Map Int Constraint -> Map String Int -> Map Int [Int] -> Map Int VariableState -> Map Int VariableState
+-- | Transforms the final (Map Int VariableState) to a (Map String VariableState)
+-- so that we have the variable names instead of IDs.
+transformIDToNames
+  :: Map String Int                   -- ^ nameToID
+  -> Map Int VariableState            -- ^ final states keyed by Int
+  -> Map String VariableState         -- ^ final states keyed by varName
+transformIDToNames nmToID vStates =
+  let idToName = invertMap nmToID
+  in Map.fromList
+      [ (idToName Map.! i, st) | (i, st) <- Map.toList vStates]
+
+analyzeConstraints :: Map Int Constraint -> Map String Int -> Map Int [Int] -> Map Int VariableState -> Map String VariableState
 analyzeConstraints constraints nameToID varToConstraints = loop (initializeQueue (Map.elems constraints))
   where
-    loop :: Seq Int -> Map Int VariableState -> Map Int VariableState
+    loop :: Seq Int -> Map Int VariableState -> Map String VariableState
     loop queue vStates =
       case viewl queue of
-        Seq.EmptyL -> vStates
+        Seq.EmptyL -> transformIDToNames nameToID vStates
         cId :< restQueue ->
           case Map.lookup cId constraints of
             Just constraint ->
@@ -499,7 +514,7 @@ analyzeConstraints constraints nameToID varToConstraints = loop (initializeQueue
 -- 6) Main Analysis
 --------------------------
 
-analyzeProgram :: Program -> Map Int VariableState
+analyzeProgram :: Program -> Map String VariableState
 analyzeProgram (Program inputs compVars constrVars _ constraints) =
   let nameToID = buildVarNameToIDMap (inputs ++ compVars ++ constrVars)
       varStates = initializeVarStates (inputs ++ compVars ++ constrVars)
