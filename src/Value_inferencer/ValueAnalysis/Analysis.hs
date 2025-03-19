@@ -329,7 +329,132 @@ analyzeConstraint (EqC _ rootExpr (Int 0)) nameToID varStates =
                 Nothing -> Left "Variable name not found in nameToID"
         Nothing -> Right (False, varStates)  -- not a ROOT constraint
 
-analyzeConstraint _ _ varStates = Right (False, varStates)  -- TODO: Handle other constraints
+-- Rule 3 from Ecne
+-- | Sum-of-powers rule:  EqC cid (some expression) (Var zName)
+--   If that expression is c^k * b_k + ... + c^m * b_m with each b in [0,1],
+--   then z ∈ [0, c^(maxExponent+1)-1].
+analyzeConstraint (EqC cid lhs (Var zName)) nameToID varStates
+  | Just terms <- checkSumOfPowers 2 lhs  -- TODO: generalize
+  = do
+      -- 1) we confirm each b_i is a Boolean variable
+      let allBool = all (isBinaryVar nameToID varStates . fst) terms
+      if not allBool
+         then pure (False, varStates) 
+         else do
+           -- 2) we infer z's upper bound = c^(1 + maxExp) - 1
+           let exps    = map snd terms
+               maxExp  = maximum exps
+               c       = 2  -- TODO: generalize
+               upBound = c^(maxExp + 1) - 1
+               zID     = case Map.lookup zName nameToID of
+                           Just i  -> i
+                           Nothing -> error ("No var ID for " ++ zName)
+               zState  = case Map.lookup zID varStates of
+                           Just st -> st
+                           Nothing -> error ("No VariableState for " ++ show zID)
+
+           -- 3) we update the variable 'z' with [0, upBound]
+           updatedZState <- -- TODO: check for inconsistencies
+             updateValues zState (BoundedValues (Just 0) (Just upBound))
+
+           let changed1   = updatedZState /= zState
+               varStates1 = Map.insert zID updatedZState varStates
+
+           -- 4) if 'z' is exactly known => we can infer the bits
+           let zVals = values updatedZState
+           if Set.size zVals == 1 
+              then do
+                let knownZ = head (Set.toList zVals)
+                varStates2 <- decodeSumOfPowers 2 knownZ terms nameToID varStates1 -- TODO: generalize
+                pure (True, varStates2)
+              else pure (changed1, varStates1)
+
+-- TODO: handle the symmetrical case:  EqC cid (Var zName) rhs
+-- if checkSumOfPowers 2 rhs = ...
+
+
+analyzeConstraint _ _ varStates = Right (False, varStates)  -- TODO: handle other constraints
+
+-- | We try to convert `expr` into a sum of terms: c^exponent * Var(b).
+--   Returns Nothing if checking fails or if 'expr' is not that pattern.
+checkSumOfPowers 
+  :: Integer -- c, the base of the powers
+  -> Expression 
+  -> Maybe [(String, Integer)] -- list of (varName, exponent)
+checkSumOfPowers c = go
+  where
+    go (Add l r) = do
+      leftTerms  <- go l
+      rightTerms <- go r
+      pure (leftTerms ++ rightTerms)
+
+    go (Mul (Int k) (Var bName)) = do
+      expK <- isExactPowerOf c k  -- e.g. if c=2, k=4 => exponent=2
+      pure [(bName, expK)]
+
+    -- c^0 * Var(b) is just (Var b), i.e. exponent=0
+    go (Var bName) = Just [(bName, 0)]
+
+    -- summation with 0 is a no-op: (Add e (Int 0)) => ignore the 0
+    go (Int 0)     = Just []
+
+    -- anything else => not recognized!
+    go _           = Nothing
+
+-- | if 'n' = c^exp exactly, we return that exponent; otherwise Nothing.
+--   For c=2, e.g. (8 -> Just 3), (6 -> Nothing).
+isExactPowerOf :: Integer -> Integer -> Maybe Integer
+isExactPowerOf c n
+  | n <= 0    = Nothing
+  | otherwise = go 0 1
+  where
+    go e pow
+      | pow == n  = Just e
+      | pow >  n  = Nothing
+      | otherwise = go (e+1) (pow*c)
+
+-- | Tests if given var is binary (0 or 1).
+isBinaryVar  :: Map String Int  -> Map Int VariableState -> String -> Bool
+isBinaryVar nameToID varStates varName =
+  case Map.lookup varName nameToID of
+    Nothing   -> False
+    Just vid  ->
+      case Map.lookup vid varStates of
+        Nothing -> False
+        Just st ->
+          (Set.null (values st) && Just 0 == low_b st && Just 1 == upp_b st)
+          || (values st == Set.fromList [0,1])
+
+-- | If z is single-valued, we decode each (bName, exponent)
+--   so that bName ∈ {0,1} matches the corresponding 'bit' in base c.
+decodeSumOfPowers 
+  :: Integer                    -- c, the base
+  -> Integer                    -- known value of z
+  -> [(String, Integer)]        -- (bName, exponent) pairs
+  -> Map String Int             -- nameToID
+  -> Map Int VariableState      -- varStates
+  -> Either String (Map Int VariableState)
+decodeSumOfPowers c z terms nameToID varStates0 =
+  foldl step (Right varStates0) terms
+  where
+    step (Left err) _ = Left err
+    step (Right vs) (bName, e) =
+      case Map.lookup bName nameToID of
+        Nothing   -> Left ("No varID for " ++ bName)
+        Just bID  ->
+          case Map.lookup bID vs of
+            Nothing -> Left ("No VariableState for " ++ show bID)
+            Just st ->
+              let coeff   = c^e
+                  digit   = (z `div` coeff) `mod` c  -- extracting the base-c digit
+                  bValSet = if digit == 1 then Set.singleton 1
+                                          else Set.singleton 0
+              in case updateValues st (KnownValues bValSet) of
+                   Left msg         -> Left msg
+                   Right updatedSt  -> 
+                     let vs' = Map.insert bID updatedSt vs
+                     in Right vs'
+
 
 analyzeConstraints :: Map Int Constraint -> Map String Int -> Map Int [Int] -> Map Int VariableState -> Map Int VariableState
 analyzeConstraints constraints nameToID varToConstraints = loop (initializeQueue (Map.elems constraints))
