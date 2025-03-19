@@ -19,7 +19,6 @@ import Data.Sequence (Seq, (|>), viewl, ViewL(..))
 import qualified Data.Sequence as Seq
 import Data.Maybe (fromMaybe)
 
-
 --------------------------
 -- 1) Variable State Representation
 --------------------------
@@ -251,7 +250,7 @@ extractRootFactors (Var xName) = Just (xName, [0]) -- is equivalent to (x - 0)
 extractRootFactors _ = Nothing
 
 -- | Applies an "interesting" constraint to update variable states.
--- TODO: AndC, OrC, ... !!
+-- TODO: OrC, ... !!
 analyzeConstraint :: Constraint -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
 
 -- Rule 4a from Ecne
@@ -368,6 +367,25 @@ analyzeConstraint (EqC cid lhs (Var zName)) nameToID varStates
                 varStates2 <- decodeSumOfPowers 2 knownZ terms nameToID varStates1 -- TODO: generalize
                 pure (True, varStates2)
               else pure (changed1, varStates1)
+
+-- AND case
+analyzeConstraint (AndC cid subCs) nameToID varStates = do
+    let initialAcc = (False, varStates)  -- (changed?, current map)
+    (finalChanged, finalMap) <- foldlAndM nameToID initialAcc subCs
+    pure (finalChanged, finalMap)
+  where
+    -- we go over the sub-constraints in [Constraint] with a 
+    --            left-biased Either: if any sub-constraint fails, we propagate the error.
+    foldlAndM
+      :: Map String Int
+      -> (Bool, Map Int VariableState)
+      -> [Constraint]
+      -> Either String (Bool, Map Int VariableState)
+    foldlAndM _ acc [] = Right acc
+    foldlAndM nmToID (accChanged, accMap) (c:cs) = do
+       (changedNow, newMap) <- analyzeConstraint c nmToID accMap
+       let combinedChanged = accChanged || changedNow
+       foldlAndM nmToID (combinedChanged, newMap) cs
 
 -- TODO: handle the symmetrical case:  EqC cid (Var zName) rhs
 -- if checkSumOfPowers 2 rhs = ...
