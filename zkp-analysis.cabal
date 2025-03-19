@@ -56,6 +56,7 @@ test-suite all-tests
       CP_Analysis.Analysis.FullyConstrainedTest
       Syntax.IteParseTest
       CP_Analysis.Analysis.ExpressionsAnalysisTest
+      Value_Inferencer.Analysis.Num2BitsTest
   main-is: TestRunner.hs
   hs-source-dirs:
       test
