@@ -6,6 +6,7 @@ import qualified CP_Analysis.Analysis.FullyConstrainedTest
 import qualified Syntax.IteParseTest
 import qualified Value_Inferencer.Analysis.Num2BitsTest
 import qualified Value_Inferencer.Analysis.NonZeroTest
+import qualified Value_Inferencer.Analysis.NonZeroTemplateTest
 
 main :: IO ()
 main = hspec $ do
@@ -14,3 +15,4 @@ main = hspec $ do
     Syntax.IteParseTest.spec
     Value_Inferencer.Analysis.Num2BitsTest.spec
     Value_Inferencer.Analysis.NonZeroTest.spec
+    Value_Inferencer.Analysis.NonZeroTemplateTest.spec
