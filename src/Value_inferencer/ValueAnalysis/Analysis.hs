@@ -28,7 +28,8 @@ data VariableState = VariableState
   {
     values :: Set Integer,
     low_b :: Maybe Integer,
-    upp_b :: Maybe Integer
+    upp_b :: Maybe Integer,
+    nonZero :: Bool            
   }
   deriving (Eq, Show)
 
@@ -41,7 +42,8 @@ initVarState :: VariableState
 initVarState = VariableState
   { values = Set.empty,
     low_b = Nothing,
-    upp_b = Nothing
+    upp_b = Nothing,
+    nonZero = False
   }  
 
 -- | Builds a map from variable IDs to their initial state.
@@ -52,6 +54,12 @@ initializeVarStates vars = Map.fromList [(vid v, initVarState) | v <- vars]
 -- TODO: just replace all vars in constraints by their ID during compilation!
 buildVarNameToIDMap :: [Binding] -> Map String Int
 buildVarNameToIDMap vars = Map.fromList [(name v, vid v) | v <- vars]
+
+setNonZero :: VariableState -> VariableState
+setNonZero vs = vs { nonZero = True
+                   -- we also remove 0 from values if it exists
+                   , values = Set.delete 0 (values vs)
+                   }
 
 --------------------------
 -- 3) Mapping Variables to Constraints
@@ -296,7 +304,7 @@ zeroOne _ xName yName nameToID oldVarStates = do
 
 -- Helper function: checks whether a VariableState is restricted to exactly [0,1].
 isIn01 :: VariableState -> Bool
-isIn01 (VariableState vals lowB uppB)
+isIn01 (VariableState vals lowB uppB _)
     -- if we have an explicit set of possible values & it is subset of {0,1}
     | not (Set.null vals) =
         let allZeroOne = Set.isSubsetOf vals (Set.fromList [0,1])
@@ -311,6 +319,14 @@ isIn01 (VariableState vals lowB uppB)
 -- | Applies an "interesting" constraint to update variable states.
 -- TODO: OrC, ... !!
 analyzeConstraint :: Constraint -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+
+
+-- ALREADY HANDLED BY THE ROOT RULE:
+--analyzeConstraint (EqC cid (Var xName) (Int 0)) nameToID varStates =
+--  markVarDefinitelyZero xName nameToID varStates
+
+--analyzeConstraint (EqC cid (Int 0) (Var xName)) nameToID varStates =
+--  markVarDefinitelyZero xName nameToID varStates
 
 -- | Rule 4a from Ecne
 analyzeConstraint (EqC _ (Var xName) (Var yName)) nameToID varStates =
@@ -362,7 +378,7 @@ analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
                Just xState ->
                  case updateValues xState newVals of
                    Right updatedState ->
-                     let changed = values xState /= values updatedState -- if changes, need to re-queue constraints
+                     let changed = xState /= updatedState -- if changes, need to re-queue constraints
                          updatedMap = if changed then Map.insert xID updatedState varStates else varStates
                      in Right (changed, updatedMap)
                    Left errMsg -> Left errMsg
@@ -379,7 +395,7 @@ analyzeConstraint (EqC _ rootExpr (Int 0)) nameToID varStates =
                             let newVals = Set.fromList rootValues
                             in case updateValues xState (KnownValues newVals) of
                                 Right updatedState ->
-                                    let changed = values xState /= values updatedState
+                                    let changed = xState /= updatedState
                                         updatedMap = if changed then Map.insert xID updatedState varStates else varStates
                                     in Right (changed, updatedMap)
                                 Left errMsg -> Left errMsg
@@ -458,8 +474,83 @@ analyzeConstraint (AndC cid subCs) nameToID varStates = do
 -- TODO: handle the symmetrical case:  EqC cid (Var zName) rhs
 -- if checkSumOfPowers 2 rhs = ...
 
+-- | NonZero rule: a * b + 1 = 0 then a is nonzero and b is nonzero.
+--   same for a * b = 1
+-- TODO: rekening houden met prime field!
+analyzeConstraint (EqC cid (Add (Var zName) (Mul (Var xName) (Var yName))) (Int c)) nameToID varStates =
+    case Map.lookup zName nameToID of
+     Nothing -> Right (False, varStates) 
+     Just zID ->
+       case Map.lookup zID varStates of
+         Nothing -> Right (False, varStates) 
+         Just zState ->
+           if isCertainlyZero zState && c /= 0
+            then markNonZeroPair xName yName nameToID varStates
+            else
+              Right (False, varStates)
+--analyzeConstraint (EqC cid (Int c) (Mul (Var xName) (Var yName))) nameToID varStates =
+--     if c /= 0 then markNonZeroPair xName yName nameToID varStates
+--      else Right (False, varStates)
+analyzeConstraint (EqC cid (Add (Mul (Var xName) (Var yName)) (Int c1)) (Int c2)) nameToID varStates =
+     if c1 /= 0 && c2 == 0 then markNonZeroPair xName yName nameToID varStates
+      else Right (False, varStates)      
+analyzeConstraint (EqC cid (Mul (Var xName) (Var yName)) (Int c)) nameToID varStates =
+    if c /= 0 then markNonZeroPair xName yName nameToID varStates
+      else Right (False, varStates)      
 
 analyzeConstraint _ _ varStates = Right (False, varStates)  -- TODO: handle other constraints
+
+
+-- Helper function
+isCertainlyZero :: VariableState -> Bool
+isCertainlyZero st =
+    not (nonZero st)
+      && Set.size (values st) == 1
+      && Set.member 0 (values st)
+
+markVarDefinitelyZero :: String -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+markVarDefinitelyZero xName nameToID varStates = do
+  xID <- case Map.lookup xName nameToID of
+            Just i  -> Right i
+            Nothing -> Left $ "Unknown variable " ++ xName
+  oldSt <- case Map.lookup xID varStates of
+             Just s  -> Right s
+             Nothing -> Left $ "No VariableState for varID=" ++ show xID
+
+  let newSt = oldSt { values  = Set.singleton 0
+                    , nonZero = False }
+      changed = newSt /= oldSt
+      newMap  = if changed
+                then Map.insert xID newSt varStates
+                else varStates
+
+  pure (changed, newMap)
+
+markNonZeroPair :: String -> String -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+markNonZeroPair xName yName nameToID varStates = do
+    xID <- lookupID xName
+    yID <- lookupID yName
+    oldXSt <- lookupVarState xID
+    oldYSt <- lookupVarState yID
+
+    let newXSt = if not (nonZero oldXSt) then setNonZero oldXSt else oldXSt
+        newYSt = if not (nonZero oldYSt) then setNonZero oldYSt else oldYSt
+
+        changed = newXSt /= oldXSt || newYSt /= oldYSt
+        newMap  = (Map.insert xID newXSt . Map.insert yID newYSt) varStates
+
+    pure (changed, newMap)
+
+  where
+    lookupID nm =
+      case Map.lookup nm nameToID of
+        Just i  -> Right i
+        Nothing -> Left ("Unknown variable " ++ nm)
+
+    lookupVarState vid =
+      case Map.lookup vid varStates of
+        Just s  -> Right s
+        Nothing -> Left ("No VariableState for varID=" ++ show vid)
 
 -- | We try to convert `expr` into a sum of terms: c^exponent * Var(b).
 --   Returns Nothing if checking fails or if 'expr' is not that pattern.
