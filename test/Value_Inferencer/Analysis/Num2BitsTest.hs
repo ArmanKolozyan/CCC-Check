@@ -39,7 +39,7 @@ spec = describe "Value Inference Tests" $ do
           , constraints = constraints
           }
 
-    -- analysis
+    -- running the analysis
     let inferredStates = analyzeProgram testProgram
 
     -- checking inferred values for b0

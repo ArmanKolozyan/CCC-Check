@@ -57,6 +57,8 @@ test-suite all-tests
       Syntax.IteParseTest
       CP_Analysis.Analysis.ExpressionsAnalysisTest
       Value_Inferencer.Analysis.Num2BitsTest
+      Value_Inferencer.Analysis.NonZeroTest
+      Value_Inferencer.Analysis.NonZeroTemplateTest
   main-is: TestRunner.hs
   hs-source-dirs:
       test
