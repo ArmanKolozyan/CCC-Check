@@ -43,10 +43,10 @@ spec = describe "Value Inference Tests" $ do
     let inferredStates = analyzeProgram testProgram
 
     -- checking inferred values for b0
-    Map.lookup 1 inferredStates `shouldBe` Just (VariableState { values = Set.fromList [0,1], low_b = Nothing, upp_b = Nothing })
+    Map.lookup "b0" inferredStates `shouldBe` Just (VariableState { values = Set.fromList [0,1], low_b = Nothing, upp_b = Nothing, nonZero = False})
 
     -- checking inferred values for b1
-    Map.lookup 2 inferredStates `shouldBe` Just (VariableState { values = Set.fromList [0,1], low_b = Nothing, upp_b = Nothing })
+    Map.lookup "b1" inferredStates `shouldBe` Just (VariableState { values = Set.fromList [0,1], low_b = Nothing, upp_b = Nothing, nonZero = False })
 
     -- checking inferred values for x (should be in range [0,3])
-    Map.lookup 0 inferredStates `shouldBe` Just (VariableState { values = Set.empty, low_b = Just 0, upp_b = Just 3 })
+    Map.lookup "x" inferredStates `shouldBe` Just (VariableState { values = Set.empty, low_b = Just 0, upp_b = Just 3, nonZero = False })
