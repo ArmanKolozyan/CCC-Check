@@ -249,11 +249,70 @@ extractRootFactors (Sub (Var xName) (Int c)) = Just (xName, [c])
 extractRootFactors (Var xName) = Just (xName, [0]) -- is equivalent to (x - 0)
 extractRootFactors _ = Nothing
 
+zeroOne :: Int -> String -> String -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+zeroOne _ xName yName nameToID oldVarStates = do
+   xID <- case Map.lookup xName nameToID of
+             Just vid -> pure vid
+             Nothing  -> Left ("Unknown var: " ++ xName)
+   yID <- case Map.lookup yName nameToID of
+             Just vid -> pure vid
+             Nothing  -> Left ("Unknown var: " ++ yName)
+
+   let xState = maybe
+                  (Left ("No VariableState for " ++ xName))
+                  Right
+                  (Map.lookup xID oldVarStates)
+   let yState = maybe
+                  (Left ("No VariableState for " ++ yName))
+                  Right
+                  (Map.lookup yID oldVarStates)
+
+   xSt <- xState
+   ySt <- yState
+
+   -- checking if x is already known to be in [0,1]
+   if isIn01 xSt then do
+     -- if so, setting y to [0,1]
+     newY <- updateValues ySt (BoundedValues (Just 0) (Just 1))
+     let changedY = newY /= ySt
+         newMapY  = if changedY
+                    then Map.insert yID newY oldVarStates
+                    else oldVarStates
+     pure (changedY, newMapY)
+
+   -- otherwise, checking if y is already known to be in [0,1]
+   else if isIn01 ySt then do
+     -- if so, setting x to [0,1]
+     newX <- updateValues xSt (BoundedValues (Just 0) (Just 1))
+     let changedX = newX /= xSt
+         newMapX  = if changedX
+                    then Map.insert xID newX oldVarStates
+                    else oldVarStates
+     pure (changedX, newMapX)
+
+   else
+     -- no update if neither is already in [0,1].
+     pure (False, oldVarStates)
+
+-- Helper function: checks whether a VariableState is restricted to exactly [0,1].
+isIn01 :: VariableState -> Bool
+isIn01 (VariableState vals lowB uppB)
+    -- if we have an explicit set of possible values & it is subset of {0,1}
+    | not (Set.null vals) =
+        let allZeroOne = Set.isSubsetOf vals (Set.fromList [0,1])
+        in allZeroOne
+
+    -- otherwise, if we only have bounding info, we check if lb>=0 and ub<=1
+    | otherwise =
+        case (lowB, uppB) of
+          (Just lb, Just ub) -> lb >= 0 && ub <= 1
+          _ -> False
+
 -- | Applies an "interesting" constraint to update variable states.
 -- TODO: OrC, ... !!
 analyzeConstraint :: Constraint -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
 
--- Rule 4a from Ecne
+-- | Rule 4a from Ecne
 analyzeConstraint (EqC _ (Var xName) (Var yName)) nameToID varStates =
   case (Map.lookup xName nameToID, Map.lookup yName nameToID) of
     (Just xID, Just yID) ->
@@ -309,7 +368,7 @@ analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
                    Left errMsg -> Left errMsg
   | otherwise = Right (False, varStates)
 
--- ROOT Rule from PICUS paper
+-- | ROOT Rule from PICUS paper
 analyzeConstraint (EqC _ rootExpr (Int 0)) nameToID varStates =
     case extractRootFactors rootExpr of
         Just (xName, rootValues) -> 
@@ -328,10 +387,10 @@ analyzeConstraint (EqC _ rootExpr (Int 0)) nameToID varStates =
                 Nothing -> Left "Variable name not found in nameToID"
         Nothing -> Right (False, varStates)  -- not a ROOT constraint
 
--- Rule 3 from Ecne
--- | Sum-of-powers rule:  EqC cid (some expression) (Var zName)
---   If that expression is c^k * b_k + ... + c^m * b_m with each b in [0,1],
---   then z ∈ [0, c^(maxExponent+1)-1].
+-- | Rule 3 from Ecne
+--    Sum-of-powers rule:  EqC cid (some expression) (Var zName)
+--    If that expression is c^k * b_k + ... + c^m * b_m with each b in [0,1],
+--    then z ∈ [0, c^(maxExponent+1)-1].
 analyzeConstraint (EqC cid lhs (Var zName)) nameToID varStates
   | Just terms <- checkSumOfPowers 2 lhs  -- TODO: generalize
   = do
@@ -367,6 +426,15 @@ analyzeConstraint (EqC cid lhs (Var zName)) nameToID varStates
                 varStates2 <- decodeSumOfPowers 2 knownZ terms nameToID varStates1 -- TODO: generalize
                 pure (True, varStates2)
               else pure (changed1, varStates1)
+
+-- | Rule 4b from Ecne
+--    "If 1 = x + y and x in [0,1], then y in [0,1], and vice versa"
+analyzeConstraint (EqC cid (Int 1) (Add (Var xName) (Var yName))) nameToID varStates =
+  zeroOne cid xName yName nameToID varStates
+
+analyzeConstraint (EqC cid (Add (Var xName) (Var yName)) (Int 1)) nameToID varStates =
+  zeroOne cid xName yName nameToID varStates
+
 
 -- AND case
 analyzeConstraint (AndC cid subCs) nameToID varStates = do
