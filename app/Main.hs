@@ -26,7 +26,7 @@ prettyPrintStore :: Map String VariableState -> IO ()
 prettyPrintStore store = do
     mapM_ printVariable (Map.toList store)
   where
-    printVariable (varName, VariableState values low_b upp_b) = do
+    printVariable (varName, VariableState values low_b upp_b _) = do
         putStrLn $ "Variable: " ++ varName
         putStr "- Inferred Values: "
         case determineState values low_b upp_b of
