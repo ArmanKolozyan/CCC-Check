@@ -120,12 +120,12 @@ quotient * divisor === dividend;
 
 This circuit intends for `quotient` to represent `dividend / divisor`. But if `dividend = 0`, `divisor = 0`, and `quotient = 5`, the constraint `quotient * divisor === dividend` becomes `0 === 0`, which is trivially satisfied, even though the division is mathematically undefined. 
 
-This exact issue has been explored in both the [Veridise documentation](https://docs.veridise.com/zkvanguard/detectors/zk-divide-by-zero/) and [Veridise’s audit report on Circomlib](https://github.com/zksecurity/zkbugs/blob/main/reports/documents/veridise-circomlib.pdf). The audit flagged several division-by-zero vulnerabilities, identified by the following bug IDs:
+This exact issue has been explored in both the [Veridise documentation](https://docs.veridise.com/zkvanguard/detectors/zk-divide-by-zero/) and [Veridise’s audit report on Circomlib](https://github.com/zksecurity/zkbugs/blob/main/reports/documents/veridise-circomlib.pdf). The audit flagged several division-by-zero vulnerabilities **marked as critical**, identified by the following bug IDs:
 
-- **V-CIRCOMLIB-VUL-002**
-- **V-CIRCOMLIB-VUL-003**
-- **V-CIRCOMLIB-VUL-004**
-- **V-CIRCOMLIB-VUL-005**
+- `V-CIRCOMLIB-VUL-002`
+- `V-CIRCOMLIB-VUL-003`
+- `V-CIRCOMLIB-VUL-004`
+- `V-CIRCOMLIB-VUL-005`
 
 These bugs all stem from the same core issue: the divisor in a division operation is not explicitly constrained to be non-zero. As a result, the prover may fabricate a witness that satisfies the constraint system but performs a mathematically invalid operation.
 
