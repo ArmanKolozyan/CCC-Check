@@ -120,3 +120,6 @@ extra: https://www.rareskills.io/post/circom-aliascheck
 * verband met underconstrained bugs: ranges vergelijken 
 * verband met CirC
 
+PICUS operates at the Rank-1 Constraint System (R1CS) level, which represents only the constraints of a ZKP program. While this is useful for analyzing certain properties such as underconstrained output, it presents a major limitation for our research goal: detecting (high-level) semantic bugs such as overflows, out-of-bounds access, division by zero, and discrepancies with witness generation. These types of bugs are for the most part invisible at the R1CS level.
+In contrast, our work builds on the intermediate representation of CirC, which sits at a higher level than R1CS. CirC IR exposes both the constraints and the witness generation logic! This dual visibility enables more precise value inferencing, where we can detect bugs that would otherwise be lost in translation when compiling to R1CS.
+
