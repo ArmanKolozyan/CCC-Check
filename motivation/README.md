@@ -103,6 +103,50 @@ extra: https://www.rareskills.io/post/circom-aliascheck
 
 
 
+### division by zero
+
+Division by zero errors are a serious concern in zero-knowledge circuits. Since circuits operate over a finite field, division is not a primitive operation but rather implemented via multiplication by the modular inverse. However, if the divisor is unconstrained (i.e., not enforced to be non-zero), then a malicious prover may supply an invalid witness that satisfies the constraints yet violates the intended semantics of the division.
+
+A typical example is the following Circom snippet:
+
+```circom
+signal input dividend;
+signal input divisor;
+signal output quotient;
+
+quotient <-- dividend / divisor;
+quotient * divisor === dividend;
+```
+
+This circuit intends for `quotient` to represent `dividend / divisor`. But if `dividend = 0`, `divisor = 0`, and `quotient = 5`, the constraint `quotient * divisor === dividend` becomes `0 === 0`, which is trivially satisfied, even though the division is mathematically undefined. 
+
+This exact issue has been explored in both the [Veridise documentation](https://docs.veridise.com/zkvanguard/detectors/zk-divide-by-zero/) and [Veridise’s audit report on Circomlib](https://github.com/zksecurity/zkbugs/blob/main/reports/documents/veridise-circomlib.pdf). The audit flagged several division-by-zero vulnerabilities, identified by the following bug IDs:
+
+- **V-CIRCOMLIB-VUL-002**
+- **V-CIRCOMLIB-VUL-003**
+- **V-CIRCOMLIB-VUL-004**
+- **V-CIRCOMLIB-VUL-005**
+
+These bugs all stem from the same core issue: the divisor in a division operation is not explicitly constrained to be non-zero. As a result, the prover may fabricate a witness that satisfies the constraint system but performs a mathematically invalid operation.
+
+Veridise provides a [detector](https://docs.veridise.com/zkvanguard/detectors/zk-divide-by-zero/) called `zk-divide-by-zero` in their ZK Vanguard tool to flag potential division-by-zero issues. However, this detector takes a purely syntactic approach:  
+
+> “This detector does not evaluate the possible values of expressions used in divisors, instead flagging all division operations as possible divide-by-zero concerns. This means that divisor expressions that are explicitly constrained to be non-zero will incur false positives.”
+
+This limitation highlights the need for a more precise form of analysis, one that can track and reason about the values a variable can take.
+
+In their Circomlib audit, Veridise recommends as a mitigation to:
+
+> *“We recommend to clarify the proper usage of the template, where assertions about the valuation of its inputs (pre-conditions) should be satisfied when calling the template.”*
+
+This is **exactly** where our tool comes into play. By integrating a value inferencing engine, we can *formally encode such pre-conditions* and *verify whether they are satisfied*. Rather than treating all divisions as equally risky, our approach distinguishes between cases that are statically guaranteed to be safe and those that are genuinely underconstrained.
+
+To demonstrate this bug, we have constructed two illustrative examples, located in `examples/divisionByZero/`:
+- `underconstrained.circom`: a vulnerable version where division by zero is possible.
+- `correct.circom`: a fixed version where the divisor is validated using `IsZero` to ensure safety.
+
+An example of how our value inferencer distinguishes these cases can be found in `test/Value_Inferencer/Analysis/NonZeroTest.hs` and `test/Value_Inferencer/Analysis/NonZeroTemplateTest.hs`.
+
 
 ## TO DO
 
