@@ -4,13 +4,13 @@
 module Syntax.Compiler (compile, parseAndCompile) where
 
 import Syntax.AST
-import Control.Monad ((>=>))
 import Control.Monad.Except
 import Control.Monad.State
 import Data.Char (isDigit)
 
 import Syntax.Scheme.Parser
 
+import Data.List (foldl')
 
 data CompilerState = CompilerState 
     {
@@ -238,6 +238,12 @@ parseListOfConstrs bad             = throwError $ "Expected list of constraints,
 -- | Compiles a single expression.
 compileExp :: MonadCompile m => SExp -> m Expression
 compileExp (Num i _) = pure (Int i)
+compileExp (Atom "#b0" _) = pure (BvLit 0 1)
+compileExp (Atom "#b1" _) = pure (BvLit 1 1)
+compileExp (Atom text@(('#':'b':bits)) _) =
+   let val   = compileBinary bits  -- converts "0101" -> 5
+       width = fromIntegral (length bits)
+   in pure (BvLit val width)
 compileExp (Atom name _) =
     if all isDigit name && not (null name)
         then pure (Int (read name))
@@ -288,8 +294,19 @@ compileExp (Atom "or" _ ::: rest) = do
 compileExp (Atom "not" _ ::: exp ::: SNil _) = do
     exp_compiled <- compileExp exp
     pure (Not exp_compiled)                              
+compileExp (Atom "extract" _ ::: Num high _ ::: Num low _ ::: expr ::: SNil _) = do
+    subE <- compileExp expr
+    pure (BvExtract subE high low)
+compileExp (Atom "concat" _ ::: e1 ::: e2 ::: SNil _) = do
+    e1' <- compileExp e1
+    e2' <- compileExp e2
+    pure (BvConcat e1' e2')
+
 -- compileExp (Atom "tuple" _ ::: rest) = do TODO: support tuples
 compileExp e = throwError $ "Unsupported expression: " ++ show e
+
+compileBinary :: String -> Integer
+compileBinary = foldl' (\acc c -> acc * 2 + if c=='1' then 1 else 0) 0
 
 --------------------------
 -- 7) Sort

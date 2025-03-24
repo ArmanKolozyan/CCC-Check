@@ -1,7 +1,6 @@
 
 module Syntax.AST (Program (..), Binding (..), Sort (..), Expression (..), Constraint (..)) where
 
-import Data.Set (Set)
 -- | An AST representation of a CirC-IR program. It only contains the
 --   components relevant for bug detection. Information about parties,
 --   commitments, etc. is thus omitted.
@@ -48,6 +47,12 @@ data Expression
   | And [Expression]
   | Or [Expression]
   | Not Expression
+  | BvExtract Expression Integer Integer
+    -- BvExtract e high low: extract bits [high : low] from expression e
+  | BvConcat Expression Expression
+    -- BvConcat e1 e2: concatenates bit-vectors e1 and e2
+  | BvLit Integer Integer
+    -- BvLit val width: a literal bit-vector of width bits, representing val
   deriving (Show, Eq)
 
 -- | Minimal set of constraints: equality.
