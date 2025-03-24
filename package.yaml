@@ -61,3 +61,4 @@ tests:
       - Value_Inferencer.Analysis.Num2BitsTest
       - Value_Inferencer.Analysis.NonZeroTest
       - Value_Inferencer.Analysis.NonZeroTemplateTest
+      - Value_Inferencer.Analysis.LessThanTest
