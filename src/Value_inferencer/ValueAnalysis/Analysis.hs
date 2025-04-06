@@ -750,3 +750,147 @@ analyzeProgram (Program inputs compVars constrVars _ constraints) =
       varToConstraints = buildVarToConstraints nameToID constraints
       constraintMap = Map.fromList [(getConstraintID c, c) | c <- constraints]
   in analyzeConstraints constraintMap nameToID varToConstraints varStates
+
+--------------------------------------------------------------------------------
+-- 7) Bug Detection
+--------------------------------------------------------------------------------
+
+{- 
+  | This function:
+   1) runs 'analyzeProgram' on the Program to get final states 
+   2) for each variable in Program, examines its VariableState 
+   3) checks whether it is consistent with the variable's declared Sort 
+-}
+
+detectBugs :: Program -> Either [String] ()
+detectBugs program =
+  let varStates = analyzeProgram program
+
+      -- we gather errors for each variable
+      errors = concatMap (checkVariable varStates) allVars
+      allVars = inputs program
+                 ++ computationVars program
+                 ++ constraintVars program
+
+  in if null errors
+       then Right ()
+       else Left errors
+
+-- | Checks whether one variable's final state is consistent with its declared Sort.
+--   Returns either an empty list (no issues) or a list of error messages.
+checkVariable
+  :: Map String VariableState
+  -> Binding
+  -> [String]
+checkVariable store binding =
+  case Map.lookup (name binding) store of
+    Nothing -> ["No final state for var `" ++ name binding ++ "`!"]
+    Just vState ->
+      let errs = checkSort (sort binding) vState (name binding)
+      in errs
+
+-- | Checks that the final VariableState is consistent with the Sort.
+--   Returns list of errors if any.
+checkSort :: Sort -> VariableState -> String -> [String]
+checkSort Bool vs varName         = checkBoolean vs varName
+checkSort (BitVector n) vs varName= checkMaxVal ((2 ^ n) - 1) vs varName
+checkSort (FieldMod p) vs varName = checkMaxVal (p - 1) vs varName
+checkSort NonZero vs varName      = checkNonZero vs varName
+
+-- Checking Booleans
+
+{- 
+   For a boolean variable, the final possibilities can be:
+
+   1) explicit set {0,1}, or subset, or 
+   2) an explicit set [some range], but it must not exceed [0..1].
+
+   If 'values' is non-empty, we check that the set is ⊆ {0,1}.
+   If 'values' is empty, but we have low_b / upp_b, we check those. 
+-}
+checkBoolean :: VariableState -> String -> [String]
+checkBoolean (VariableState vals lowB upB _) varName =
+  let
+    possibleVals =
+      if not (Set.null vals)
+        -- we have explicit enumerated possibilities
+        then vals
+        else case (lowB, upB) of
+                -- we have bounds
+               (Just lb, Just ub) -> Set.fromList [lb..ub]
+               -- unknown
+               _ -> Set.empty
+    -- if we ended up with an empty set, that's an error:
+    noValuesError =
+      [ "Boolean variable `" ++ varName
+        ++ "` has no possible values (unconstrained)." 
+      | Set.null possibleVals ]
+
+    -- otherwise, we check whether any values are outside of {0,1}:
+    invalidVals = Set.filter (\v -> v /= 0 && v /= 1) possibleVals
+    invalidValsError =
+      [ "Boolean variable `" ++ varName
+        ++ "` has values outside {0,1}: " ++ show (Set.toList invalidVals)
+      | not (Set.null invalidVals) ]
+
+  in noValuesError ++ invalidValsError
+
+-- Checking BitVectors and FieldMods
+
+{- 
+   For a variable declared (BitVector n), 
+   we want to check that all final possible values are in [0 .. 2^n - 1], 
+   or if it has bounds, then the upper bound must not exceed 2^n - 1.
+-}
+checkMaxVal :: Integer -> VariableState -> String -> [String]
+checkMaxVal maxVal (VariableState vals lowB upB _) varName = 
+  let
+    -- if we have enumerated values, we use them; otherwise, we gather from bounds
+    possibleVals = -- TODO: fix code duplication, maak functie allVals
+      if not (Set.null vals)
+        then vals
+        else case (lowB, upB) of
+               (Just lb, Just ub) -> Set.fromList [lb..ub]
+               _                  -> Set.empty
+
+    -- if empty domain -> error
+    noValuesError =
+      [ "Variable `" ++ varName
+        ++ "` has no possible values (unconstrained)."
+      | Set.null possibleVals ]
+
+    -- If not empty, check out-of-range
+    invalidVals = Set.filter (\v -> v < 0 || v > maxVal) possibleVals
+    rangeError =
+      [ "Variable `" ++ varName
+        ++ "` has out-of-range values: " ++ show (Set.toList invalidVals)
+      | not (Set.null invalidVals) ]
+
+    in noValuesError ++ rangeError  
+
+-- Checking NonZero
+
+{- 
+   If a variable is declared NonZero, it must not contain 0 in its final set. 
+   Or the vState.nonZero should be True. 
+   Or, if no explicit values are available, 
+   we check if bounds do not include 0. TODO: to think, we kijken best enkel of het nonZero is?
+-}
+checkNonZero :: VariableState -> String -> [String]
+checkNonZero (VariableState vals lowB upB nonZ) varName =
+  let
+    -- if we have enumerated vals:
+    possibleVals =
+      if not (Set.null vals)
+        then vals
+        else case (lowB, upB) of
+               (Just lb, Just ub) -> Set.fromList [lb..ub]
+               _                  -> Set.empty
+
+    msgNonZeroFlag =
+      (["Variable `" ++ varName ++ "` declared NonZero but varState.nonZero == False" | not nonZ])
+
+    msgZeroInVals =
+      (["Variable `" ++ varName ++ "` declared NonZero but 0 is in possible set: "
+                    ++ show (Set.toList possibleVals) | 0 `Set.member` possibleVals])
+  in msgNonZeroFlag ++ msgZeroInVals
