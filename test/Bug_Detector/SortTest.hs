@@ -98,6 +98,10 @@ spec = describe "Bug Detection Tests" $ do
     case detectBugs programBug of
       Left errs -> do
         -- we expect bug messages for all variables
-        length errs `shouldSatisfy` (> 0)
+        errs `shouldMatchList` -- `shouldMatchList` is chosen over `shouldBe`, as it does not take order into account
+          ["Boolean variable `b` has no possible values (unconstrained).", 
+          "Variable `nz` declared NonZero but varState.nonZero == False", 
+          "Variable `nz` declared NonZero but 0 is in possible set: [0]", 
+          "Variable `f` has no possible values (unconstrained)."]
       Right () ->
         expectationFailure "We expected bug errors, but detectBugs returned Right ()"
