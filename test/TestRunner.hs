@@ -8,6 +8,8 @@ import qualified Value_Inferencer.Analysis.Num2BitsTest
 import qualified Value_Inferencer.Analysis.NonZeroTest
 import qualified Value_Inferencer.Analysis.NonZeroTemplateTest
 import qualified Value_Inferencer.Analysis.LessThanTest
+import qualified Bug_Detector.SortTest
+
 
 main :: IO ()
 main = hspec $ do
@@ -18,3 +20,4 @@ main = hspec $ do
     Value_Inferencer.Analysis.NonZeroTest.spec
     Value_Inferencer.Analysis.NonZeroTemplateTest.spec
     Value_Inferencer.Analysis.LessThanTest.spec
+    Bug_Detector.SortTest.spec

@@ -60,6 +60,7 @@ test-suite all-tests
       Value_Inferencer.Analysis.NonZeroTest
       Value_Inferencer.Analysis.NonZeroTemplateTest
       Value_Inferencer.Analysis.LessThanTest
+      Bug_Detector.SortTest
   main-is: TestRunner.hs
   hs-source-dirs:
       test

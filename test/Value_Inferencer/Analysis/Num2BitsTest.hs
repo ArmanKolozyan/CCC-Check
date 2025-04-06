@@ -10,8 +10,7 @@ spec :: Spec
 spec = describe "Value Inference Tests" $ do
   it "Infers correct values for b0, b1, and x" $ do
     -- input variable
-    let x = Binding { name = "x", vid = 0, sort = FieldMod 5 }  -- Assume prime field mod 5
-
+    let x = Binding { name = "x", vid = 0, sort = FieldMod 4 }
     -- intermediate variables b0 and b1
     let b0 = Binding { name = "b0", vid = 1, sort = Bool }
     let b1 = Binding { name = "b1", vid = 2, sort = Bool }

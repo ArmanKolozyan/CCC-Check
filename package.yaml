@@ -62,3 +62,4 @@ tests:
       - Value_Inferencer.Analysis.NonZeroTest
       - Value_Inferencer.Analysis.NonZeroTemplateTest
       - Value_Inferencer.Analysis.LessThanTest
+      - Bug_Detector.SortTest
