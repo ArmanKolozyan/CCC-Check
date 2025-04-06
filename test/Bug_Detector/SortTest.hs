@@ -63,7 +63,7 @@ spec = describe "Bug Detection Tests" $ do
               constraints = constraints
             }
 
-    case detectBugs programOk of
+    case detectBugs programOk Nothing of
       Left errs -> expectationFailure $ "Should have no bugs, but got errors: " ++ show errs
       Right () -> pure ()
 
@@ -95,7 +95,7 @@ spec = describe "Bug Detection Tests" $ do
               constraints = constraints
             }
 
-    case detectBugs programBug of
+    case detectBugs programBug Nothing of
       Left errs -> do
         -- we expect bug messages for all variables
         errs `shouldMatchList` -- `shouldMatchList` is chosen over `shouldBe`, as it does not take order into account

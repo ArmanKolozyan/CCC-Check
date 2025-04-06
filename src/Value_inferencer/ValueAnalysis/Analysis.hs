@@ -762,16 +762,15 @@ analyzeProgram (Program inputs compVars constrVars _ constraints) =
    3) checks whether it is consistent with the variable's declared Sort 
 -}
 
-detectBugs :: Program -> Either [String] ()
-detectBugs program =
+detectBugs :: Program -> Maybe [Binding] -> Either [String] ()
+detectBugs program maybeVars =
   let varStates = analyzeProgram program
-
+      allVars = inputs program ++ computationVars program ++ constraintVars program
+      vars = case maybeVars of
+               Just vs -> vs
+               Nothing -> allVars
       -- we gather errors for each variable
-      errors = concatMap (checkVariable varStates) allVars
-      allVars = inputs program
-                 ++ computationVars program
-                 ++ constraintVars program
-
+      errors = concatMap (checkVariable varStates) vars
   in if null errors
        then Right ()
        else Left errors
