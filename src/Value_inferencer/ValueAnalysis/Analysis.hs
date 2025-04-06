@@ -8,7 +8,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module ValueAnalysis.Analysis (analyzeProgram, VariableState(..)) where
+module ValueAnalysis.Analysis (analyzeProgram, VariableState(..), detectBugs) where
 
 import Syntax.AST
 import Data.Map.Strict (Map)
@@ -24,12 +24,12 @@ import Data.Maybe (fromMaybe)
 --------------------------
 
 -- | Tracks the state of each variable.
-data VariableState = VariableState 
+data VariableState = VariableState
   {
     values :: Set Integer,
     low_b :: Maybe Integer,
     upp_b :: Maybe Integer,
-    nonZero :: Bool            
+    nonZero :: Bool
   }
   deriving (Eq, Show)
 
@@ -44,7 +44,7 @@ initVarState = VariableState
     low_b = Nothing,
     upp_b = Nothing,
     nonZero = False
-  }  
+  }
 
 -- | Builds a map from variable IDs to their initial state.
 initializeVarStates :: [Binding] -> Map Int VariableState
@@ -129,36 +129,106 @@ getConstraintID (NotC cid _) = cid
 -- | Updates values of a variable and checks consistency.
 updateValues :: VariableState -> ValueDomain -> Either String VariableState
 updateValues vState (KnownValues newVals)
-  -- if values are already known, we check for consistency
+  -- if we already had some explicit values, we check consistency
   | not (Set.null (values vState)) =
-      if Set.isSubsetOf newVals (values vState)
-      then Right vState { values = newVals }  -- Safe update
-      else Left $ "Inconsistent value inference! New values " ++ show newVals
-                ++ " are not a subset of existing " ++ show (values vState)
-  -- if no explicit values, we infer from bounds or assign directly
+      let oldVals      = values vState
+          oldNonZero   = nonZero vState
+          includesZero = Set.member 0 newVals
+      in
+        if not (Set.isSubsetOf newVals oldVals)
+           then Left $ "Inconsistent value inference! New values " ++ show newVals
+                    ++ " are not a subset of existing " ++ show oldVals
+           
+           -- we also check if the old nonZero was True but newVals includes 0:
+           else if oldNonZero && includesZero
+               then Left $ "Contradiction: var was NonZero but new values " 
+                        ++ show newVals ++ " contain 0!"
+               
+               else 
+                 -- safe update
+                 let updatedNonZero = not includesZero
+                 in Right vState 
+                    { values  = newVals
+                    , nonZero = updatedNonZero
+                    }
+  
+  -- if no explicit values, we infer from bounds or just assign directly
   | otherwise =
-      let lowerBound = fromMaybe (minimum newVals) (low_b vState)
-          upperBound = fromMaybe (maximum newVals) (upp_b vState)
+      let lowerBound   = fromMaybe (minimum newVals) (low_b vState)
+          upperBound   = fromMaybe (maximum newVals) (upp_b vState)
           inferredVals = Set.fromList [lowerBound .. upperBound]
-      in if Set.isSubsetOf newVals inferredVals
-         then Right vState { values = newVals }  -- Safe update
-         else Left $ "Value inference contradicts bounds! New values: "
-                  ++ show newVals ++ " do not fit in inferred range "
-                  ++ show (Set.toList inferredVals)
+          includesZero = Set.member 0 newVals
+          oldNonZero   = nonZero vState
+      in
+        if not (Set.isSubsetOf newVals inferredVals)
+           then Left $ "Value inference contradicts bounds! New values: "
+                    ++ show newVals ++ " do not fit in range: "
+                    ++ show [lowerBound .. upperBound]
+        else if oldNonZero && includesZero
+           then Left $ "Contradiction: var was NonZero but new values " 
+                    ++ show newVals ++ " contain 0!"
+        else 
+          let updatedNonZero = not includesZero
+          in Right vState 
+             { values  = newVals
+             , nonZero = updatedNonZero
+             }
 
-updateValues vState (BoundedValues (Just lb) (Just ub))
-  -- if values are already known, we check consistency
-  | not (Set.null (values vState)) =
-      let inferredVals = Set.fromList [lb .. ub]
-      in if Set.isSubsetOf (values vState) inferredVals
-         then Right vState  -- Safe, values already fit
-         else Left $ "Existing values " ++ show (values vState)
-                  ++ " do not fit in inferred range [" ++ show lb ++ ", " ++ show ub ++ "]"
-  -- otherwise, we just update the bounds
-  | otherwise = Right vState { low_b = Just lb, upp_b = Just ub }
+updateValues vState (BoundedValues maybeLb maybeUb) =
+  -- we have bounding info, not an exact set.
+  -- So we unify it with any existing explicit values or bounds.
+  let oldVals      = values vState
+      oldLb        = low_b vState
+      oldUb        = upp_b vState
+      oldNonZero   = nonZero vState
+      newLb        = case (oldLb, maybeLb) of
+                       (Just a, Just b) -> Just (max a b)
+                       (Just a, Nothing) -> Just a
+                       (Nothing, Just b) -> Just b
+                       (Nothing, Nothing) -> Nothing
+      newUb        = case (oldUb, maybeUb) of
+                       (Just a, Just b) -> Just (min a b)
+                       (Just a, Nothing) -> Just a
+                       (Nothing, Just b) -> Just b
+                       (Nothing, Nothing) -> Nothing
 
-updateValues vState _ = Right vState
+  in case (newLb, newUb) of
+       (Just lb, Just ub) | lb > ub ->
+          Left $ "Bound conflict: lower bound " ++ show lb
+               ++ " exceeds upper bound " ++ show ub
+       
+       -- if we already had explicit values, we need to keep only those that fit
+       -- in the new (lb..ub)
+       _ ->
+        let restrictedVals = 
+              case (Set.null (values vState), newLb, newUb) of
+                (True,  _, _ )       -> Set.empty
+                (False, Just lb, Just ub) ->
+                    Set.filter (\x -> x >= lb && x <= ub) (values vState)
+                (False, Just lb, Nothing) ->
+                    Set.filter (\x -> x >= lb) (values vState)
+                (False, Nothing, Just ub) ->
+                    Set.filter (\x -> x <= ub) (values vState)
+                (False, Nothing, Nothing) ->
+                    values vState
 
+            includesZero = Set.member 0 restrictedVals
+            oldNonZero   = nonZero vState
+
+            -- if oldNonZero is true but we see a 0, that's a contradiction
+            newNonZero =
+              if oldNonZero && includesZero
+                then error $ "Contradiction: var was NonZero but domain includes 0!"
+                else oldNonZero && not includesZero
+
+        in
+          -- updating the state
+          Right vState
+            { values  = restrictedVals
+            , low_b   = newLb
+            , upp_b   = newUb
+            , nonZero = newNonZero
+            }
 getVarID = Map.lookup
 
 data ValueDomain
@@ -189,7 +259,7 @@ inferValues (Add e1 e2) nameToID varStates =
   case (inferValues e1 nameToID varStates, inferValues e2 nameToID varStates) of
     -- Case 1: both have explicit values
     (KnownValues v1, KnownValues v2) -> KnownValues (Set.fromList [x + y | x <- Set.toList v1, y <- Set.toList v2])
-    
+
     -- Case 2: both have only bounds
     (BoundedValues (Just lb1) (Just ub1), BoundedValues (Just lb2) (Just ub2)) ->
         BoundedValues (Just (lb1 + lb2)) (Just (ub1 + ub2))
@@ -366,10 +436,10 @@ analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
       let omega = inferValues e nameToID varStates
           cInv = modularInverse c
           newVals = case omega of
-                      KnownValues vSet -> KnownValues (Set.map (* cInv) vSet) 
+                      KnownValues vSet -> KnownValues (Set.map (* cInv) vSet)
                       BoundedValues (Just lb) (Just ub) ->
                         BoundedValues (Just (lb * cInv)) (Just (ub * cInv))
-                      _ -> BoundedValues Nothing Nothing 
+                      _ -> BoundedValues Nothing Nothing
       in case Map.lookup xName nameToID of
            Nothing -> Left "Variable name not found in nameToID"
            Just xID ->
@@ -387,11 +457,11 @@ analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
 -- | ROOT Rule from PICUS paper
 analyzeConstraint (EqC _ rootExpr (Int 0)) nameToID varStates =
     case extractRootFactors rootExpr of
-        Just (xName, rootValues) -> 
+        Just (xName, rootValues) ->
             case Map.lookup xName nameToID of
                 Just xID ->
                     case Map.lookup xID varStates of
-                        Just xState -> 
+                        Just xState ->
                             let newVals = Set.fromList rootValues
                             in case updateValues xState (KnownValues newVals) of
                                 Right updatedState ->
@@ -413,7 +483,7 @@ analyzeConstraint (EqC cid lhs (Var zName)) nameToID varStates
       -- 1) we confirm each b_i is a Boolean variable
       let allBool = all (isBinaryVar nameToID varStates . fst) terms
       if not allBool
-         then pure (False, varStates) 
+         then pure (False, varStates)
          else do
            -- 2) we infer z's upper bound = c^(1 + maxExp) - 1
            let exps    = map snd terms
@@ -436,7 +506,7 @@ analyzeConstraint (EqC cid lhs (Var zName)) nameToID varStates
 
            -- 4) if 'z' is exactly known => we can infer the bits
            let zVals = values updatedZState
-           if Set.size zVals == 1 
+           if Set.size zVals == 1
               then do
                 let knownZ = head (Set.toList zVals)
                 varStates2 <- decodeSumOfPowers 2 knownZ terms nameToID varStates1 -- TODO: generalize
@@ -479,10 +549,10 @@ analyzeConstraint (AndC cid subCs) nameToID varStates = do
 -- TODO: rekening houden met prime field!
 analyzeConstraint (EqC cid (Add (Var zName) (Mul (Var xName) (Var yName))) (Int c)) nameToID varStates =
     case Map.lookup zName nameToID of
-     Nothing -> Right (False, varStates) 
+     Nothing -> Right (False, varStates)
      Just zID ->
        case Map.lookup zID varStates of
-         Nothing -> Right (False, varStates) 
+         Nothing -> Right (False, varStates)
          Just zState ->
            if isCertainlyZero zState && c /= 0
             then markNonZeroPair xName yName nameToID varStates
@@ -493,10 +563,10 @@ analyzeConstraint (EqC cid (Add (Var zName) (Mul (Var xName) (Var yName))) (Int 
 --      else Right (False, varStates)
 analyzeConstraint (EqC cid (Add (Mul (Var xName) (Var yName)) (Int c1)) (Int c2)) nameToID varStates =
      if c1 /= 0 && c2 == 0 then markNonZeroPair xName yName nameToID varStates
-      else Right (False, varStates)      
+      else Right (False, varStates)
 analyzeConstraint (EqC cid (Mul (Var xName) (Var yName)) (Int c)) nameToID varStates =
     if c /= 0 then markNonZeroPair xName yName nameToID varStates
-      else Right (False, varStates)      
+      else Right (False, varStates)
 
 analyzeConstraint _ _ varStates = Right (False, varStates)  -- TODO: handle other constraints
 
@@ -554,9 +624,9 @@ markNonZeroPair xName yName nameToID varStates = do
 
 -- | We try to convert `expr` into a sum of terms: c^exponent * Var(b).
 --   Returns Nothing if checking fails or if 'expr' is not that pattern.
-checkSumOfPowers 
+checkSumOfPowers
   :: Integer -- c, the base of the powers
-  -> Expression 
+  -> Expression
   -> Maybe [(String, Integer)] -- list of (varName, exponent)
 checkSumOfPowers c = go
   where
@@ -604,7 +674,7 @@ isBinaryVar nameToID varStates varName =
 
 -- | If z is single-valued, we decode each (bName, exponent)
 --   so that bName ∈ {0,1} matches the corresponding 'bit' in base c.
-decodeSumOfPowers 
+decodeSumOfPowers
   :: Integer                    -- c, the base
   -> Integer                    -- known value of z
   -> [(String, Integer)]        -- (bName, exponent) pairs
@@ -628,7 +698,7 @@ decodeSumOfPowers c z terms nameToID varStates0 =
                                           else Set.singleton 0
               in case updateValues st (KnownValues bValSet) of
                    Left msg         -> Left msg
-                   Right updatedSt  -> 
+                   Right updatedSt  ->
                      let vs' = Map.insert bID updatedSt vs
                      in Right vs'
 
@@ -665,7 +735,7 @@ analyzeConstraints constraints nameToID varToConstraints = loop (initializeQueue
                              then let affectedVars = collectVarsFromConstraint nameToID constraint
                                   in foldl (|>) restQueue (concatMap (\v -> Map.findWithDefault [] v varToConstraints) affectedVars)
                              else restQueue
-                  in loop newQueue newVarStates           
+                  in loop newQueue newVarStates
                 Left errMsg -> error errMsg
             Nothing -> loop restQueue vStates
 

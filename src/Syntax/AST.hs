@@ -27,6 +27,7 @@ data Sort
   = FieldMod Integer 
   | Bool 
   | BitVector Integer
+  | NonZero -- TODO: op een betere manier encoderen/aangeven
   deriving (Show, Eq)
 
 -- | Minimal set of expressions: variables, field elements (currently handled
