@@ -8,7 +8,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module ValueAnalysis.Analysis (analyzeProgram, VariableState(..), detectBugs) where
+module ValueAnalysis.Analysis (analyzeProgram, VariableState(..), detectBugs, updateValues, initVarState, ValueDomain(..), analyzeFromFile) where
 
 import Syntax.AST
 import Data.Map.Strict (Map)
@@ -18,6 +18,8 @@ import qualified Data.Set as Set
 import Data.Sequence (Seq, (|>), viewl, ViewL(..))
 import qualified Data.Sequence as Seq
 import Data.Maybe (fromMaybe)
+import Syntax.Compiler (parseAndCompile)
+import Data.List (intercalate)
 
 --------------------------
 -- 1) Variable State Representation
@@ -743,6 +745,7 @@ analyzeConstraints constraints nameToID varToConstraints = loop (initializeQueue
 -- 6) Main Analysis
 --------------------------
 
+-- given Program
 analyzeProgram :: Program -> Map String VariableState
 analyzeProgram (Program inputs compVars constrVars _ constraints) =
   let nameToID = buildVarNameToIDMap (inputs ++ compVars ++ constrVars)
@@ -750,6 +753,38 @@ analyzeProgram (Program inputs compVars constrVars _ constraints) =
       varToConstraints = buildVarToConstraints nameToID constraints
       constraintMap = Map.fromList [(getConstraintID c, c) | c <- constraints]
   in analyzeConstraints constraintMap nameToID varToConstraints varStates
+
+-- given File
+analyzeFromFile :: FilePath -> IO ()
+analyzeFromFile filePath = do
+    content <- readFile filePath
+    case parseAndCompile content of
+        Left err -> putStrLn $ "Error: " ++ err  
+        Right program -> do
+            let store = analyzeProgram program
+            putStrLn "\n====== Inferred Value Information ======\n"
+            prettyPrintStore store
+
+-- | Nicely prints the analysis results.
+prettyPrintStore :: Map String VariableState -> IO ()
+prettyPrintStore store = do
+    mapM_ printVariable (Map.toList store)
+  where
+    printVariable (varName, VariableState values low_b upp_b _) = do
+        putStrLn $ "Variable: " ++ varName
+        putStr "- Inferred Values: "
+        case determineState values low_b upp_b of
+            Left explicitValues -> putStrLn $ "{" ++ intercalate ", " (map show (Set.toList explicitValues)) ++ "}"
+            Right (Just lb, Just ub) -> putStrLn $ "[" ++ show lb ++ ", " ++ show ub ++ "]"
+            Right _ -> putStrLn "Unknown"
+        putStrLn ""
+
+    -- determines whether to display explicit values, bounds, or unknown.
+    determineState :: Set Integer -> Maybe Integer -> Maybe Integer -> Either (Set Integer) (Maybe Integer, Maybe Integer)
+    determineState vals lb ub
+        | not (Set.null vals) = Left vals  -- explicit values 
+        | otherwise           = Right (lb, ub)  -- otherwise, we display bounds or unknown            
+
 
 --------------------------------------------------------------------------------
 -- 7) Bug Detection
