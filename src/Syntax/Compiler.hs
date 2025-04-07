@@ -1,7 +1,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Syntax.Compiler (compile, parseAndCompile) where
+module Syntax.Compiler (compile, parseAndCompile, parseAndCompileConstraint) where
 
 import Syntax.AST
 import Control.Monad.Except
@@ -56,9 +56,17 @@ compile sexp =
 -- | parses and compiles the given IR representation to AST nodes.
 parseAndCompile :: String -> Either String Program
 parseAndCompile input = do
-    sexps <- parseSexp input  -- parse input into a list of SExps
+    sexps <- parseSexp input  -- parses input into a list of SExps
     case sexps of
-        (firstSexp : _) -> evalStateT (compile firstSexp) emptyState  -- compile first SExp with state
+        (firstSexp : _) -> evalStateT (compile firstSexp) emptyState  -- compiles first SExp with state
+        []              -> Left "Error: No expressions to compile"
+
+-- | parses and compiles the given constraint.
+parseAndCompileConstraint :: String -> Either String Constraint
+parseAndCompileConstraint input = do
+    sexps <- parseSexp input  -- parses input into a list of SExps
+    case sexps of
+        (firstSexp : _) -> evalStateT (compileConstraint firstSexp) emptyState  -- compiles first constraint with state
         []              -> Left "Error: No expressions to compile"
 
 
