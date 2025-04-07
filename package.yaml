@@ -13,6 +13,9 @@ library:
     - CPDomain.Domain
     - Syntax.AST
     - Syntax.Compiler
+    - ValueAnalysis.UserRules
+    - ValueAnalysis.VariableState
+    - ValueAnalysis.ValueDomain
   other-modules:
     - Paths_zkp_analysis
   dependencies:

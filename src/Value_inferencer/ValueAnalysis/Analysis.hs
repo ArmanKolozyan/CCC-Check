@@ -20,33 +20,19 @@ import qualified Data.Sequence as Seq
 import Data.Maybe (fromMaybe)
 import Syntax.Compiler (parseAndCompile)
 import Data.List (intercalate)
+import ValueAnalysis.UserRules
+import ValueAnalysis.VariableState
+import ValueAnalysis.ValueDomain
 
 --------------------------
 -- 1) Variable State Representation
 --------------------------
 
--- | Tracks the state of each variable.
-data VariableState = VariableState
-  {
-    values :: Set Integer,
-    low_b :: Maybe Integer,
-    upp_b :: Maybe Integer,
-    nonZero :: Bool
-  }
-  deriving (Eq, Show)
+-- Moved to separate file
 
 --------------------------
 -- 2) Initializing Variable States
 --------------------------
-
--- | Initializing VariableState (no restrictions at the beginning).
-initVarState :: VariableState
-initVarState = VariableState
-  { values = Set.empty,
-    low_b = Nothing,
-    upp_b = Nothing,
-    nonZero = False
-  }
 
 -- | Builds a map from variable IDs to their initial state.
 initializeVarStates :: [Binding] -> Map Int VariableState
@@ -232,11 +218,6 @@ updateValues vState (BoundedValues maybeLb maybeUb) =
             , nonZero = newNonZero
             }
 getVarID = Map.lookup
-
-data ValueDomain
-  = KnownValues (Set Integer)   -- explicitly known values
-  | BoundedValues (Maybe Integer) (Maybe Integer)  -- (lower bound, upper bound)
-  deriving (Eq, Show)
 
 expandBounds :: Maybe Integer -> Maybe Integer -> [Integer]
 expandBounds (Just lb) (Just ub) = [lb .. ub]  -- expands into a list
@@ -720,8 +701,8 @@ transformIDToNames nmToID vStates =
   in Map.fromList
       [ (idToName Map.! i, st) | (i, st) <- Map.toList vStates]
 
-analyzeConstraints :: Map Int Constraint -> Map String Int -> Map Int [Int] -> Map Int VariableState -> Map String VariableState
-analyzeConstraints constraints nameToID varToConstraints = loop (initializeQueue (Map.elems constraints))
+analyzeConstraints :: Map Int Constraint -> Map String Int -> Map Int [Int] -> Maybe [UserRule] -> Map Int VariableState -> Map String VariableState
+analyzeConstraints constraints nameToID varToConstraints maybeRules = loop (initializeQueue (Map.elems constraints))
   where
     loop :: Seq Int -> Map Int VariableState -> Map String VariableState
     loop queue vStates =
@@ -729,17 +710,47 @@ analyzeConstraints constraints nameToID varToConstraints = loop (initializeQueue
         Seq.EmptyL -> transformIDToNames nameToID vStates
         cId :< restQueue ->
           case Map.lookup cId constraints of
+            Nothing -> loop restQueue vStates
+
             Just constraint ->
               case analyzeConstraint constraint nameToID vStates of
-                Right (changed, newVarStates) ->
-                  let newQueue = if changed
-                            -- re-queue all constraints that contain the affected variables
-                             then let affectedVars = collectVarsFromConstraint nameToID constraint
-                                  in foldl (|>) restQueue (concatMap (\v -> Map.findWithDefault [] v varToConstraints) affectedVars)
-                             else restQueue
-                  in loop newQueue newVarStates
-                Left errMsg -> error errMsg
-            Nothing -> loop restQueue vStates
+                ----------------------------------------------------
+                -- CASE 1) built-in inference yields changes
+                ----------------------------------------------------
+                Right (True, newStates) ->
+                  let affected = collectVarsFromConstraint nameToID constraint
+                      newQ     = reQueue restQueue varToConstraints affected
+                  in loop newQ newStates
+
+                ----------------------------------------------------
+                -- CASE 2) built-in inference yields no change
+                ----------------------------------------------------
+                Right (False, sameStates) -> 
+                  case maybeRules of
+                    -- no user rules => we move on
+                    Nothing -> loop restQueue sameStates
+
+                    -- user rules => we attempt them
+                    Just userRs ->
+                      let (userChanged, updatedStates) =
+                            applyUserRules constraint userRs sameStates nameToID
+                          in if userChanged
+                               then 
+                                 let affected = collectVarsFromConstraint nameToID constraint
+                                     newQ = reQueue restQueue varToConstraints affected
+                                 in loop newQ updatedStates
+                               else
+                                 loop restQueue updatedStates
+
+                Left err -> error $ "Analysis error: " ++ err
+
+-- Helper to re-queue constraints that reference changed variables
+reQueue :: Seq Int -> Map Int [Int] -> [Int] -> Seq Int
+reQueue oldQueue varToConstraints changedVars =
+  foldl (\accQ varID -> 
+    let cIDs = Map.findWithDefault [] varID varToConstraints
+    in foldl (|>) accQ cIDs
+  ) oldQueue changedVars
 
 --------------------------
 -- 6) Main Analysis
@@ -752,7 +763,7 @@ analyzeProgram (Program inputs compVars constrVars _ constraints) =
       varStates = initializeVarStates (inputs ++ compVars ++ constrVars)
       varToConstraints = buildVarToConstraints nameToID constraints
       constraintMap = Map.fromList [(getConstraintID c, c) | c <- constraints]
-  in analyzeConstraints constraintMap nameToID varToConstraints varStates
+  in analyzeConstraints constraintMap nameToID varToConstraints Nothing varStates
 
 -- given File
 analyzeFromFile :: FilePath -> IO ()
@@ -783,7 +794,94 @@ prettyPrintStore store = do
     determineState :: Set Integer -> Maybe Integer -> Maybe Integer -> Either (Set Integer) (Maybe Integer, Maybe Integer)
     determineState vals lb ub
         | not (Set.null vals) = Left vals  -- explicit values 
-        | otherwise           = Right (lb, ub)  -- otherwise, we display bounds or unknown            
+        | otherwise           = Right (lb, ub)  -- otherwise, we display bounds or unknown
+
+
+-- USER RULES -- TODO: move to separate file!
+
+-- | Analyzer which also takes user rules into account.
+analyzeFromFileWithRules
+  :: FilePath           -- circuitFile
+  -> Maybe FilePath     -- userRulesFile (Nothing if no rules)
+  -> IO ()
+analyzeFromFileWithRules circuitFile maybeRulesFile = do
+  circuitSrc <- readFile circuitFile
+  case parseAndCompile circuitSrc of
+    Left err -> putStrLn $ "Error parsing circuit: " ++ err
+    Right program -> do
+      -- parsing user rules if present
+      userRules <- case maybeRulesFile of
+        Nothing -> pure Nothing
+        Just f  -> do
+          raw <- readFile f
+          case parseUserRules raw of
+            Left e   -> do
+              putStrLn ("Error parsing user rules: " ++ e)
+              pure Nothing
+            Right rs -> pure (Just rs)
+
+      let inferredStore = analyzeProgramWithRules program userRules
+
+      putStrLn "\n===== Final Inferred Value Store ====="
+      prettyPrintStore inferredStore
+
+analyzeProgramWithRules :: Program -> Maybe [UserRule] -> Map String VariableState
+analyzeProgramWithRules (Program inputs compVars constrVars _ constraints) maybeRules =
+  let
+      nameToID    = buildVarNameToIDMap (inputs ++ compVars ++ constrVars)
+      varStates   = initializeVarStates (inputs ++ compVars ++ constrVars)
+      constraintMap = Map.fromList [(getConstraintID c, c) | c <- constraints]
+      varToCon    = buildVarToConstraints nameToID constraints
+
+  in analyzeConstraints constraintMap nameToID varToCon maybeRules varStates
+
+-- Suppose we matched the placeholders -> realVarNames.
+-- Then we apply "x in {0,1}", meaning realVarName in {0,1}.
+applyUserAction :: UserAction -> Map.Map String Int -> Map.Map Int VariableState
+                -> (Bool, Map.Map Int VariableState)
+applyUserAction (ConstrainSet placeholderName enumer) nameToID varStates =
+  case Map.lookup placeholderName nameToID of
+    Nothing -> (False, varStates)
+    Just realID ->
+      let oldState = Map.findWithDefault initVarState realID varStates
+          newState = updateValues oldState (KnownValues enumer)
+      in case newState of
+                   Left msg         -> (False, varStates)
+                   Right newState  -> (True, Map.insert realID newState varStates)
+
+applyUserAction (ConstrainRange placeholderName lo up) nameToID varStates =
+  case Map.lookup placeholderName nameToID of
+    Nothing -> (False, varStates)
+    Just realID ->
+      let oldState = Map.findWithDefault initVarState realID varStates
+          newState = updateValues oldState (BoundedValues (Just lo) (Just up))
+        in case newState of
+                Left msg         -> (False, varStates)
+                Right newState  -> (True, Map.insert realID newState varStates)
+
+applyUserRules :: Constraint -> [UserRule] -> Map.Map Int VariableState -> Map.Map String Int -> (Bool, Map.Map Int VariableState)
+applyUserRules realC userRules varStates nameToID =
+  foldl applySingleRule (False, varStates) userRules
+  where
+    applySingleRule :: (Bool, Map.Map Int VariableState) -> UserRule -> (Bool, Map.Map Int VariableState)
+    applySingleRule (changed, vs) (UserRule pC acts) =
+      case matchConstraint pC realC of
+        Nothing -> (changed, vs)
+        Just placeholderToRealName ->
+          let 
+              sub = Map.fromList -- converting "placeholder -> realVarName" to "placeholder -> realVarID"
+                [ (ph, realID)
+                | (ph, rvName) <- Map.toList placeholderToRealName
+                , let realID = fromMaybe (-1) (Map.lookup rvName nameToID)
+                ]
+              (newChanged, newVS) =
+                foldl
+                  (\(ch, accVS) action ->
+                    let (c, vs') = applyUserAction action sub accVS
+                    in (ch || c, vs'))
+                  (False, vs)
+                  acts
+          in (changed || newChanged, newVS)
 
 
 --------------------------------------------------------------------------------
