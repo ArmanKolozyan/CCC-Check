@@ -192,7 +192,7 @@ updateValues vState (BoundedValues maybeLb maybeUb) =
               case (Set.null (values vState), newLb, newUb) of
                 (True,  _, _ )       -> Set.empty
                 (False, Just lb, Just ub) ->
-                    Set.filter (\x -> x >= lb && x <= ub) (values vState)
+                     Set.filter (\x -> x >= lb && x <= ub) (values vState)
                 (False, Just lb, Nothing) ->
                     Set.filter (\x -> x >= lb) (values vState)
                 (False, Nothing, Just ub) ->
@@ -373,45 +373,60 @@ isIn01 (VariableState vals lowB uppB _)
 -- TODO: OrC, ... !!
 analyzeConstraint :: Constraint -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
 
+-- EQUALITY Rule
+analyzeConstraint (EqC _ (Var xName) e) nameToID varStates =
+  case e of
+    -- | Rule 4a from Ecne
+    (Var yName) -> 
+      case (Map.lookup xName nameToID, Map.lookup yName nameToID) of
+        (Just xID, Just yID) ->
+          case (Map.lookup xID varStates, Map.lookup yID varStates) of
+            (Just xState, Just yState) ->
+              let xValues = values xState
+                  yValues = values yState
+                  bothEmpty = Set.null xValues && Set.null yValues
+                  oneEmpty = Set.null xValues || Set.null yValues
+              in if bothEmpty
+                then Right (False, varStates)  -- nothing to propagate
+                else if oneEmpty
+                      then let newValues = Set.union xValues yValues
+                               newXState = xState { values = newValues }
+                               newYState = yState { values = newValues }
+                               newVarStates = Map.insert xID newXState $
+                                              Map.insert yID newYState varStates
+                          in Right (True, newVarStates)  -- transferring values
+                      else -- both have values, checking for consistency
+                        case updateValues xState (KnownValues yValues) >>= \updatedX ->
+                            updateValues yState (KnownValues xValues) >>= \updatedY ->
+                            Right (updatedX, updatedY) of
+                          Right (updatedX, updatedY) ->
+                            let changed = updatedX /= xState || updatedY /= yState
+                                newVarStates = Map.insert xID updatedX $
+                                              Map.insert yID updatedY varStates
+                            in Right (changed, newVarStates)
+                          Left errMsg -> Left errMsg
+            _ -> Right (False, varStates)  -- variables not initialized
+        _ -> Left "Variable name not found in nameToID map"
+    _ -> let omega = inferValues e nameToID varStates
+          in case Map.lookup xName nameToID of
+              Nothing -> Left "Variable name not found in nameToID"
+              Just xID ->
+                case Map.lookup xID varStates of
+                  Nothing -> Left "Variable state not found in varStates"
+                  Just xState ->
+                    case updateValues xState omega of
+                      Right updatedState ->
+                        let changed = xState /= updatedState -- if changes, need to re-queue constraints
+                            updatedMap = if changed then Map.insert xID updatedState varStates else varStates
+                        in Right (changed, updatedMap)
+                      Left errMsg -> Left errMsg
 
 -- ALREADY HANDLED BY THE ROOT RULE:
 --analyzeConstraint (EqC cid (Var xName) (Int 0)) nameToID varStates =
 --  markVarDefinitelyZero xName nameToID varStates
 
 --analyzeConstraint (EqC cid (Int 0) (Var xName)) nameToID varStates =
---  markVarDefinitelyZero xName nameToID varStates
-
--- | Rule 4a from Ecne
-analyzeConstraint (EqC _ (Var xName) (Var yName)) nameToID varStates =
-  case (Map.lookup xName nameToID, Map.lookup yName nameToID) of
-    (Just xID, Just yID) ->
-      case (Map.lookup xID varStates, Map.lookup yID varStates) of
-        (Just xState, Just yState) ->
-          let xValues = values xState
-              yValues = values yState
-              bothEmpty = Set.null xValues && Set.null yValues
-              oneEmpty = Set.null xValues || Set.null yValues
-          in if bothEmpty
-             then Right (False, varStates)  -- nothing to propagate
-             else if oneEmpty
-                  then let newValues = Set.union xValues yValues
-                           newXState = xState { values = newValues }
-                           newYState = yState { values = newValues }
-                           newVarStates = Map.insert xID newXState $
-                                          Map.insert yID newYState varStates
-                       in Right (True, newVarStates)  -- transferring values
-                  else -- both have values, checking for consistency
-                    case updateValues xState (KnownValues yValues) >>= \updatedX ->
-                         updateValues yState (KnownValues xValues) >>= \updatedY ->
-                         Right (updatedX, updatedY) of
-                      Right (updatedX, updatedY) ->
-                        let changed = updatedX /= xState || updatedY /= yState
-                            newVarStates = Map.insert xID updatedX $
-                                           Map.insert yID updatedY varStates
-                        in Right (changed, newVarStates)
-                      Left errMsg -> Left errMsg
-        _ -> Right (False, varStates)  -- variables not initialized
-    _ -> Left "Variable name not found in nameToID map"
+--  markVarDefinitelyZero xName nameToID varStates  
 
 -- ASSIGN Rule from PICUS paper
 analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
@@ -481,7 +496,7 @@ analyzeConstraint (EqC cid lhs (Var zName)) nameToID varStates
                            Nothing -> error ("No VariableState for " ++ show zID)
 
            -- 3) we update the variable 'z' with [0, upBound]
-           updatedZState <- -- TODO: check for inconsistencies
+           updatedZState <-
              updateValues zState (BoundedValues (Just 0) (Just upBound))
 
            let changed1   = updatedZState /= zState
@@ -839,8 +854,8 @@ analyzeProgramWithRules (Program inputs compVars constrVars _ constraints) maybe
 -- Then we apply "x in {0,1}", meaning realVarName in {0,1}.
 applyUserAction :: UserAction -> Map.Map String Int -> Map.Map Int VariableState
                 -> (Bool, Map.Map Int VariableState)
-applyUserAction (ConstrainSet placeholderName enumer) nameToID varStates =
-  case Map.lookup placeholderName nameToID of
+applyUserAction (ConstrainSet placeholderName enumer) plHoNameToID varStates =
+  case Map.lookup placeholderName plHoNameToID of
     Nothing -> (False, varStates)
     Just realID ->
       let oldState = Map.findWithDefault initVarState realID varStates
@@ -849,8 +864,8 @@ applyUserAction (ConstrainSet placeholderName enumer) nameToID varStates =
                    Left msg         -> (False, varStates)
                    Right newState  -> (True, Map.insert realID newState varStates)
 
-applyUserAction (ConstrainRange placeholderName lo up) nameToID varStates =
-  case Map.lookup placeholderName nameToID of
+applyUserAction (ConstrainRange placeholderName lo up) plHoNameToID varStates =
+  case Map.lookup placeholderName plHoNameToID of
     Nothing -> (False, varStates)
     Just realID ->
       let oldState = Map.findWithDefault initVarState realID varStates
@@ -950,12 +965,12 @@ checkBoolean (VariableState vals lowB upB _) varName =
         else case (lowB, upB) of
                 -- we have bounds
                (Just lb, Just ub) -> Set.fromList [lb..ub]
-               -- unknown
+                -- unknown
                _ -> Set.empty
     -- if we ended up with an empty set, that's an error:
     noValuesError =
       [ "Boolean variable `" ++ varName
-        ++ "` has no possible values (unconstrained)." 
+        ++ "` has no possible values (unconstrained)" 
       | Set.null possibleVals ]
 
     -- otherwise, we check whether any values are outside of {0,1}:
@@ -988,7 +1003,7 @@ checkMaxVal maxVal (VariableState vals lowB upB _) varName =
     -- if empty domain -> error
     noValuesError =
       [ "Variable `" ++ varName
-        ++ "` has no possible values (unconstrained)."
+        ++ "` has no possible values (unconstrained)"
       | Set.null possibleVals ]
 
     -- If not empty, check out-of-range
