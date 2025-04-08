@@ -28,7 +28,7 @@ spec = describe "Bug Detection Tests" $ do
             (Mul (Var "b") (Sub (Var "b") (Int 1)))
             (Int 0)
 
-    --  for nz: (nz-1)*(nz-2)=0 => possible {1,2}.
+    --  for nz: (nz-1)*(nz-2)=0 => possible {1,2}. 
     let cNZ_poly =
           EqC
             101
@@ -80,9 +80,9 @@ spec = describe "Bug Detection Tests" $ do
     let nz = Binding {name = "nz", vid = 1, sort = NonZero}
     let f = Binding {name = "f", vid = 2, sort = FieldMod 5}
 
-    let b_eq = EqC 106 (Var "b") (Int 2)
+    let b_eq = EqC 105 (Var "b") (Int 2)
     let nz_eq = EqC 106 (Var "nz") (Int 0)
-    let f_eq = EqC 107 (Var "f") (Int 4)
+    let f_eq = EqC 107 (Var "f") (Int 9)
 
     let constraints = [b_eq, nz_eq, f_eq]
 
@@ -99,9 +99,9 @@ spec = describe "Bug Detection Tests" $ do
       Left errs -> do
         -- we expect bug messages for all variables
         errs `shouldMatchList` -- `shouldMatchList` is chosen over `shouldBe`, as it does not take order into account
-          ["Boolean variable `b` has no possible values (unconstrained).", 
+          ["Boolean variable `b` has values outside {0,1}: [2]", 
           "Variable `nz` declared NonZero but varState.nonZero == False", 
           "Variable `nz` declared NonZero but 0 is in possible set: [0]", 
-          "Variable `f` has no possible values (unconstrained)."]
+          "Variable `f` has out-of-range values: [9]"]
       Right () ->
         expectationFailure "We expected bug errors, but detectBugs returned Right ()"

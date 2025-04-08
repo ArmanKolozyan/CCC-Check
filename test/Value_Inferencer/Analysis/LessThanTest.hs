@@ -262,4 +262,4 @@ spec = describe "Value Inferencer Detects" $ do
       Nothing -> expectationFailure "No state for 'diff'"
       Just st ->
         st
-          `shouldBe` (VariableState {values = Set.empty, low_b = Just 0, upp_b = Just 7, nonZero = False})
+          `shouldBe` (VariableState {values = Set.fromList [1,2,3,4,5,6,7], low_b = Just 1, upp_b = Just 7, nonZero = True})
