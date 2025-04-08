@@ -213,8 +213,18 @@ updateValues vState (BoundedValues maybeLb maybeUb) =
           -- updating the state
           Right vState
             { values  = restrictedVals
-            , low_b   = newLb
-            , upp_b   = newUb
+            , low_b   = 
+                if not (Set.null $ values vState)
+                then if Set.null restrictedVals
+                    then Nothing
+                    else Just $ Set.findMin restrictedVals
+                else newLb
+            , upp_b   = 
+                if not (Set.null $ values vState)
+                then if Set.null restrictedVals
+                    then Nothing
+                    else Just $ Set.findMax restrictedVals
+                else newUb   
             , nonZero = newNonZero
             }
 getVarID = Map.lookup
