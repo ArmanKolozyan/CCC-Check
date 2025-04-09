@@ -782,7 +782,7 @@ reQueue oldQueue varToConstraints = foldl (\accQ varID ->
 
 -- given Program
 analyzeProgram :: Program -> Map String VariableState
-analyzeProgram (Program inputs compVars constrVars _ constraints) =
+analyzeProgram (Program inputs compVars constrVars _ pfRecips constraints) =
   let nameToID = buildVarNameToIDMap (inputs ++ compVars ++ constrVars)
       varStates = initializeVarStates (inputs ++ compVars ++ constrVars)
       varToConstraints = buildVarToConstraints nameToID constraints
@@ -850,7 +850,7 @@ analyzeFromFileWithRules circuitFile maybeRulesFile = do
       prettyPrintStore inferredStore
 
 analyzeProgramWithRules :: Program -> Maybe [UserRule] -> Map String VariableState
-analyzeProgramWithRules (Program inputs compVars constrVars _ constraints) maybeRules =
+analyzeProgramWithRules (Program inputs compVars constrVars _ pfRecips constraints) maybeRules =
   let
       nameToID    = buildVarNameToIDMap (inputs ++ compVars ++ constrVars)
       varStates   = initializeVarStates (inputs ++ compVars ++ constrVars)

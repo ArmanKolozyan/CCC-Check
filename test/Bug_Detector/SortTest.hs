@@ -60,7 +60,8 @@ spec = describe "Bug Detection Tests" $ do
               computationVars = [],
               constraintVars = [b0, b1],
               computations = [],
-              constraints = constraints
+              constraints = constraints,
+              pfRecipExpressions = []
             }
 
     case detectBugs programOk Nothing of
@@ -92,7 +93,8 @@ spec = describe "Bug Detection Tests" $ do
               computationVars = [],
               constraintVars = [],
               computations = [],
-              constraints = constraints
+              constraints = constraints,
+              pfRecipExpressions = []
             }
 
     case detectBugs programBug Nothing of

@@ -4,11 +4,8 @@ module ValueAnalysis.UserRules (UserRule(..), UserAction(..),
 
 import Syntax.AST
 import Syntax.Compiler (parseAndCompileConstraint)
-import ValueAnalysis.VariableState
-import ValueAnalysis.ValueDomain
 import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
-import Data.Maybe (fromMaybe)
 
 -- | A user rule is:
 --  * 'patternC', the constraint pattern (the user wrote something like (= ...))

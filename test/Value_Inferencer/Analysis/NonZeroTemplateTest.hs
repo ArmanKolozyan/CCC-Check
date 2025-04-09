@@ -45,6 +45,7 @@ spec = describe "IsZero template test with out=0" $ do
           , constraintVars  = [outVar, invVar]
           , computations    = []
           , constraints     = [c1, c2, c3]
+          , pfRecipExpressions = []
           }
 
     -- running the analysis

@@ -27,7 +27,9 @@ spec = describe "NonZero Rule Tests" $ do
           , computationVars = []
           , constraintVars  = [a, b]
           , computations    = []
-          , constraints     = [nonZeroEq] }
+          , constraints     = [nonZeroEq]
+          , pfRecipExpressions = []
+          }
 
     -- running the analysis
     let finalStates = analyzeProgram testProgram

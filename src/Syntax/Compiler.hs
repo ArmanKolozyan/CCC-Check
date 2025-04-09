@@ -15,16 +15,24 @@ import Data.List (foldl')
 data CompilerState = CompilerState 
     {
         nextVarID :: Int,
-        nextConstraintID :: Int
+        nextConstraintID :: Int,
+        pfRecipExprs :: [Expression] -- to collect all denominators (exprs that cannot be 0)
     }
-
 
 emptyState :: CompilerState
 emptyState = CompilerState
     {
         nextVarID = 0,
-        nextConstraintID = 0
+        nextConstraintID = 0,
+        pfRecipExprs = []
     }
+
+-- | Helper function to add a pfrecip expression to the state
+addPfRecipExpression :: MonadCompile m => Expression -> m ()
+addPfRecipExpression expr = do
+    st <- get
+    put st { pfRecipExprs = pfRecipExprs st ++ [expr] }
+
 
 genVarID :: MonadCompile m => m Int
 genVarID = do
@@ -84,12 +92,15 @@ parseAndCompileConstraint input = do
 compileComputation :: MonadCompile m => SExp -> m Program
 compileComputation (Atom "computation" _ ::: forms) = do
    (inputs, compVars, compExps, constrVars, constraints) <- compileForms forms
+   st <- get
+   let pfRecips = pfRecipExprs st -- retrieving collected pfrecip expressions
    return $ Program {
     inputs = inputs,
     computationVars = compVars,
     constraintVars = constrVars,
     computations = compExps,
-    constraints = constraints
+    constraints = constraints,
+    pfRecipExpressions = pfRecips
    }
 compileComputation e = throwError $ "Expected (computation ...), got: " ++ show e
 
@@ -260,6 +271,11 @@ compileExp (Atom "+" _ ::: e1 ::: e2 ::: SNil _) = do
     lhs_compiled <- compileExp e1
     rhs_compiled <- compileExp e2
     pure (Add lhs_compiled rhs_compiled)
+compileExp (Atom "pfrecip" _ ::: exp ::: SNil _) = do
+    compiled_exp <- compileExp exp
+    let pfRecipExpr = PfRecip compiled_exp
+    addPfRecipExpression pfRecipExpr -- collecting the pfrecip expression
+    pure pfRecipExpr  
 compileExp (Atom "-" _ ::: e1 ::: e2 ::: SNil _) = do
     lhs_compiled <- compileExp e1
     rhs_compiled <- compileExp e2
@@ -267,7 +283,7 @@ compileExp (Atom "-" _ ::: e1 ::: e2 ::: SNil _) = do
 compileExp (Atom "*" _ ::: e1 ::: e2 ::: SNil _) = do
     lhs_compiled <- compileExp e1
     rhs_compiled <- compileExp e2
-    pure (Mul lhs_compiled rhs_compiled)
+    pure (Mul lhs_compiled rhs_compiled) 
 compileExp (Atom "ite" _ ::: cond ::: cons ::: alt ::: SNil _) = do
     cond_compiled <- compileExp cond
     cons_compiled <- compileExp cons

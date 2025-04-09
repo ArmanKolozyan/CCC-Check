@@ -9,6 +9,7 @@ data Program = Program
     computationVars :: [Binding],
     constraintVars :: [Binding],
     computations :: [Expression],
+    pfRecipExpressions :: [Expression], -- to collect all denominators (exprs that cannot be 0)
     constraints :: [Constraint]
   }
   deriving (Show, Eq)
@@ -39,6 +40,7 @@ data Expression
   | Add Expression Expression
   | Sub Expression Expression
   | Mul Expression Expression
+  | Div Expression Expression
   | Ite Expression Expression Expression
   | Eq Expression Expression
   | Gt Expression Expression
@@ -54,6 +56,8 @@ data Expression
     -- BvConcat e1 e2: concatenates bit-vectors e1 and e2
   | BvLit Integer Integer
     -- BvLit val width: a literal bit-vector of width bits, representing val
+  | PfRecip Expression  
+    -- Represents the reciprocal of an expression
   deriving (Show, Eq)
 
 -- | Minimal set of constraints: equality.
