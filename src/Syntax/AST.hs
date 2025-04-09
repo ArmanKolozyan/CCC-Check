@@ -37,6 +37,7 @@ data Sort
 data Expression
   = Var String
   | Int Integer
+  | FieldConst Integer Integer
   | Add Expression Expression
   | Sub Expression Expression
   | Mul Expression Expression

@@ -254,6 +254,9 @@ parseListOfConstrs (SNil _)        = pure []
 parseListOfConstrs (sub ::: subs)  = (:) <$> compileConstraint sub <*> parseListOfConstrs subs
 parseListOfConstrs bad             = throwError $ "Expected list of constraints, got " ++ show bad
 
+defaultPrime :: Integer
+defaultPrime = 52435875175126190479447740508185965837690552500527637822603658699938581184513
+
 -- | Compiles a single expression.
 compileExp :: MonadCompile m => SExp -> m Expression
 compileExp (Num i _) = pure (Int i)
@@ -263,6 +266,22 @@ compileExp (Atom text@(('#':'b':bits)) _) =
    let val   = compileBinary bits  -- converts "0101" -> 5
        width = fromIntegral (length bits)
    in pure (BvLit val width)
+
+-- field constants: #f123   or   #f123m5243587 ...
+compileExp (Atom text@('#':'f':rest) _) = do
+    let (valStr, maybeMPlusPrime) = break (== 'm') rest
+        val  = read valStr
+        prime = case maybeMPlusPrime of
+                  ('m':primeStr) | not (null primeStr) ->
+                    -- user wrote something like #f123m456
+                    read primeStr
+                  _ ->
+                    -- no prime => default prime
+                    defaultPrime
+    -- TODO: we should retrieve prime from set_default_modulus when possible
+    pure (FieldConst val prime) 
+
+
 compileExp (Atom name _) =
     if all isDigit name && not (null name)
         then pure (Int (read name))
