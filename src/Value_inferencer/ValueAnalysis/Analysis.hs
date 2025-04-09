@@ -925,7 +925,9 @@ detectBugs program maybeVars =
       allVars = inputs program ++ computationVars program ++ constraintVars program
       vars = fromMaybe allVars maybeVars
       -- we gather errors for each variable
-      errors = concatMap (checkVariable varStates) vars
+      sortErrors = concatMap (checkVariable varStates) vars
+      divByZeroErrors = checkPfRecips (pfRecipExpressions program) varStates (buildVarNameToIDMap allVars)
+      errors = sortErrors ++ divByZeroErrors
   in if null errors
        then Right ()
        else Left errors
@@ -977,7 +979,7 @@ checkBoolean (VariableState vals lowB upB _) varName =
     -- if we ended up with an empty set, that's an error:
     noValuesError =
       [ "Boolean variable `" ++ varName
-        ++ "` has no possible values (unconstrained)" 
+        ++ "` has no possible values (unconstrained)"
       | Set.null possibleVals ]
 
     -- otherwise, we check whether any values are outside of {0,1}:
@@ -997,7 +999,7 @@ checkBoolean (VariableState vals lowB upB _) varName =
    or if it has bounds, then the upper bound must not exceed 2^n - 1.
 -}
 checkMaxVal :: Integer -> VariableState -> String -> [String]
-checkMaxVal maxVal (VariableState vals lowB upB _) varName = 
+checkMaxVal maxVal (VariableState vals lowB upB _) varName =
   let
     -- if we have enumerated values, we use them; otherwise, we gather from bounds
     possibleVals = -- TODO: fix code duplication, maak functie allVals
@@ -1020,7 +1022,7 @@ checkMaxVal maxVal (VariableState vals lowB upB _) varName =
         ++ "` has out-of-range values: " ++ show (Set.toList invalidVals)
       | not (Set.null invalidVals) ]
 
-    in noValuesError ++ rangeError  
+    in noValuesError ++ rangeError
 
 -- Checking NonZero
 
@@ -1048,3 +1050,67 @@ checkNonZero (VariableState vals lowB upB nonZ) varName =
       (["Variable `" ++ varName ++ "` declared NonZero but 0 is in possible set: "
                     ++ show (Set.toList possibleVals) | 0 `Set.member` possibleVals])
   in msgNonZeroFlag ++ msgZeroInVals
+
+-- | Returns 'True' if the variable is guaranteed to be non-zero.
+isVarNonZero :: String -> Map String VariableState -> Bool
+isVarNonZero xName st =
+  maybe False nonZero (Map.lookup xName st)
+
+-- | Checks if any PfRecip expression could be zero "at runtime", more precisely :
+--   1) if the expression is constrained to be nonZero (via nonZero flag)
+--   2) or, 0 is not in the expression's value domain
+checkPfRecips :: [Expression] -> Map String VariableState -> Map String Int -> [String]
+checkPfRecips denominators store nameToID =
+  concatMap checkSingle denominators
+  where
+    checkSingle expr
+      | expressionIsDefinitelyNonZero expr store = []
+      | otherwise =
+          let domain = inferValues expr nameToID (invertStates store nameToID)
+          in case domain of
+               KnownValues vSet ->
+                 [ "Denominator expression `" ++ show expr ++ "` may be 0 at runtime!"
+                 | 0 `Set.member` vSet
+                 ]
+               BoundedValues (Just lb) (Just ub) ->
+                 [ "Denominator expression `" ++ show expr ++ "` may be 0 at runtime!"
+                 | lb <= 0 && ub >= 0
+                 ]
+               _ -> []
+
+-- | Simple non-zero inferencer.
+--   Returns True if the expression is constrained to be nonZero.
+expressionIsDefinitelyNonZero :: Expression -> Map String VariableState -> Bool
+-- Case 1: literal integer
+expressionIsDefinitelyNonZero (Int c) _ = c /= 0
+
+-- Case 2: single variable
+expressionIsDefinitelyNonZero (Var xName) st =
+  isVarNonZero xName st
+
+-- Case 3: number * var
+-- if the multiplier is non-zero and the variable is definitely non-zero, the product is non-zero
+expressionIsDefinitelyNonZero (Mul (Int c) (Var xName)) st
+  | c /= 0 = isVarNonZero xName st
+  | otherwise = False
+expressionIsDefinitelyNonZero (Mul (Var xName) (Int c)) st =
+  expressionIsDefinitelyNonZero (Mul (Int c) (Var xName)) st
+
+-- Case 4: var + number
+-- if the variable is definitely non-zero, we assume the sum is non-zero
+-- TODO: wat met overflows? die worden al gedetecteerd wss?
+expressionIsDefinitelyNonZero (Add (Var xName) (Int c)) st = isVarNonZero xName st
+expressionIsDefinitelyNonZero (Add (Int c) (Var xName)) st =
+  expressionIsDefinitelyNonZero (Add (Var xName) (Int c)) st
+
+-- Case 5: fallback, cannot guarantee non-zero
+expressionIsDefinitelyNonZero _ _ = False
+
+-- | Converts String->VariableState to Int->VariableState so we can call inferValues.
+invertStates :: Map String VariableState -> Map String Int -> Map Int VariableState
+invertStates st nmToID =
+  Map.fromList
+    [ (nmToID Map.! varName, vState)
+    | (varName, vState) <- Map.toList st
+    , varName `Map.member` nmToID
+    ]
