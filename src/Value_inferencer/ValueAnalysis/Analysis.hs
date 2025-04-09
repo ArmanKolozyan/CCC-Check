@@ -194,9 +194,9 @@ updateValues vState (BoundedValues maybeLb maybeUb) =
                 (False, Just lb, Just ub) ->
                      Set.filter (\x -> x >= lb && x <= ub) (values vState)
                 (False, Just lb, Nothing) ->
-                    Set.filter (\x -> x >= lb) (values vState)
+                    Set.filter (>= lb) (values vState)
                 (False, Nothing, Just ub) ->
-                    Set.filter (\x -> x <= ub) (values vState)
+                    Set.filter (<= ub) (values vState)
                 (False, Nothing, Nothing) ->
                     values vState
 
@@ -771,11 +771,10 @@ analyzeConstraints constraints nameToID varToConstraints maybeRules = loop (init
 
 -- Helper to re-queue constraints that reference changed variables
 reQueue :: Seq Int -> Map Int [Int] -> [Int] -> Seq Int
-reQueue oldQueue varToConstraints changedVars =
-  foldl (\accQ varID -> 
+reQueue oldQueue varToConstraints = foldl (\accQ varID ->
     let cIDs = Map.findWithDefault [] varID varToConstraints
     in foldl (|>) accQ cIDs
-  ) oldQueue changedVars
+  ) oldQueue
 
 --------------------------
 -- 6) Main Analysis
@@ -924,9 +923,7 @@ detectBugs :: Program -> Maybe [Binding] -> Either [String] ()
 detectBugs program maybeVars =
   let varStates = analyzeProgram program
       allVars = inputs program ++ computationVars program ++ constraintVars program
-      vars = case maybeVars of
-               Just vs -> vs
-               Nothing -> allVars
+      vars = fromMaybe allVars maybeVars
       -- we gather errors for each variable
       errors = concatMap (checkVariable varStates) vars
   in if null errors
