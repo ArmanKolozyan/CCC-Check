@@ -267,7 +267,7 @@ compileExp (Atom text@(('#':'b':bits)) _) =
        width = fromIntegral (length bits)
    in pure (BvLit val width)
 
--- field constants: #f123   or   #f123m5243587 ...
+-- field constants: #f123 or #f123m5243587, ...
 compileExp (Atom text@('#':'f':rest) _) = do
     let (valStr, maybeMPlusPrime) = break (== 'm') rest
         val  = read valStr
@@ -280,7 +280,6 @@ compileExp (Atom text@('#':'f':rest) _) = do
                     defaultPrime
     -- TODO: we should retrieve prime from set_default_modulus when possible
     pure (FieldConst val prime) 
-
 
 compileExp (Atom name _) =
     if all isDigit name && not (null name)
@@ -345,8 +344,22 @@ compileExp (Atom "concat" _ ::: e1 ::: e2 ::: SNil _) = do
     e2' <- compileExp e2
     pure (BvConcat e1' e2')
 
+compileExp (Atom "let" _ ::: bindingList ::: bodyExp ::: SNil _) = do
+  binds <- compileLetBindings bindingList
+  bodyC <- compileExp bodyExp
+  pure (Let binds bodyC)
+
 -- compileExp (Atom "tuple" _ ::: rest) = do TODO: support tuples
 compileExp e = throwError $ "Unsupported expression: " ++ show e
+
+compileLetBindings :: MonadCompile m => SExp -> m [(String, Expression)]
+compileLetBindings (SNil _) = pure []
+compileLetBindings ((Atom varName _ ::: rhs ::: SNil _) ::: rest) = do
+  compiled_rhs <- compileExp rhs
+  compiled_rest <- compileLetBindings rest
+  pure ((varName, compiled_rhs) : compiled_rest)
+compileLetBindings bad =
+  throwError $ "Invalid let binding list: " ++ show bad
 
 compileBinary :: String -> Integer
 compileBinary = foldl' (\acc c -> acc * 2 + if c=='1' then 1 else 0) 0

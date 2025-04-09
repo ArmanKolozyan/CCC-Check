@@ -51,14 +51,17 @@ data Expression
   | And [Expression]
   | Or [Expression]
   | Not Expression
-  | BvExtract Expression Integer Integer
     -- BvExtract e high low: extract bits [high : low] from expression e
-  | BvConcat Expression Expression
+  | BvExtract Expression Integer Integer
     -- BvConcat e1 e2: concatenates bit-vectors e1 and e2
-  | BvLit Integer Integer
+  | BvConcat Expression Expression
     -- BvLit val width: a literal bit-vector of width bits, representing val
-  | PfRecip Expression  
+  | BvLit Integer Integer
     -- Represents the reciprocal of an expression
+  | PfRecip Expression 
+    -- Let expressions
+  | Let [(String, Expression)] Expression 
+
   deriving (Show, Eq)
 
 -- | Minimal set of constraints: equality.
