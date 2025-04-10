@@ -63,7 +63,9 @@ data Expression
     -- Let expressions
   | Let [(String, Expression)] Expression 
     -- Return statements
-  | Return [Expression]     
+  | Return [Expression]   
+    -- Tuple
+  | Tuple [Expression]  
   deriving (Show, Eq)
 
 -- | Minimal set of constraints: equality.

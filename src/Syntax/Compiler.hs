@@ -364,7 +364,10 @@ compileExp (Atom "let" _ ::: bindingList ::: bodyExp ::: SNil _) = do
   bodyC <- compileExp bodyExp
   pure (Let binds bodyC)
 
--- compileExp (Atom "tuple" _ ::: rest) = do TODO: support tuples
+compileExp (Atom "tuple" _ ::: rest) = do
+    exprs <- parseListOfExps rest -- parsing all expressions inside the tuple
+    pure (Tuple exprs)
+    
 compileExp e = throwError $ "Unsupported expression: " ++ show e
 
 compileLetBindings :: MonadCompile m => SExp -> m [(String, Expression)]
