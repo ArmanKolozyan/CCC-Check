@@ -12,13 +12,20 @@ spec = describe "Bug Detection Tests" $ do
   it "No-Bug scenario: detectBugs returns Right ()" $ do
     -- We define a small program with:
     --   - var b: declared Bool, forced to {0,1}
-    --   - var nz: declared NonZero, forced to {1,2}
+    --   - var nz: appears as denominator, forced to {1,2}
     --   - var f: declared FieldMod 4, forced to [0..3]
 
     -- bindings:
     let b = Binding {name = "b", vid = 0, sort = Bool}
-    let nz = Binding {name = "nz", vid = 1, sort = NonZero}
+    let nz = Binding {name = "nz", vid = 1, sort = FieldMod 5}
     let f = Binding {name = "f", vid = 2, sort = FieldMod 4}
+
+    -- nz as denominator
+    let cNZ_denom =
+          EqC
+            99
+            (Mul (Int 1) (PfRecip (Var "nz")))
+            (Int 1)
 
     -- constraints:
     --  for b:   b*(b-1) = 0  forces b in {0,1}
@@ -42,7 +49,7 @@ spec = describe "Bug Detection Tests" $ do
     let b1 = Binding { name = "b1", vid = 4, sort = Bool }
 
     -- constraints:
-    
+
     -- (b0 * (b0 - 1)) = 0
     let b0_eq = EqC 102 (Mul (Var "b0") (Sub (Var "b0") (Int 1))) (Int 0)
 
@@ -52,7 +59,7 @@ spec = describe "Bug Detection Tests" $ do
     -- (b0 + 2*b1) = f
     let sum_eq = EqC 104 (Add (Var "b0") (Mul (Int 2) (Var "b1"))) (Var "f")
 
-    let constraints = [cB_binary, cNZ_poly, b0_eq, b1_eq, sum_eq]
+    let constraints = [cNZ_denom, cB_binary, cNZ_poly, b0_eq, b1_eq, sum_eq]
 
     let programOk =
           Program
@@ -61,7 +68,8 @@ spec = describe "Bug Detection Tests" $ do
               constraintVars = [b0, b1],
               computations = [],
               constraints = constraints,
-              pfRecipExpressions = []
+              returnVars = [],
+              pfRecipExpressions = [Var "nz"]
             }
 
     case detectBugs programOk Nothing of
@@ -78,14 +86,21 @@ spec = describe "Bug Detection Tests" $ do
     -- For f: we make it equal to a number > 3.
 
     let b = Binding {name = "b", vid = 0, sort = Bool}
-    let nz = Binding {name = "nz", vid = 1, sort = NonZero}
+    let nz = Binding {name = "nz", vid = 1, sort = FieldMod 5}
     let f = Binding {name = "f", vid = 2, sort = FieldMod 5}
 
     let b_eq = EqC 105 (Var "b") (Int 2)
     let nz_eq = EqC 106 (Var "nz") (Int 0)
     let f_eq = EqC 107 (Var "f") (Int 9)
 
-    let constraints = [b_eq, nz_eq, f_eq]
+    -- nz as denominator
+    let cNZ_denom =
+          EqC
+            108
+            (Mul (Int 1) (PfRecip (Var "nz")))
+            (Int 1)
+
+    let constraints = [b_eq, nz_eq, f_eq, cNZ_denom]
 
     let programBug =
           Program
@@ -94,16 +109,16 @@ spec = describe "Bug Detection Tests" $ do
               constraintVars = [],
               computations = [],
               constraints = constraints,
-              pfRecipExpressions = []
+              returnVars = [],
+              pfRecipExpressions = [Var "nz"]
             }
 
     case detectBugs programBug Nothing of
       Left errs -> do
         -- we expect bug messages for all variables
         errs `shouldMatchList` -- `shouldMatchList` is chosen over `shouldBe`, as it does not take order into account
-          ["Boolean variable `b` has values outside {0,1}: [2]", 
-          "Variable `nz` declared NonZero but varState.nonZero == False", 
-          "Variable `nz` declared NonZero but 0 is in possible set: [0]", 
+          ["Boolean variable `b` has values outside {0,1}: [2]",
+          "Denominator expression `Var \"nz\"` may be 0!",
           "Variable `f` has out-of-range values: [9]"]
       Right () ->
         expectationFailure "We expected bug errors, but detectBugs returned Right ()"
