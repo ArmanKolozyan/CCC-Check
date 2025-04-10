@@ -72,7 +72,13 @@ data Expression
     -- #a arrays
   | ArraySparseLiteral [(Integer, Expression)] Expression Integer Sort 
     -- (array ...) constructor
-  | ArrayConstruct [Expression] Sort                 
+  | ArrayConstruct [Expression] Sort  
+    -- select(array, index) 
+  | ArraySelect Expression Expression  
+    -- store(array, index, value)                
+  | ArrayStore Expression Expression Expression        
+    -- fill(value, sort, size) 
+  | ArrayFill Expression Sort Integer                               
   deriving (Show, Eq)
 
 -- | Minimal set of constraints: equality.

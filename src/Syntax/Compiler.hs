@@ -388,6 +388,25 @@ compileExp (Atom "array" _ ::: keySortExp ::: valSortExp ::: elems) = do
     vals <- parseListOfExps elems
     pure (ArrayConstruct vals valSort)
 
+-- array select operation: (select array index)
+compileExp (Atom "select" _ ::: arrayExp ::: indexExp ::: SNil _) = do
+  array <- compileExp arrayExp
+  index <- compileExp indexExp
+  pure (ArraySelect array index)
+
+-- array store operation: (store array index value)
+compileExp (Atom "store" _ ::: arrayExp ::: indexExp ::: valueExp ::: SNil _) = do
+  array <- compileExp arrayExp
+  index <- compileExp indexExp
+  value <- compileExp valueExp
+  pure (ArrayStore array index value)
+
+-- array fill operation: (fill sort size value)
+compileExp (Atom "fill" _ ::: sortExp ::: Num size _ ::: valueExp ::: SNil _) = do
+  sort <- compileSort sortExp
+  value <- compileExp valueExp
+  pure (ArrayFill value sort size)
+
 compileExp e = throwError $ "Unsupported expression: " ++ show e
 
 compileBinary :: String -> Integer
