@@ -30,6 +30,7 @@ data Sort
   | Bool 
   | BitVector Integer
   | NonZero -- TODO: op een betere manier encoderen/aangeven
+  | ArraySort Sort Integer -- arrays have an element sort and size
   deriving (Show, Eq)
 
 -- | Minimal set of expressions: variables, field elements (currently handled

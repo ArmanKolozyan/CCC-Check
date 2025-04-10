@@ -425,4 +425,7 @@ compileSort (Atom "bool" _) =
   pure Bool
 compileSort (Atom "bv" _ ::: Num n _ ::: SNil _) =
   pure (BitVector n)    
+compileSort (Atom "array" _ ::: valSortExp ::: Num size _ ::: SNil _) = do
+    valSort <- compileSort valSortExp
+    pure (ArraySort valSort size)  
 compileSort e = throwError $ "Unsupported sort: " ++ show e
