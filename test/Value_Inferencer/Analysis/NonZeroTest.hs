@@ -29,6 +29,7 @@ spec = describe "NonZero Rule Tests" $ do
           , computations    = []
           , constraints     = [nonZeroEq]
           , pfRecipExpressions = []
+          , returnVars = []
           }
 
     -- running the analysis

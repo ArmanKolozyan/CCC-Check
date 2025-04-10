@@ -57,4 +57,4 @@ hasExpectedValue var expected env =
 
 -- | Helper function to create a test program
 testProgram :: [Constraint] -> Program
-testProgram = Program [] [] [] [] []      
+testProgram = Program [] [] [] [] [] []      

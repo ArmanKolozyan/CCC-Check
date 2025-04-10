@@ -201,6 +201,7 @@ spec = describe "Value Inferencer Detects" $ do
                 ],
               computations = [],
               constraints = allConstraints,
+              returnVars = [],
               pfRecipExpressions = []
             }
 
