@@ -306,9 +306,8 @@ compileExp (Atom "+" _ ::: e1 ::: e2 ::: SNil _) = do
     pure (Add lhs_compiled rhs_compiled)
 compileExp (Atom "pfrecip" _ ::: exp ::: SNil _) = do
     compiled_exp <- compileExp exp
-    let pfRecipExpr = PfRecip compiled_exp
-    addPfRecipExpression pfRecipExpr -- collecting the pfrecip expression
-    pure pfRecipExpr  
+    addPfRecipExpression compiled_exp -- collecting the pfrecip expression
+    pure $ PfRecip compiled_exp  
 compileExp (Atom "-" _ ::: e1 ::: e2 ::: SNil _) = do
     lhs_compiled <- compileExp e1
     rhs_compiled <- compileExp e2

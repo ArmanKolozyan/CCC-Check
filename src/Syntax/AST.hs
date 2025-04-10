@@ -29,7 +29,6 @@ data Sort
   = FieldMod Integer 
   | Bool 
   | BitVector Integer
-  | NonZero -- TODO: op een betere manier encoderen/aangeven
   | ArraySort Sort Integer -- arrays have an element sort and size
   deriving (Show, Eq)
 

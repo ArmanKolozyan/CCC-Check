@@ -82,6 +82,7 @@ collectVarsFromExpr nameToID (Lte e1 e2) = collectVarsFromExpr nameToID e1 ++ co
 collectVarsFromExpr nameToID (And es) = concatMap (collectVarsFromExpr nameToID) es
 collectVarsFromExpr nameToID (Or es) = concatMap (collectVarsFromExpr nameToID) es
 collectVarsFromExpr nameToID (Not e) = collectVarsFromExpr nameToID e
+collectVarsFromExpr nameToID (PfRecip e) = collectVarsFromExpr nameToID e
 
 -- | Builds a variable-to-constraints mapping.
 buildVarToConstraints :: Map String Int -> [Constraint] -> Map Int [Int]
@@ -951,7 +952,6 @@ checkSort :: Sort -> VariableState -> String -> [String]
 checkSort Bool vs varName         = checkBoolean vs varName
 checkSort (BitVector n) vs varName= checkMaxVal ((2 ^ n) - 1) vs varName
 checkSort (FieldMod p) vs varName = checkMaxVal (p - 1) vs varName
-checkSort NonZero vs varName      = checkNonZero vs varName
 
 -- Checking Booleans
 
@@ -1024,33 +1024,6 @@ checkMaxVal maxVal (VariableState vals lowB upB _) varName =
 
     in noValuesError ++ rangeError
 
--- Checking NonZero
-
-{- 
-   If a variable is declared NonZero, it must not contain 0 in its final set. 
-   Or the vState.nonZero should be True. 
-   Or, if no explicit values are available, 
-   we check if bounds do not include 0. TODO: to think, we kijken best enkel of het nonZero is?
--}
-checkNonZero :: VariableState -> String -> [String]
-checkNonZero (VariableState vals lowB upB nonZ) varName =
-  let
-    -- if we have enumerated vals:
-    possibleVals =
-      if not (Set.null vals)
-        then vals
-        else case (lowB, upB) of
-               (Just lb, Just ub) -> Set.fromList [lb..ub]
-               _                  -> Set.empty
-
-    msgNonZeroFlag =
-      (["Variable `" ++ varName ++ "` declared NonZero but varState.nonZero == False" | not nonZ])
-
-    msgZeroInVals =
-      (["Variable `" ++ varName ++ "` declared NonZero but 0 is in possible set: "
-                    ++ show (Set.toList possibleVals) | 0 `Set.member` possibleVals])
-  in msgNonZeroFlag ++ msgZeroInVals
-
 -- | Returns 'True' if the variable is guaranteed to be non-zero.
 isVarNonZero :: String -> Map String VariableState -> Bool
 isVarNonZero xName st =
@@ -1069,11 +1042,11 @@ checkPfRecips denominators store nameToID =
           let domain = inferValues expr nameToID (invertStates store nameToID)
           in case domain of
                KnownValues vSet ->
-                 [ "Denominator expression `" ++ show expr ++ "` may be 0 at runtime!"
+                 [ "Denominator expression `" ++ show expr ++ "` may be 0!"
                  | 0 `Set.member` vSet
                  ]
                BoundedValues (Just lb) (Just ub) ->
-                 [ "Denominator expression `" ++ show expr ++ "` may be 0 at runtime!"
+                 [ "Denominator expression `" ++ show expr ++ "` may be 0!"
                  | lb <= 0 && ub >= 0
                  ]
                _ -> []
