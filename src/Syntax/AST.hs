@@ -66,6 +66,12 @@ data Expression
   | Return [Expression]   
     -- Tuple
   | Tuple [Expression]  
+    -- #l arrays
+  | ArrayLiteral [Expression] Sort
+    -- #a arrays
+  | ArraySparseLiteral [(Integer, Expression)] Expression Integer Sort 
+    -- (array ...) constructor
+  | ArrayConstruct [Expression] Sort                 
   deriving (Show, Eq)
 
 -- | Minimal set of constraints: equality.

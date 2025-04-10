@@ -367,8 +367,31 @@ compileExp (Atom "let" _ ::: bindingList ::: bodyExp ::: SNil _) = do
 compileExp (Atom "tuple" _ ::: rest) = do
     exprs <- parseListOfExps rest -- parsing all expressions inside the tuple
     pure (Tuple exprs)
-    
+
+-- #l literal arrays
+compileExp (Atom "#l" _ ::: sortExp ::: values ::: SNil _) = do
+    keySort <- compileSort sortExp
+    vals <- parseListOfExps values
+    pure (ArrayLiteral vals keySort)
+
+-- #a sparse literal arrays
+compileExp (Atom "#a" _ ::: sortExp ::: defaultExp ::: Num size _ ::: entries ::: SNil _) = do
+    sort <- compileSort sortExp
+    defaultVal <- compileExp defaultExp
+    entryList <- compileSparseArray entries
+    pure (ArraySparseLiteral entryList defaultVal size sort)
+
+-- array construction (array key_sort val_sort) values
+compileExp (Atom "array" _ ::: keySortExp ::: valSortExp ::: elems) = do
+    keySort <- compileSort keySortExp
+    valSort <- compileSort valSortExp
+    vals <- parseListOfExps elems
+    pure (ArrayConstruct vals valSort)
+
 compileExp e = throwError $ "Unsupported expression: " ++ show e
+
+compileBinary :: String -> Integer
+compileBinary = foldl' (\acc c -> acc * 2 + if c=='1' then 1 else 0) 0
 
 compileLetBindings :: MonadCompile m => SExp -> m [(String, Expression)]
 compileLetBindings (SNil _) = pure []
@@ -379,8 +402,14 @@ compileLetBindings ((Atom varName _ ::: rhs ::: SNil _) ::: rest) = do
 compileLetBindings bad =
   throwError $ "Invalid let binding list: " ++ show bad
 
-compileBinary :: String -> Integer
-compileBinary = foldl' (\acc c -> acc * 2 + if c=='1' then 1 else 0) 0
+compileSparseArray :: MonadCompile m => SExp -> m [(Integer, Expression)]
+compileSparseArray (SNil _) = pure []
+compileSparseArray ((Num idx _ ::: val ::: SNil _) ::: rest) = do
+    compiled_val <- compileExp val
+    compiled_rest <- compileSparseArray rest
+    pure ((idx, compiled_val) : compiled_rest)
+compileSparseArray bad =
+    throwError $ "Invalid sparse array entry: " ++ show bad
 
 --------------------------
 -- 7) Sort
