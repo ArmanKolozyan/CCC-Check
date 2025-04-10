@@ -10,7 +10,7 @@ import Data.Char (isDigit)
 
 import Syntax.Scheme.Parser
 
-import Data.List (foldl')
+import Data.List (foldl', isPrefixOf)
 
 data CompilerState = CompilerState 
     {
@@ -91,7 +91,7 @@ parseAndCompileConstraint input = do
 -- constraintVars and list of constraints from final declare
 compileComputation :: MonadCompile m => SExp -> m Program
 compileComputation (Atom "computation" _ ::: forms) = do
-   (inputs, compVars, compExps, constrVars, constraints) <- compileForms forms
+   (inputs, compVars, compExps, constrVars, constraints, retVars) <- compileForms forms
    st <- get
    let pfRecips = pfRecipExprs st -- retrieving collected pfrecip expressions
    return $ Program {
@@ -100,15 +100,16 @@ compileComputation (Atom "computation" _ ::: forms) = do
     constraintVars = constrVars,
     computations = compExps,
     constraints = constraints,
-    pfRecipExpressions = pfRecips
+    pfRecipExpressions = pfRecips,
+    returnVars = retVars
    }
 compileComputation e = throwError $ "Expected (computation ...), got: " ++ show e
 
 -- | Handles the compilation of forms by calling compileForm for each individual form and folding
 -- the results using sfoldlM.
-compileForms:: MonadCompile m => SExp -> m ([Binding], [Binding], [Expression], [Binding], [Constraint])
+compileForms:: MonadCompile m => SExp -> m ([Binding], [Binding], [Expression], [Binding], [Constraint], [Binding])
 compileForms forms = do
-    let initAcc = ([], [], [], [], []) -- initial empty accumulator
+    let initAcc = ([], [], [], [], [], []) -- initial empty accumulator
     sfoldlM compileForm initAcc forms
 
 -- | Folds over a list of s-expressions in a monadic context.
@@ -121,19 +122,19 @@ sfoldlM _ _ e = throwError $ "malformed list " ++ show e
 
 -- | Compiles a single form by first matching it to check whether it is a 
 -- metadata/precompute/declare/... and then gathers the appropriate information from that form. 
-compileForm :: MonadCompile m => ([Binding],[Binding],[Expression],[Binding],[Constraint])
+compileForm :: MonadCompile m => ([Binding],[Binding],[Expression],[Binding],[Constraint], [Binding])
   -> SExp
-  -> m ([Binding],[Binding],[Expression],[Binding],[Constraint])
-compileForm info@(ins, compv, comps, constv, consts) form = case form of
+  -> m ([Binding],[Binding],[Expression],[Binding],[Constraint], [Binding])
+compileForm info@(ins, compv, comps, constv, consts, retv) form = case form of
     ex@(Atom "metadata" _ ::: _) -> do 
         newIns <- compileMetadata ex
-        pure (ins ++ newIns, compv, comps, constv, consts)
+        pure (ins ++ newIns, compv, comps, constv, consts, retv)
     ex@(Atom "precompute" _ ::: _) -> do
-        (vars, exps) <- compilePrecompute ex
-        pure (ins, compv ++ vars, comps ++ exps, constv, consts)
+        (vars, exps, rets) <- compilePrecompute ex
+        pure (ins, compv ++ vars, comps ++ exps, constv, consts, retv ++ rets)
     ex@(Atom "declare" _ ::: _) -> do
         (vars, constrs) <- compileDeclare ex
-        pure (ins, compv, comps, constv ++ vars, consts ++ constrs)
+        pure (ins, compv, comps, constv ++ vars, consts ++ constrs, retv)
     _ -> pure info
 
 --------------------------
@@ -174,24 +175,38 @@ compileInput acc form = case form of
 --------------------------
 
 -- | Compiles a precompute form by extracting declared variables and expressions.
-compilePrecompute :: MonadCompile m => SExp -> m ([Binding], [Expression])
+compilePrecompute :: MonadCompile m => SExp -> m ([Binding], [Expression], [Binding])
 compilePrecompute (Atom "precompute" _ ::: preForms) =
-    sfoldlM compilePreForm ([], []) preForms
+    sfoldlM compilePreForm ([], [], []) preForms
 compilePrecompute e = throwError $ "Invalid (precompute ...): " ++ show e
 
 -- | Compiles a single form within a precompute block. It distinguishes between 
 -- declarations and body expressions.
-compilePreForm :: MonadCompile m => ([Binding], [Expression]) -> SExp -> m ([Binding], [Expression])
-compilePreForm (vars, exps) preForm = case preForm of
-    ex@(Atom "declare" _ ::: (varDefs ::: compForms ::: SNil _)) -> do
+compilePreForm :: MonadCompile m => ([Binding], [Expression], [Binding]) -> SExp -> m ([Binding], [Expression], [Binding])
+compilePreForm (vars, exps, rets) preForm = case preForm of
+    (Atom "declare" _ ::: (varDefs ::: compForms ::: SNil _)) -> do
         bds <- sfoldlM compileVariableDefinitions [] varDefs
         exps <- compileExp compForms -- TODO: check if folding is needed
-        pure (vars ++ bds, [exps])
-    ex@((Atom "return" _ ::: _) ::: SNil _) -> do -- TODO: handle outputs
-        pure (vars, exps)    
-    _ -> do
-        preForm_compiled <- compileExp preForm
-        pure (vars, exps ++ [preForm_compiled])    
+        pure (vars ++ bds, [exps], rets)
+    -- return variables
+    returns -> do
+        newRets <- compileReturnBindings returns
+        pure (vars, exps, rets ++ newRets)
+
+-- | Compiles a list of return bindings, e.g., ((return.0 ...) (return.1 ...) ...).
+compileReturnBindings :: MonadCompile m => SExp -> m [Binding]
+compileReturnBindings (SNil _) = pure []
+compileReturnBindings ((Atom retName _ ::: sortExp ::: SNil _) ::: rest) =
+  if "return" `isPrefixOf` retName -- could be a single "return", or multiple "return.x" bindings
+    then do
+      sortVal <- compileSort sortExp
+      newID <- genVarID
+      let newBind = Binding newID retName sortVal
+      moreRets <- compileReturnBindings rest
+      pure (newBind : moreRets)
+    else
+      error $ "Invalid return name: " ++ retName
+compileReturnBindings bad = throwError $ "Invalid return bindings: " ++ show bad
 
 --------------------------
 -- 5) Declare

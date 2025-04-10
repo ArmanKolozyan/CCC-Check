@@ -37,6 +37,7 @@ spec = describe "Value Inference Tests" $ do
           , computations = []
           , constraints = constraints
           , pfRecipExpressions = []
+          , returnVars = []
           }
 
     -- running the analysis

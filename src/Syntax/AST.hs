@@ -10,6 +10,7 @@ data Program = Program
     constraintVars :: [Binding],
     computations :: [Expression],
     pfRecipExpressions :: [Expression], -- to collect all denominators (exprs that cannot be 0)
+    returnVars         :: [Binding],
     constraints :: [Constraint]
   }
   deriving (Show, Eq)
@@ -61,7 +62,8 @@ data Expression
   | PfRecip Expression 
     -- Let expressions
   | Let [(String, Expression)] Expression 
-
+    -- Return statements
+  | Return [Expression]     
   deriving (Show, Eq)
 
 -- | Minimal set of constraints: equality.
