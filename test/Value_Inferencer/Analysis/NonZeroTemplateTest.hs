@@ -5,6 +5,7 @@ module Value_Inferencer.Analysis.NonZeroTemplateTest (spec) where
 import Test.Hspec
 import Syntax.AST
 import ValueAnalysis.Analysis
+import ValueAnalysis.ValueDomain
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
@@ -56,20 +57,27 @@ spec = describe "IsZero template test with out=0" $ do
     case Map.lookup "in" finalStates of
       Nothing -> expectationFailure "No state for 'in'"
       Just st -> do
-        nonZero st `shouldBe` True
-        -- we expect 0 not to appear in st.values
-        Set.member 0 (values st) `shouldBe` False
+        -- checking if the domain guarantees non-zero
+        isDefinitelyNonZero (domain st) `shouldBe` True
+        -- checking that 0 is not a possible value
+        couldBeZero (domain st) `shouldBe` False
 
     -- checking that 'out' is definitely forced to 0
     case Map.lookup "out" finalStates of
       Nothing -> expectationFailure "No state for 'out'"
       Just st -> do
-        (Set.toList $ values st) `shouldSatisfy` (\vals -> vals == [0] || null vals)
-        nonZero st `shouldBe` False
+        -- checking if the domain is exactly {0}
+        domain st `shouldBe` KnownValues (Set.singleton 0)
+        -- checking non-zero status (should be False)
+        isDefinitelyNonZero (domain st) `shouldBe` False
+        -- checking if it could be zero (should be True)
+        couldBeZero (domain st) `shouldBe` True
 
     -- checking that 'inv' is also non-zero (since in*inv=1)
     case Map.lookup "inv" finalStates of
       Nothing -> expectationFailure "No state for 'inv'"
       Just st -> do
-        nonZero st `shouldBe` True
-        Set.member 0 (values st) `shouldBe` False
+        -- checking if the domain guarantees non-zero
+        isDefinitelyNonZero (domain st) `shouldBe` True
+        -- Additionally, cjecking that 0 is not a possible value
+        couldBeZero (domain st) `shouldBe` False

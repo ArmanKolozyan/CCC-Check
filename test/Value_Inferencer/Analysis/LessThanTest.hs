@@ -213,55 +213,55 @@ spec = describe "Value Inferencer Detects" $ do
       Nothing -> expectationFailure "No state for 'a'"
       Just st ->
         st
-          `shouldBe` (VariableState {values = Set.empty, low_b = Just 0, upp_b = Just 3, nonZero = False})
+          `shouldBe` (VariableState {domain = BoundedValues (Just 0) (Just 3) Nothing})
 
     -- checking that input b is [0, 3]
     case Map.lookup "b" finalStates of
       Nothing -> expectationFailure "No state for 'b'"
       Just st ->
         st
-          `shouldBe` (VariableState {values = Set.empty, low_b = Just 0, upp_b = Just 3, nonZero = False})
+          `shouldBe` (VariableState {domain = BoundedValues (Just 0) (Just 3) Nothing})
 
     -- checking binary values
     case Map.lookup "a_b0" finalStates of
       Nothing -> expectationFailure "No state for 'a_b0'"
       Just st ->
         st
-          `shouldBe` (VariableState {values = Set.fromList [0, 1], low_b = Nothing, upp_b = Nothing, nonZero = False})
+          `shouldBe` (VariableState {domain = KnownValues (Set.fromList [0, 1])})
     case Map.lookup "a_b1" finalStates of
       Nothing -> expectationFailure "No state for 'a_b1'"
       Just st ->
         st
-          `shouldBe` (VariableState {values = Set.fromList [0, 1], low_b = Nothing, upp_b = Nothing, nonZero = False})
+          `shouldBe` (VariableState {domain = KnownValues (Set.fromList [0, 1])})
     case Map.lookup "b_b0" finalStates of
       Nothing -> expectationFailure "No state for 'b_b0'"
       Just st ->
         st
-          `shouldBe` (VariableState {values = Set.fromList [0, 1], low_b = Nothing, upp_b = Nothing, nonZero = False})
+          `shouldBe` (VariableState {domain = KnownValues (Set.fromList [0, 1])})
     case Map.lookup "b_b1" finalStates of
       Nothing -> expectationFailure "No state for 'b_b1'"
       Just st ->
         st
-          `shouldBe` (VariableState {values = Set.fromList [0, 1], low_b = Nothing, upp_b = Nothing, nonZero = False})
+          `shouldBe` (VariableState {domain = KnownValues (Set.fromList [0, 1])})
     case Map.lookup "diff_b0" finalStates of
       Nothing -> expectationFailure "No state for 'diff_b0'"
       Just st ->
         st
-          `shouldBe` (VariableState {values = Set.fromList [0, 1], low_b = Nothing, upp_b = Nothing, nonZero = False})
+          `shouldBe` (VariableState {domain = KnownValues (Set.fromList [0, 1])})
     case Map.lookup "diff_b1" finalStates of
       Nothing -> expectationFailure "No state for 'diff_b1'"
       Just st ->
         st
-          `shouldBe` (VariableState {values = Set.fromList [0, 1], low_b = Nothing, upp_b = Nothing, nonZero = False})
+          `shouldBe` (VariableState {domain = KnownValues (Set.fromList [0, 1])})
     case Map.lookup "diff_b2" finalStates of
       Nothing -> expectationFailure "No state for 'diff_b2'"
       Just st ->
         st
-          `shouldBe` (VariableState {values = Set.fromList [0, 1], low_b = Nothing, upp_b = Nothing, nonZero = False})
+          `shouldBe` (VariableState {domain = KnownValues (Set.fromList [0, 1])})
 
     -- checking that diff is [0, 7]
     case Map.lookup "diff" finalStates of
       Nothing -> expectationFailure "No state for 'diff'"
       Just st ->
         st
-          `shouldBe` (VariableState {values = Set.fromList [1,2,3,4,5,6,7], low_b = Just 1, upp_b = Just 7, nonZero = True})
+          `shouldBe` (VariableState {domain = KnownValues (Set.fromList [1, 2, 3, 4, 5, 6, 7])})

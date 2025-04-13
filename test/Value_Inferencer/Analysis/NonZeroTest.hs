@@ -2,9 +2,9 @@ module Value_Inferencer.Analysis.NonZeroTest (spec) where
 
 import Test.Hspec
 import ValueAnalysis.Analysis
+import ValueAnalysis.ValueDomain
 import Syntax.AST
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 spec :: Spec
 spec = describe "NonZero Rule Tests" $ do
@@ -41,13 +41,13 @@ spec = describe "NonZero Rule Tests" $ do
 
     case (maybeAState, maybeBState) of
       (Just aState, Just bState) -> do
-         -- "nonZero" should be True
-         nonZero aState `shouldBe` True
-         nonZero bState `shouldBe` True
+         -- checking if domain guarantees non-zero
+         isDefinitelyNonZero (domain aState) `shouldBe` True
+         isDefinitelyNonZero (domain bState) `shouldBe` True
 
-         -- 0 should be removed from 'values'
-         Set.member 0 (values aState) `shouldBe` False
-         Set.member 0 (values bState) `shouldBe` False
+         -- checking if 0 is possibly in the domain (should be False)
+         couldBeZero (domain aState) `shouldBe` False
+         couldBeZero (domain bState) `shouldBe` False
 
       _ -> expectationFailure
              "Could not find variable states for 'a' or 'b' in final analysis"
