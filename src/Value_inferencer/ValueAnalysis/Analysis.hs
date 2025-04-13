@@ -794,20 +794,20 @@ prettyPrintStore :: Map String VariableState -> IO ()
 prettyPrintStore store = do
     mapM_ printVariable (Map.toList store)
   where
-    printVariable (varName, VariableState values low_b upp_b _) = do
+    printVariable (varName, vState) = do
         putStrLn $ "Variable: " ++ varName
-        putStr "- Inferred Values: "
-        case determineState values low_b upp_b of
-            Left explicitValues -> putStrLn $ "{" ++ intercalate ", " (map show (Set.toList explicitValues)) ++ "}"
-            Right (Just lb, Just ub) -> putStrLn $ "[" ++ show lb ++ ", " ++ show ub ++ "]"
-            Right _ -> putStrLn "Unknown"
-        putStrLn ""
-
-    -- determines whether to display explicit values, bounds, or unknown.
-    determineState :: Set Integer -> Maybe Integer -> Maybe Integer -> Either (Set Integer) (Maybe Integer, Maybe Integer)
-    determineState vals lb ub
-        | not (Set.null vals) = Left vals  -- explicit values 
-        | otherwise           = Right (lb, ub)  -- otherwise, we display bounds or unknown
+        putStr "- Inferred Domain: "
+        case domain vState of
+            KnownValues s -> putStrLn $ "{" ++ intercalate ", " (map show (Set.toList s)) ++ "}"
+            BoundedValues (Just lb) (Just ub) Nothing -> putStrLn $ "[" ++ show lb ++ ", " ++ show ub ++ "]"
+            BoundedValues (Just lb) (Just ub) (Just ex) -> putStrLn $ "[" ++ show lb ++ ", " ++ show ub ++ "] excluding {" ++ intercalate ", " (map show (Set.toList ex)) ++ "}"
+            BoundedValues (Just lb) Nothing Nothing -> putStrLn $ "[" ++ show lb ++ ", inf)"
+            BoundedValues (Just lb) Nothing (Just ex) -> putStrLn $ "[" ++ show lb ++ ", inf) excluding {" ++ intercalate ", " (map show (Set.toList ex)) ++ "}"
+            BoundedValues Nothing (Just ub) Nothing -> putStrLn $ "(-inf, " ++ show ub ++ "]"
+            BoundedValues Nothing (Just ub) (Just ex) -> putStrLn $ "(-inf, " ++ show ub ++ "] excluding {" ++ intercalate ", " (map show (Set.toList ex)) ++ "}"
+            BoundedValues Nothing Nothing Nothing -> putStrLn "Unknown (no bounds)"
+            BoundedValues Nothing Nothing (Just ex) -> putStrLn $ "Unknown (no bounds) excluding {" ++ intercalate ", " (map show (Set.toList ex)) ++ "}"
+        putStrLn "" -- adding a blank line for readability
 
 
 -- USER RULES -- TODO: move to separate file!
