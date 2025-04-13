@@ -328,53 +328,45 @@ isIn01 (VariableState vals lowB uppB _)
 -- TODO: OrC, ... !!
 analyzeConstraint :: Constraint -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
 
--- EQUALITY Rule
+-- EQUALITY Rule: x = y
 analyzeConstraint (EqC _ (Var xName) e) nameToID varStates =
   case e of
-    -- | Rule 4a from Ecne
-    (Var yName) -> 
+    -- | Rule 4a from Ecne: x = y
+    (Var yName) ->
       case (Map.lookup xName nameToID, Map.lookup yName nameToID) of
         (Just xID, Just yID) ->
           case (Map.lookup xID varStates, Map.lookup yID varStates) of
             (Just xState, Just yState) ->
-              let xValues = values xState
-                  yValues = values yState
-                  bothEmpty = Set.null xValues && Set.null yValues
-                  oneEmpty = Set.null xValues || Set.null yValues
-              in if bothEmpty
-                then Right (False, varStates)  -- nothing to propagate
-                else if oneEmpty
-                      then let newValues = Set.union xValues yValues
-                               newXState = xState { values = newValues }
-                               newYState = yState { values = newValues }
-                               newVarStates = Map.insert xID newXState $
-                                              Map.insert yID newYState varStates
-                          in Right (True, newVarStates)  -- transferring values
-                      else -- both have values, checking for consistency
-                        case updateValues xState (KnownValues yValues) >>= \updatedX ->
-                            updateValues yState (KnownValues xValues) >>= \updatedY ->
-                            Right (updatedX, updatedY) of
-                          Right (updatedX, updatedY) ->
-                            let changed = updatedX /= xState || updatedY /= yState
-                                newVarStates = Map.insert xID updatedX $
-                                              Map.insert yID updatedY varStates
-                            in Right (changed, newVarStates)
-                          Left errMsg -> Left errMsg
-            _ -> Right (False, varStates)  -- variables not initialized
-        _ -> Left "Variable name not found in nameToID map"
-    _ -> let omega = inferValues e nameToID varStates
-          in case Map.lookup xName nameToID of
-              Nothing -> Left "Variable name not found in nameToID"
+              -- propagating information in both directions using updateValues (which uses intersectDomains)
+              let xDomain = domain xState
+                  yDomain = domain yState
+              in case updateValues xState yDomain >>= \updatedX ->
+                      updateValues yState xDomain >>= \updatedY ->
+                      Right (updatedX, updatedY) of
+                   Right (updatedX, updatedY) ->
+                     let changed = updatedX /= xState || updatedY /= yState
+                         newVarStates = Map.insert xID updatedX $
+                                        Map.insert yID updatedY varStates
+                     in Right (changed, newVarStates)
+                   Left errMsg -> Left errMsg -- intersection failed, contradiction
+            _ -> Right (False, varStates)  -- one or both variables not initialized, no change
+        _ -> Left $ "Variable name not found in nameToID map during x = y analysis: " ++ xName ++ " or " ++ yName
+
+    -- EQUALITY Rule: x = e (where e is not just a variable)
+    _ -> let omega = inferValues e nameToID varStates -- inferring domain of expression e
+         in case Map.lookup xName nameToID of
+              Nothing -> Left $ "Variable name not found in nameToID: " ++ xName
               Just xID ->
                 case Map.lookup xID varStates of
-                  Nothing -> Left "Variable state not found in varStates"
+                  Nothing -> Left $ "Variable state not found in varStates for ID: " ++ show xID
                   Just xState ->
+                    -- updating x's state by intersecting its current domain with the inferred domain of e
                     case updateValues xState omega of
                       Right updatedState ->
-                        let changed = xState /= updatedState -- if changes, need to re-queue constraints
+                        let changed = xState /= updatedState -- checking if the state actually changed
                             updatedMap = if changed then Map.insert xID updatedState varStates else varStates
                         in Right (changed, updatedMap)
-                      Left errMsg -> Left errMsg
+                      Left errMsg -> Left errMsg -- intersection failed, contradiction
 
 -- ALREADY HANDLED BY THE ROOT RULE:
 --analyzeConstraint (EqC cid (Var xName) (Int 0)) nameToID varStates =
