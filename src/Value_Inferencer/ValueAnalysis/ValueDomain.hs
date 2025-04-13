@@ -76,7 +76,7 @@ intersectDomains d1 d2 = case (d1, d2) of
             -- (this happens if adjusted bounds are both Nothing,
             -- but at least one initial bound was Just)
             adjustedBoundConflict_ExclusionEmptied =
-              isNothing adjustedLb && isNothing adjustedUb && (isJust combinedLb || isJust combinedLb)                  
+              isNothing adjustedLb && isNothing adjustedUb && (isJust combinedLb || isJust combinedUb)                  
         
         in if boundConflict 
           then Left $ "Bound conflict during intersection: new lower " ++ show adjustedLb ++ " > new upper " ++ show adjustedUb
