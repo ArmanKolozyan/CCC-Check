@@ -228,6 +228,8 @@ inferValues (Sub e1 e2) nameToID varStates =
              newUb = (-) <$> ub <*> Just minS
          in BoundedValues newLb newUb excl
 
+-- TODO: als e1 of e2 0 is/bevat, dan zullen we 0 uit de exclusions 
+-- moeten halen!
 inferValues (Mul e1 e2) nameToID varStates =
   let d1 = inferValues e1 nameToID varStates
       d2 = inferValues e2 nameToID varStates
@@ -911,8 +913,9 @@ detectBugs program maybeVars =
   let varStates = analyzeProgram program
       allVars = inputs program ++ computationVars program ++ constraintVars program
       vars = fromMaybe allVars maybeVars
-      -- we gather errors for each variable
+      -- gathering errors for each variable based on Sort
       sortErrors = concatMap (checkVariable varStates) vars
+      -- gathering division-by-zero errors
       divByZeroErrors = checkPfRecips (pfRecipExpressions program) varStates (buildVarNameToIDMap allVars)
       errors = sortErrors ++ divByZeroErrors
   in if null errors
@@ -951,31 +954,33 @@ checkSort (FieldMod p) vs varName = checkMaxVal (p - 1) vs varName
    If 'values' is empty, but we have low_b / upp_b, we check those. 
 -}
 checkBoolean :: VariableState -> String -> [String]
-checkBoolean (VariableState vals lowB upB _) varName =
-  let
-    possibleVals =
-      if not (Set.null vals)
-        -- we have explicit enumerated possibilities
-        then vals
-        else case (lowB, upB) of
-                -- we have bounds
-               (Just lb, Just ub) -> Set.fromList [lb..ub]
-                -- unknown
-               _ -> Set.empty
-    -- if we ended up with an empty set, that's an error:
-    noValuesError =
-      [ "Boolean variable `" ++ varName
-        ++ "` has no possible values (unconstrained)"
-      | Set.null possibleVals ]
+checkBoolean st varName =
+  let d = domain st
+      errs = case d of
+        -- known values: checking if subset of {0, 1}
+        KnownValues s ->
+          let invalidVals = Set.filter (\v -> v /= 0 && v /= 1) s
+          in if Set.null invalidVals
+             then []
+             else ["Boolean variable `" ++ varName ++ "` has values outside {0,1}: " ++ show (Set.toList invalidVals)]
 
-    -- otherwise, we check whether any values are outside of {0,1}:
-    invalidVals = Set.filter (\v -> v /= 0 && v /= 1) possibleVals
-    invalidValsError =
-      [ "Boolean variable `" ++ varName
-        ++ "` has values outside {0,1}: " ++ show (Set.toList invalidVals)
-      | not (Set.null invalidVals) ]
+        -- bounded values: checking if bounds are within [0, 1] and no contradictions
+        BoundedValues lb ub maybeEx ->
+          let lbOk = maybe True (>= 0) lb
+              ubOk = maybe True (<= 1) ub
+              -- checking if exclusions make the domain empty within [0, 1]
+              isEmpty = case (lb, ub) of
+                          (Just 0, Just 1) -> maybe False (Set.isSupersetOf (Set.fromList [0,1])) maybeEx
+                          (Just 0, Just 0) -> maybe False (Set.member 0) maybeEx
+                          (Just 1, Just 1) -> maybe False (Set.member 1) maybeEx
+                          _ -> False -- other bound combinations are handled by lbOk/ubOk
+          in (["Boolean variable `" ++ varName ++ "` has lower bound < 0" | not lbOk]) ++
+             (["Boolean variable `" ++ varName ++ "` has upper bound > 1" | not ubOk]) ++
+             (["Boolean variable `" ++ varName ++ "` has empty domain due to exclusions within [0, 1]" | isEmpty])
 
-  in noValuesError ++ invalidValsError
+  in if null errs && domainIsEmpty d -- checking for general emptiness if no specific boolean errors found
+     then ["Boolean variable `" ++ varName ++ "` has no possible values (unconstrained)"]
+     else errs
 
 -- Checking BitVectors and FieldMods
 
@@ -985,30 +990,26 @@ checkBoolean (VariableState vals lowB upB _) varName =
    or if it has bounds, then the upper bound must not exceed 2^n - 1.
 -}
 checkMaxVal :: Integer -> VariableState -> String -> [String]
-checkMaxVal maxVal (VariableState vals lowB upB _) varName =
-  let
-    -- if we have enumerated values, we use them; otherwise, we gather from bounds
-    possibleVals = -- TODO: fix code duplication, maak functie allVals
-      if not (Set.null vals)
-        then vals
-        else case (lowB, upB) of
-               (Just lb, Just ub) -> Set.fromList [lb..ub]
-               _                  -> Set.empty
+checkMaxVal maxVal st varName =
+  let d = domain st
+      errs = case d of
+        -- known values: checking if all values are within [0, maxVal]
+        KnownValues s ->
+          let invalidVals = Set.filter (\v -> v < 0 || v > maxVal) s
+          in if Set.null invalidVals
+             then []
+             else ["Variable `" ++ varName ++ "` has out-of-range values: " ++ show (Set.toList invalidVals) ++ " (expected [0.." ++ show maxVal ++ "])"]
 
-    -- if empty domain -> error
-    noValuesError =
-      [ "Variable `" ++ varName
-        ++ "` has no possible values (unconstrained)"
-      | Set.null possibleVals ]
+        -- bounded values: checking if bounds are within [0, maxVal]
+        BoundedValues lb ub _ -> -- exclusions don't cause out-of-range, only emptiness
+          let lbOk = maybe True (>= 0) lb
+              ubOk = maybe True (<= maxVal) ub
+          in (if not lbOk then ["Variable `" ++ varName ++ "` has lower bound < 0"] else []) ++
+             (if not ubOk then ["Variable `" ++ varName ++ "` has upper bound > " ++ show maxVal] else [])
 
-    -- If not empty, check out-of-range
-    invalidVals = Set.filter (\v -> v < 0 || v > maxVal) possibleVals
-    rangeError =
-      [ "Variable `" ++ varName
-        ++ "` has out-of-range values: " ++ show (Set.toList invalidVals)
-      | not (Set.null invalidVals) ]
-
-    in noValuesError ++ rangeError
+  in if null errs && domainIsEmpty d -- checking for general emptiness
+     then ["Variable `" ++ varName ++ "` has no possible values (unconstrained)"]
+     else errs
 
 -- | Returns 'True' if the variable is guaranteed to be non-zero.
 isVarNonZero :: String -> Map String VariableState -> Bool
@@ -1017,7 +1018,6 @@ isVarNonZero xName st =
     Left _ -> False -- Variable not found or no state
     Right st -> isDefinitelyNonZero (domain st)
 
-
 -- | Checks if any PfRecip expression could be zero "at runtime", more precisely :
 --   1) if the expression is constrained to be nonZero (via nonZero flag)
 --   2) or, 0 is not in the expression's value domain
@@ -1025,48 +1025,16 @@ checkPfRecips :: [Expression] -> Map String VariableState -> Map String Int -> [
 checkPfRecips denominators store nameToID =
   concatMap checkSingle denominators
   where
-    checkSingle expr
-      | expressionIsDefinitelyNonZero expr store = []
-      | otherwise =
-          let domain = inferValues expr nameToID (invertStates store nameToID)
-          in case domain of
-               KnownValues vSet ->
-                 [ "Denominator expression `" ++ show expr ++ "` may be 0!"
-                 | 0 `Set.member` vSet
-                 ]
-               BoundedValues (Just lb) (Just ub) ->
-                 [ "Denominator expression `" ++ show expr ++ "` may be 0!"
-                 | lb <= 0 && ub >= 0
-                 ]
-               _ -> []
+    -- converting name-keyed store to ID-keyed for inferValues
+    varStatesIntKeys = invertStates store nameToID
 
--- | Simple non-zero inferencer.
---   Returns True if the expression is constrained to be nonZero.
-expressionIsDefinitelyNonZero :: Expression -> Map String VariableState -> Bool
--- Case 1: literal integer
-expressionIsDefinitelyNonZero (Int c) _ = c /= 0 -- TODO: update naar (c `mod` fieldModulus) /= 0 ?
-
--- Case 2: single variable
-expressionIsDefinitelyNonZero (Var xName) st =
-  isVarNonZero xName st
-
--- Case 3: number * var
--- if the multiplier is non-zero and the variable is definitely non-zero, the product is non-zero
-expressionIsDefinitelyNonZero (Mul (Int c) (Var xName)) st
-  | c /= 0 = isVarNonZero xName st -- TODO: update naar (c `mod` fieldModulus) /= 0 ?
-  | otherwise = False
-expressionIsDefinitelyNonZero (Mul (Var xName) (Int c)) st =
-  expressionIsDefinitelyNonZero (Mul (Int c) (Var xName)) st
-
--- Case 4: var + number
--- if the variable is definitely non-zero, we assume the sum is non-zero
--- TODO: wat met overflows? die worden al gedetecteerd wss? HMM, is moeilijker in modular arithmetic
-expressionIsDefinitelyNonZero (Add (Var xName) (Int c)) st = isVarNonZero xName st
-expressionIsDefinitelyNonZero (Add (Int c) (Var xName)) st =
-  expressionIsDefinitelyNonZero (Add (Var xName) (Int c)) st
-
--- Case 5: fallback, cannot guarantee non-zero
-expressionIsDefinitelyNonZero _ _ = False
+    checkSingle expr =
+      let inferredDomain = inferValues expr nameToID varStatesIntKeys
+      -- using the functions from ValueDomain to check zero status
+      in if isDefinitelyNonZero inferredDomain
+         then [] -- guaranteed non-zero, OK
+         -- checking if it *could* be zero
+         else (["Potential division by zero: Denominator expression `" ++ show expr ++ "` might be zero." | couldBeZero inferredDomain])
 
 -- | Converts String->VariableState to Int->VariableState so we can call inferValues.
 invertStates :: Map String VariableState -> Map String Int -> Map Int VariableState

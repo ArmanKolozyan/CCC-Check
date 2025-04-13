@@ -22,6 +22,19 @@ isDefinitelyNonZero (BoundedValues lb ub excluded) =
         boundsExcludeZero = isJust lb && lb > Just 0
     in zeroExcluded || boundsExcludeZero
 
+-- Helper function to check if a domain might possibly contain zero.
+couldBeZero :: ValueDomain -> Bool
+couldBeZero (KnownValues s) = Set.member 0 s
+couldBeZero (BoundedValues lb ub excluded) =
+    let zeroExcluded = maybe False (Set.member 0) excluded
+        -- checking if 0 is within the bounds (or if bounds are unknown)
+        inRange = case (lb, ub) of -- TODO: normaal zijn negatieve bounds niet mogelijk
+                    (Just l, Just u) -> l <= 0 && 0 <= u -- e.g., [-5, 5]
+                    (Just l, Nothing) -> l <= 0          -- e.g., [-5, ...]
+                    (Nothing, Just u) -> 0 <= u          -- e.g., [..., 5]
+                    (Nothing, Nothing) -> True           -- no bounds, could be zero
+    in not zeroExcluded && inRange
+
 -- | Intersects two value domains. This is the core logic for value updates.
 -- Returns Left with an error message if the intersection results in a contradiction (empty domain).
 -- NOTE: Having a bounded domain value with exclusions that fall within the bounds is not an issue!
@@ -140,3 +153,9 @@ excludeValue (BoundedValues lb ub maybeEx) val =
 -- | Excludes zero from a domain.
 excludeZero :: ValueDomain -> ValueDomain
 excludeZero domain = excludeValue domain 0
+
+-- Helper to check if a domain represents an empty set of values
+domainIsEmpty :: ValueDomain -> Bool
+domainIsEmpty (KnownValues s) = Set.null s
+domainIsEmpty (BoundedValues Nothing Nothing _) = True
+domainIsEmpty _ = False
