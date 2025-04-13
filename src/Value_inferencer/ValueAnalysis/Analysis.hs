@@ -43,12 +43,6 @@ initializeVarStates vars = Map.fromList [(vid v, initVarState) | v <- vars]
 buildVarNameToIDMap :: [Binding] -> Map String Int
 buildVarNameToIDMap vars = Map.fromList [(name v, vid v) | v <- vars]
 
-setNonZero :: VariableState -> VariableState
-setNonZero vs = vs { nonZero = True
-                   -- we also remove 0 from values if it exists
-                   , values = Set.delete 0 (values vs)
-                   }
-
 --------------------------
 -- 3) Mapping Variables to Constraints
 --------------------------
@@ -312,17 +306,17 @@ zeroOne _ xName yName nameToID oldVarStates = do
 
 -- Helper function: checks whether a VariableState is restricted to exactly [0,1].
 isIn01 :: VariableState -> Bool
-isIn01 (VariableState vals lowB uppB _)
-    -- if we have an explicit set of possible values & it is subset of {0,1}
-    | not (Set.null vals) =
-        let allZeroOne = Set.isSubsetOf vals (Set.fromList [0,1])
-        in allZeroOne
-
-    -- otherwise, if we only have bounding info, we check if lb>=0 and ub<=1
-    | otherwise =
-        case (lowB, uppB) of
-          (Just lb, Just ub) -> lb >= 0 && ub <= 1
-          _ -> False
+isIn01 st = case domain st of
+    KnownValues s -> Set.isSubsetOf s (Set.fromList [0, 1])
+    BoundedValues (Just lb) (Just ub) maybeEx ->
+        lb >= 0 && ub <= 1 &&
+        -- ensuring 0 and 1 are not both excluded if the range is exactly [0, 1]
+        not (lb == 0 && ub == 1 && maybe False (Set.isSupersetOf (Set.fromList [0,1])) maybeEx) &&
+        -- ensuring the single value isn't excluded if lb == ub
+        not (lb == ub && maybe False (Set.member lb) maybeEx)
+    BoundedValues (Just lb) Nothing _ -> False -- cannot be [0,1] if upper bound is open
+    BoundedValues Nothing (Just ub) _ -> False -- cannot be [0,1] if lower bound is open
+    BoundedValues Nothing Nothing _ -> False -- cannot be [0,1] if bounds are unknown
 
 -- | Applies an "interesting" constraint to update variable states.
 -- TODO: OrC, ... !!
@@ -548,11 +542,27 @@ markNonZeroPair xName yName nameToID varStates = do
     oldXSt <- lookupVarState xID
     oldYSt <- lookupVarState yID
 
-    let newXSt = if not (nonZero oldXSt) then setNonZero oldXSt else oldXSt
-        newYSt = if not (nonZero oldYSt) then setNonZero oldYSt else oldYSt
+    -- trying to update x by excluding zero
+    -- We use updateValues because excludeZero alone, while adding 0 to exclusions and
+    -- adjusting bounds if they were exactly 0, doesn't perform the full consistency check.
+    -- For instance, if oldXSt's domain was BoundedValues (Just 0) (Just 0) Nothing (i.e., known to be 0),
+    -- excludeZero would produce BoundedValues (Just 1) (Just (-1)) (Just {0}) due to its bound adjustment logic.
+    -- This intermediate state is inconsistent (lower bound > upper bound).
+    -- The intersectDomains function (called by updateValues) is necessary to:
+    -- 1. Correctly merge the "exclude zero" information with the variable's *existing* domain (bounds and exclusions).
+    -- 2. Detect resulting inconsistencies like the lb > ub conflict shown above, or cases where exclusions empty the domain.
+    -- This ensures the analysis remains sound.
+    newXStEither <- updateValues oldXSt (excludeZero (domain oldXSt))
+    -- trying to update y by excluding zero
+    newYStEither <- updateValues oldYSt (excludeZero (domain oldYSt))
 
-        changed = newXSt /= oldXSt || newYSt /= oldYSt
-        newMap  = (Map.insert xID newXSt . Map.insert yID newYSt) varStates
+    -- handling potential errors from updateValues
+    newXSt <- newXStEither
+    newYSt <- newYStEither
+
+    let changed = newXSt /= oldXSt || newYSt /= oldYSt
+        -- applying updates only if they succeeded
+        newMap = Map.insert xID newXSt (Map.insert yID newYSt varStates)
 
     pure (changed, newMap)
 
