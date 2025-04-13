@@ -59,8 +59,8 @@ intersectDomains d1 d2 = case (d1, d2) of
                               (Just l, Just u) | l > u -> True
                               _ -> False
             
-            -- we heck for conflict where exclusions removed all values
-            -- (This happens if adjusted bounds are both Nothing,
+            -- we check for conflict where exclusions removed all values
+            -- (this happens if adjusted bounds are both Nothing,
             -- but at least one initial bound was Just)
             adjustedBoundConflict_ExclusionEmptied =
               isNothing adjustedLb && isNothing adjustedUb && (isJust combinedLb || isJust combinedLb)                  
