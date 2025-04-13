@@ -459,30 +459,25 @@ analyzeConstraint (EqC cid lhs (Var zName)) nameToID varStates
            -- 2) we infer z's upper bound = c^(1 + maxExp) - 1
            let exps    = map snd terms
                maxExp  = maximum exps
-               c       = 2  -- TODO: generalize
-               upBound = c^(maxExp + 1) - 1
-               zID     = case Map.lookup zName nameToID of
-                           Just i  -> i
-                           Nothing -> error ("No var ID for " ++ zName)
-               zState  = case Map.lookup zID varStates of
-                           Just st -> st
-                           Nothing -> error ("No VariableState for " ++ show zID)
+               cBase       = 2  -- TODO: generalize
+               upBound = cBase^(maxExp + 1) - 1
+           zID <- lookupVarID zName nameToID
+           zState <- lookupVarState zID varStates
 
            -- 3) we update the variable 'z' with [0, upBound]
            updatedZState <-
-             updateValues zState (BoundedValues (Just 0) (Just upBound))
+             updateValues zState (BoundedValues (Just 0) (Just upBound) Nothing)
 
            let changed1   = updatedZState /= zState
                varStates1 = Map.insert zID updatedZState varStates
 
            -- 4) if 'z' is exactly known => we can infer the bits
-           let zVals = values updatedZState
-           if Set.size zVals == 1
-              then do
-                let knownZ = head (Set.toList zVals)
-                varStates2 <- decodeSumOfPowers 2 knownZ terms nameToID varStates1 -- TODO: generalize
-                pure (True, varStates2)
-              else pure (changed1, varStates1)
+           case domain updatedZState of
+                 KnownValues zVals | Set.size zVals == 1 -> do
+                   let knownZ = Set.findMin zVals -- Get the single value
+                   varStates2 <- decodeSumOfPowers cBase knownZ terms nameToID varStates1
+                   pure (True, varStates2)
+                 _ -> pure (changed1, varStates1)
 
 -- | Rule 4b from Ecne
 --    "If 1 = x + y and x in [0,1], then y in [0,1], and vice versa"
@@ -517,26 +512,30 @@ analyzeConstraint (AndC cid subCs) nameToID varStates = do
 -- | NonZero rule: a * b + 1 = 0 then a is nonzero and b is nonzero.
 --   same for a * b = 1
 -- TODO: rekening houden met prime field!
-analyzeConstraint (EqC cid (Add (Var zName) (Mul (Var xName) (Var yName))) (Int c)) nameToID varStates =
-    case Map.lookup zName nameToID of
-     Nothing -> Right (False, varStates)
-     Just zID ->
-       case Map.lookup zID varStates of
-         Nothing -> Right (False, varStates)
-         Just zState ->
-           if isCertainlyZero zState && c /= 0
-            then markNonZeroPair xName yName nameToID varStates
-            else
-              Right (False, varStates)
+analyzeConstraint (EqC cid (Add (Var zName) (Mul (Var xName) (Var yName))) (Int c)) nameToID varStates = do
+    zState <- lookupVarStateByName zName nameToID varStates -- Use helper
+    let p = fieldModulus
+    if isCertainlyZero zState && c /= 0 -- TODO: (c `mod` p /= 0) ?
+       then markNonZeroPair xName yName nameToID varStates
+       else Right (False, varStates)
 --analyzeConstraint (EqC cid (Int c) (Mul (Var xName) (Var yName))) nameToID varStates =
 --     if c /= 0 then markNonZeroPair xName yName nameToID varStates
 --      else Right (False, varStates)
 analyzeConstraint (EqC cid (Add (Mul (Var xName) (Var yName)) (Int c1)) (Int c2)) nameToID varStates =
-     if c1 /= 0 && c2 == 0 then markNonZeroPair xName yName nameToID varStates
+     if c1 /= 0 && c2 == 0 then markNonZeroPair xName yName nameToID varStates -- TODO: (c1 `mod` p /= 0) && (c2 `mod` p == 0) ?
       else Right (False, varStates)
 analyzeConstraint (EqC cid (Mul (Var xName) (Var yName)) (Int c)) nameToID varStates =
-    if c /= 0 then markNonZeroPair xName yName nameToID varStates
+    if c /= 0 then markNonZeroPair xName yName nameToID varStates -- TODO: (c `mod` p /= 0) ?
       else Right (False, varStates)
+
+
+-- Symmetric cases for NonZero rules
+analyzeConstraint (EqC cid (Int c) (Add (Var zName) (Mul (Var xName) (Var yName)))) nameToID varStates =
+    analyzeConstraint (EqC cid (Add (Var zName) (Mul (Var xName) (Var yName))) (Int c)) nameToID varStates
+analyzeConstraint (EqC cid (Int c2) (Add (Mul (Var xName) (Var yName)) (Int c1))) nameToID varStates =
+    analyzeConstraint (EqC cid (Add (Mul (Var xName) (Var yName)) (Int c1)) (Int c2)) nameToID varStates
+analyzeConstraint (EqC cid (Int c) (Mul (Var xName) (Var yName))) nameToID varStates =
+    analyzeConstraint (EqC cid (Mul (Var xName) (Var yName)) (Int c)) nameToID varStates
 
 analyzeConstraint _ _ varStates = Right (False, varStates)  -- TODO: handle other constraints
 
@@ -565,12 +564,14 @@ modInverse a m
 fieldModulus :: Integer
 fieldModulus = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
--- Helper function
+-- Helper function: Checks if a variable state guarantees the value is exactly zero.
 isCertainlyZero :: VariableState -> Bool
-isCertainlyZero st =
-    not (nonZero st)
-      && Set.size (values st) == 1
-      && Set.member 0 (values st)
+isCertainlyZero st = case domain st of
+    KnownValues s -> s == Set.singleton 0
+    BoundedValues (Just 0) (Just 0) maybeEx ->
+        -- only if bounds are [0, 0] AND 0 is not excluded
+        maybe True (not . Set.member 0) maybeEx
+    _ -> False
 
 markVarDefinitelyZero :: String -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
 markVarDefinitelyZero xName nameToID varStates = do
@@ -661,15 +662,10 @@ isExactPowerOf c n
 
 -- | Tests if given var is binary (0 or 1).
 isBinaryVar  :: Map String Int  -> Map Int VariableState -> String -> Bool
-isBinaryVar nameToID varStates varName =
-  case Map.lookup varName nameToID of
-    Nothing   -> False
-    Just vid  ->
-      case Map.lookup vid varStates of
-        Nothing -> False
-        Just st ->
-          (Set.null (values st) && Just 0 == low_b st && Just 1 == upp_b st)
-          || (values st == Set.fromList [0,1])
+isBinaryVar nameToID varStates varName = 
+  case lookupVarStateByName varName nameToID varStates of
+    Left _ -> False -- Variable not found or no state
+    Right st -> isIn01 st
 
 -- | If z is single-valued, we decode each (bName, exponent)
 --   so that bName ∈ {0,1} matches the corresponding 'bit' in base c.
@@ -683,23 +679,23 @@ decodeSumOfPowers
 decodeSumOfPowers c z terms nameToID varStates0 =
   foldl step (Right varStates0) terms
   where
-    step (Left err) _ = Left err
-    step (Right vs) (bName, e) =
-      case Map.lookup bName nameToID of
-        Nothing   -> Left ("No varID for " ++ bName)
-        Just bID  ->
-          case Map.lookup bID vs of
-            Nothing -> Left ("No VariableState for " ++ show bID)
-            Just st ->
-              let coeff   = c^e
-                  digit   = (z `div` coeff) `mod` c  -- extracting the base-c digit
-                  bValSet = if digit == 1 then Set.singleton 1
-                                          else Set.singleton 0
-              in case updateValues st (KnownValues bValSet) of
-                   Left msg         -> Left msg
-                   Right updatedSt  ->
-                     let vs' = Map.insert bID updatedSt vs
-                     in Right vs'
+    step :: Either String (Map Int VariableState) -> (String, Integer) -> Either String (Map Int VariableState)
+    step acc (bName, e) = do
+      currentVarStates <- acc
+      bID <- lookupVarID bName nameToID
+      st <- lookupVarState bID currentVarStates
+
+      let coeff   = cBase^e
+          digit   = (knownZ `div` coeff) `mod` cBase  -- extracting the base-c digit
+          -- we determine the required value for the bit variable
+          requiredVal = if digit >= 1 then 1 else 0
+          newDomain = KnownValues (Set.singleton requiredVal)
+
+      -- updating the bit variable's state
+      updatedStEither <- updateValues st newDomain
+      case updatedStEither of
+           Left msg -> Left $ "Contradiction decoding bit " ++ bName ++ ": " ++ msg
+           Right updatedSt -> Right (Map.insert bID updatedSt currentVarStates)
 
 -- | Helper function to invert the nameToID map
 invertMap :: Map String Int -> Map Int String
@@ -1017,7 +1013,10 @@ checkMaxVal maxVal (VariableState vals lowB upB _) varName =
 -- | Returns 'True' if the variable is guaranteed to be non-zero.
 isVarNonZero :: String -> Map String VariableState -> Bool
 isVarNonZero xName st =
-  maybe False nonZero (Map.lookup xName st)
+  case lookupVarStateByName xName nameToID varStates of
+    Left _ -> False -- Variable not found or no state
+    Right st -> isDefinitelyNonZero (domain st)
+
 
 -- | Checks if any PfRecip expression could be zero "at runtime", more precisely :
 --   1) if the expression is constrained to be nonZero (via nonZero flag)
@@ -1045,7 +1044,7 @@ checkPfRecips denominators store nameToID =
 --   Returns True if the expression is constrained to be nonZero.
 expressionIsDefinitelyNonZero :: Expression -> Map String VariableState -> Bool
 -- Case 1: literal integer
-expressionIsDefinitelyNonZero (Int c) _ = c /= 0
+expressionIsDefinitelyNonZero (Int c) _ = c /= 0 -- TODO: update naar (c `mod` fieldModulus) /= 0 ?
 
 -- Case 2: single variable
 expressionIsDefinitelyNonZero (Var xName) st =
@@ -1054,14 +1053,14 @@ expressionIsDefinitelyNonZero (Var xName) st =
 -- Case 3: number * var
 -- if the multiplier is non-zero and the variable is definitely non-zero, the product is non-zero
 expressionIsDefinitelyNonZero (Mul (Int c) (Var xName)) st
-  | c /= 0 = isVarNonZero xName st
+  | c /= 0 = isVarNonZero xName st -- TODO: update naar (c `mod` fieldModulus) /= 0 ?
   | otherwise = False
 expressionIsDefinitelyNonZero (Mul (Var xName) (Int c)) st =
   expressionIsDefinitelyNonZero (Mul (Int c) (Var xName)) st
 
 -- Case 4: var + number
 -- if the variable is definitely non-zero, we assume the sum is non-zero
--- TODO: wat met overflows? die worden al gedetecteerd wss?
+-- TODO: wat met overflows? die worden al gedetecteerd wss? HMM, is moeilijker in modular arithmetic
 expressionIsDefinitelyNonZero (Add (Var xName) (Int c)) st = isVarNonZero xName st
 expressionIsDefinitelyNonZero (Add (Int c) (Var xName)) st =
   expressionIsDefinitelyNonZero (Add (Var xName) (Int c)) st
