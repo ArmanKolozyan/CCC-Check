@@ -24,6 +24,10 @@ isDefinitelyNonZero (BoundedValues lb ub excluded) =
 
 -- | Intersects two value domains. This is the core logic for value updates.
 -- Returns Left with an error message if the intersection results in a contradiction (empty domain).
+-- NOTE: Having a bounded domain value with exclusions that fall within the bounds is not an issue!
+--       It is just a restriction of the possible values that can lie within the bounds.
+--       The only issue is if the exclusions remove all possible values.
+--       This is also taken into account by this function.  
 intersectDomains :: ValueDomain -> ValueDomain -> Either String ValueDomain
 intersectDomains d1 d2 = case (d1, d2) of
     -- both Known: we ntersect the sets
@@ -56,8 +60,8 @@ intersectDomains d1 d2 = case (d1, d2) of
                               _ -> False
             
             -- we heck for conflict where exclusions removed all values
-            --    (This happens if adjusted bounds are both Nothing,
-            --     but at least one initial bound was Just)
+            -- (This happens if adjusted bounds are both Nothing,
+            -- but at least one initial bound was Just)
             adjustedBoundConflict_ExclusionEmptied =
               isNothing adjustedLb && isNothing adjustedUb && (isJust combinedLb || isJust combinedLb)                  
         
