@@ -141,68 +141,111 @@ inferValues :: Expression -> Map String Int -> Map Int VariableState -> ValueDom
 inferValues (Int c) _ _ = KnownValues (Set.singleton c)
 
 inferValues (Var xName) nameToID varStates =
-  case getVarID xName nameToID of
-    Just varID -> case Map.lookup varID varStates of
-      Just varState ->
-        if not (Set.null (values varState))
-          then KnownValues (values varState)  -- explicit values exist
-          else BoundedValues (low_b varState) (upp_b varState)  -- otherwise, we use inferred bounds
-      Nothing -> BoundedValues Nothing Nothing
-    Nothing -> BoundedValues Nothing Nothing
+  case Map.lookup xName nameToID of
+    -- If we found the variable state, we return the domain from the state.
+    -- Variable known but no state? We return default domain.
+    Just varID -> maybe defaultValueDomain domain (Map.lookup varID varStates)
+    -- Variable name not found? We return default domain.
+    Nothing -> defaultValueDomain 
 
 inferValues (Add e1 e2) nameToID varStates =
-  case (inferValues e1 nameToID varStates, inferValues e2 nameToID varStates) of
-    -- Case 1: both have explicit values
-    (KnownValues v1, KnownValues v2) -> KnownValues (Set.fromList [x + y | x <- Set.toList v1, y <- Set.toList v2])
+    let d1 = inferValues e1 nameToID varStates
+        d2 = inferValues e2 nameToID varStates
+    in case (d1, d2) of
+       (KnownValues s1, KnownValues s2) ->
+         KnownValues (Set.fromList [x + y | x <- Set.toList s1, y <- Set.toList s2])
+       (BoundedValues lb1 ub1 ex1, BoundedValues lb2 ub2 ex2) ->
+         -- we use <$> to add only if the bounds are Just
+         let newLb = (+) <$> lb1 <*> lb2 
+             newUb = (+) <$> ub1 <*> ub2 
+             -- TODO: we currently sum the exclusions, which seems fine thinking about
+             -- our main goal of detecting division-by-zero. However, we have to
+             -- verify whether this approach makes sense for general cases.
+             newEx = combineExclusions ex1 ex2 
+         in BoundedValues newLb newUb (if Set.null newEx then Nothing else Just newEx)
 
-    -- Case 2: both have only bounds
-    (BoundedValues (Just lb1) (Just ub1), BoundedValues (Just lb2) (Just ub2)) ->
-        BoundedValues (Just (lb1 + lb2)) (Just (ub1 + ub2))
-
-    -- Case 3: one side has explicit values, the other has bounds
-    (KnownValues v1, BoundedValues (Just lb2) (Just ub2)) ->
-        KnownValues (Set.fromList [x + y | x <- Set.toList v1, y <- [lb2..ub2]])
-    (BoundedValues (Just lb1) (Just ub1), KnownValues v2) ->
-        KnownValues (Set.fromList [x + y | x <- [lb1..ub1], y <- Set.toList v2])
-
-    -- Case 4: if either bound is missing, return unknown bounds
-    _ -> BoundedValues Nothing Nothing
+       -- mixed cases (KnownValues + BoundedValues)
+       -- we combine them into BoundedValues
+       (KnownValues s, BoundedValues lb ub excl) ->
+         if Set.null s 
+          then defaultValueDomain 
+          else
+            let minS = Set.findMin s
+                maxS = Set.findMax s
+                newLb = (+) <$> Just minS <*> lb
+                newUb = (+) <$> Just maxS <*> ub
+            in BoundedValues newLb newUb excl;
+       (BoundedValues lb ub excl, KnownValues s) ->
+         if Set.null s 
+          then defaultValueDomain 
+          else
+            let minS = Set.findMin s
+                maxS = Set.findMax s
+                newLb = (+) <$> lb <*> Just minS
+                newUb = (+) <$> ub <*> Just maxS
+            in BoundedValues newLb newUb excl
 
 inferValues (Sub e1 e2) nameToID varStates =
-  case (inferValues e1 nameToID varStates, inferValues e2 nameToID varStates) of
-    -- Case 1: both have explicit values
-    (KnownValues v1, KnownValues v2) -> KnownValues (Set.fromList [x - y | x <- Set.toList v1, y <- Set.toList v2])
-
-    -- Case 2: both have only bounds
-    (BoundedValues (Just lb1) (Just ub1), BoundedValues (Just lb2) (Just ub2)) ->
-        BoundedValues (Just (lb1 - ub2)) (Just (ub1 - lb2))  -- Min subtraction gives new lower bound, max gives upper bound
-
-    -- Case 3: one side has explicit values, the other has bounds
-    (KnownValues v1, BoundedValues (Just lb2) (Just ub2)) ->
-        KnownValues (Set.fromList [x - y | x <- Set.toList v1, y <- [lb2..ub2]])
-    (BoundedValues (Just lb1) (Just ub1), KnownValues v2) ->
-        KnownValues (Set.fromList [x - y | x <- [lb1..ub1], y <- Set.toList v2])
-
-    -- Case 4: if either bound is missing, return unknown bounds
-    _ -> BoundedValues Nothing Nothing
+  let d1 = inferValues e1 nameToID varStates
+      d2 = inferValues e2 nameToID varStates
+  in case (d1, d2) of
+       (KnownValues s1, KnownValues s2) ->
+         KnownValues (Set.fromList [x - y | x <- Set.toList s1, y <- Set.toList s2])
+       (BoundedValues lb1 ub1 ex1, BoundedValues lb2 ub2 ex2) ->
+         -- new lower Bound = lb1 - ub2
+         -- new upper Bound = ub1 - lb2
+         let newLb = (-) <$> lb1 <*> ub2
+             newUb = (-) <$> ub1 <*> lb2
+             newEx = combineExclusions ex1 ex2
+         in BoundedValues newLb newUb (if Set.null newEx then Nothing else Just newEx)
+       -- mixed cases
+       (KnownValues s, BoundedValues lb ub excl) ->
+         if Set.null s then defaultValueDomain else
+         let minS = Set.findMin s
+             maxS = Set.findMax s
+             newLb = (-) <$> Just minS <*> ub
+             newUb = (-) <$> Just maxS <*> lb
+         in BoundedValues newLb newUb excl
+       (BoundedValues lb ub excl, KnownValues s) ->
+         if Set.null s then defaultValueDomain else
+         let minS = Set.findMin s
+             maxS = Set.findMax s
+             newLb = (-) <$> lb <*> Just maxS 
+             newUb = (-) <$> ub <*> Just minS
+         in BoundedValues newLb newUb excl
 
 inferValues (Mul e1 e2) nameToID varStates =
-  case (inferValues e1 nameToID varStates, inferValues e2 nameToID varStates) of
-    -- Case 1: both have explicit values
-    (KnownValues v1, KnownValues v2) -> KnownValues (Set.fromList [x * y | x <- Set.toList v1, y <- Set.toList v2])
-
-    -- Case 2: both have only bounds
-    (BoundedValues (Just lb1) (Just ub1), BoundedValues (Just lb2) (Just ub2)) ->
-        BoundedValues (Just (lb1 * lb2)) (Just (ub1 * ub2))
-
-    -- Case 3: one side has explicit values, the other has bounds
-    (KnownValues v1, BoundedValues (Just lb2) (Just ub2)) ->
-        KnownValues (Set.fromList [x * y | x <- Set.toList v1, y <- [lb2..ub2]])
-    (BoundedValues (Just lb1) (Just ub1), KnownValues v2) ->
-        KnownValues (Set.fromList [x * y | x <- [lb1..ub1], y <- Set.toList v2])
-
-    -- Case 4: if either bound is missing, return unknown bounds
-    _ -> BoundedValues Nothing Nothing
+  let d1 = inferValues e1 nameToID varStates
+      d2 = inferValues e2 nameToID varStates
+  in case (d1, d2) of
+       (KnownValues s1, KnownValues s2) ->
+         KnownValues (Set.fromList [x * y | x <- Set.toList s1, y <- Set.toList s2])
+       (BoundedValues (Just lb1) (Just ub1) ex1, BoundedValues (Just lb2) (Just ub2) ex2) ->
+         let newLb = Just (lb1 * lb2)
+             newUb = Just (ub1 * ub2)
+             newEx = combineExclusions ex1 ex2
+         in BoundedValues newLb newUb (if Set.null newEx then Nothing else Just newEx)
+       -- if any bound is missing in Bounded*Bounded, result is unknown bounds
+       -- TODO: kan misschien slimmer? 
+       (BoundedValues _ _ ex1, BoundedValues _ _ ex2) ->
+         let newEx = combineExclusions ex1 ex2
+         in BoundedValues Nothing Nothing (if Set.null newEx then Nothing else Just newEx)
+       -- mixed cases
+       (KnownValues s, BoundedValues (Just lb) (Just ub) excl) ->
+         if Set.null s then defaultValueDomain else
+         let products = [v * b | v <- Set.toList s, b <- [lb, ub]]
+             newLb = Just (minimum products)
+             newUb = Just (maximum products)
+         in BoundedValues newLb newUb excl
+       (BoundedValues (Just lb) (Just ub) excl, KnownValues s) ->
+         if Set.null s then defaultValueDomain else
+         let products = [b * v | b <- [lb, ub], v <- Set.toList s]
+             newLb = Just (minimum products)
+             newUb = Just (maximum products)
+         in BoundedValues newLb newUb excl
+       -- if bounds are missing in mixed case, result is unknown bounds
+       -- TODO: kan misschien slimmer? 
+       _ -> BoundedValues Nothing Nothing Nothing
 
 inferValues _ _ _ = BoundedValues Nothing Nothing -- TODO: Handle other cases properly
 
