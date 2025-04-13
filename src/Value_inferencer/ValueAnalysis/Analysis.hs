@@ -386,48 +386,51 @@ analyzeConstraint (EqC _ (Var xName) e) nameToID varStates =
 --analyzeConstraint (EqC cid (Int 0) (Var xName)) nameToID varStates =
 --  markVarDefinitelyZero xName nameToID varStates  
 
--- ASSIGN Rule from PICUS paper
+-- ASSIGN Rule from PICUS paper: c * x = e  => x = e / c
 analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
-  | c /= 0 =
+  | c /= 0 = do
+      xID <- lookupVarID xName nameToID
+      xState <- lookupVarState xID varStates
       let omega = inferValues e nameToID varStates
+          -- TODO: Proper modular inverse for field arithmetic needed here!
           cInv = modularInverse c
-          newVals = case omega of
-                      KnownValues vSet -> KnownValues (Set.map (* cInv) vSet)
-                      BoundedValues (Just lb) (Just ub) ->
-                        BoundedValues (Just (lb * cInv)) (Just (ub * cInv))
-                      _ -> BoundedValues Nothing Nothing
-      in case Map.lookup xName nameToID of
-           Nothing -> Left "Variable name not found in nameToID"
-           Just xID ->
-             case Map.lookup xID varStates of
-               Nothing -> Left "Variable state not found in varStates"
-               Just xState ->
-                 case updateValues xState newVals of
-                   Right updatedState ->
-                     let changed = xState /= updatedState -- if changes, need to re-queue constraints
-                         updatedMap = if changed then Map.insert xID updatedState varStates else varStates
-                     in Right (changed, updatedMap)
-                   Left errMsg -> Left errMsg
+          -- calculating the potential new domain for x based on omega / c
+          newDomain = case omega of
+                        KnownValues vSet -> KnownValues (Set.map (* cInv) vSet)
+                        BoundedValues (Just lb) (Just ub) excl ->
+                            let v1 = lb * cInv
+                                v2 = ub * cInv
+                            in BoundedValues (Just (min v1 v2)) (Just (max v1 v2)) excl -- just passing exclusions for now
+                        _ -> defaultValueDomain -- cannot determine new bounds/values
+
+      -- updating x's state
+      updatedState <- updateValues xState newDomain
+      let changed = xState /= updatedState
+          updatedMap = if changed then Map.insert xID updatedState varStates else varStates
+      pure (changed, updatedMap)
   | otherwise = Right (False, varStates)
 
--- | ROOT Rule from PICUS paper
+-- handling symmetric case: e = c * x
+analyzeConstraint (EqC cid e (Mul (Int c) (Var xName))) nameToID varStates =
+    analyzeConstraint (EqC cid (Mul (Int c) (Var xName)) e) nameToID varStates
+
+-- | ROOT Rule from PICUS paper: expr = 0
 analyzeConstraint (EqC _ rootExpr (Int 0)) nameToID varStates =
     case extractRootFactors rootExpr of
-        Just (xName, rootValues) ->
-            case Map.lookup xName nameToID of
-                Just xID ->
-                    case Map.lookup xID varStates of
-                        Just xState ->
-                            let newVals = Set.fromList rootValues
-                            in case updateValues xState (KnownValues newVals) of
-                                Right updatedState ->
-                                    let changed = xState /= updatedState
-                                        updatedMap = if changed then Map.insert xID updatedState varStates else varStates
-                                    in Right (changed, updatedMap)
-                                Left errMsg -> Left errMsg
-                        Nothing -> Left "Variable state not found in varStates"
-                Nothing -> Left "Variable name not found in nameToID"
-        Nothing -> Right (False, varStates)  -- not a ROOT constraint
+        Just (xName, rootValues) -> do
+            xID <- lookupVarID xName nameToID
+            xState <- lookupVarState xID varStates
+            let newDomain = KnownValues (Set.fromList rootValues)
+            -- updating x's state
+            updatedState <- updateValues xState newDomain
+            let changed = xState /= updatedState
+                updatedMap = if changed then Map.insert xID updatedState varStates else varStates
+            pure (changed, updatedMap)
+        Nothing -> Right (False, varStates)  -- not a ROOT pattern
+
+-- Handling symmetric case: 0 = expr
+analyzeConstraint (EqC cid (Int 0) rootExpr) nameToID varStates =
+    analyzeConstraint (EqC cid rootExpr (Int 0)) nameToID varStates
 
 -- | Rule 3 from Ecne
 --    Sum-of-powers rule:  EqC cid (some expression) (Var zName)
@@ -476,7 +479,6 @@ analyzeConstraint (EqC cid (Int 1) (Add (Var xName) (Var yName))) nameToID varSt
 
 analyzeConstraint (EqC cid (Add (Var xName) (Var yName)) (Int 1)) nameToID varStates =
   zeroOne cid xName yName nameToID varStates
-
 
 -- AND case
 analyzeConstraint (AndC cid subCs) nameToID varStates = do
