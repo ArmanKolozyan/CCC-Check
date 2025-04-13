@@ -120,3 +120,23 @@ findPrevValidUpperBound Nothing _ = Nothing
 findPrevValidUpperBound (Just u) excludedSet
   | Set.member u excludedSet = findPrevValidUpperBound (Just (u - 1)) excludedSet
   | otherwise = Just u
+
+-- | Excludes a specific value from a domain.
+excludeValue :: ValueDomain -> Integer -> ValueDomain
+excludeValue (KnownValues s) val = KnownValues (Set.delete val s)
+excludeValue (BoundedValues lb ub maybeEx) val =
+    let currentEx = fromMaybe Set.empty maybeEx
+        newExSet = Set.insert val currentEx
+        newEx = Just newExSet
+        -- checking if the excluded value forces an adjustment of the bounds
+        newLb = case lb of
+                  Just l | l == val -> findNextValidLowerBound (Just (l + 1)) newExSet
+                  _ -> lb
+        newUb = case ub of
+                  Just u | u == val -> findPrevValidUpperBound (Just (u - 1)) newExSet
+                  _ -> ub
+    in BoundedValues newLb newUb newEx
+
+-- | Excludes zero from a domain.
+excludeZero :: ValueDomain -> ValueDomain
+excludeZero domain = excludeValue domain 0
