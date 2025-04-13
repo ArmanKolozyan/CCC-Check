@@ -13,7 +13,6 @@ module ValueAnalysis.Analysis (analyzeProgram, VariableState(..), detectBugs, up
 import Syntax.AST
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Sequence (Seq, (|>), viewl, ViewL(..))
 import qualified Data.Sequence as Seq
@@ -143,8 +142,6 @@ updateValues oldState newDomainInfo =
        -- 3b. if intersection succeeds, we create a new VariableState with the updated domain
        Right updatedDomain -> Right (oldState { domain = updatedDomain })
 
-getVarID = Map.lookup
-
 expandBounds :: Maybe Integer -> Maybe Integer -> [Integer]
 expandBounds (Just lb) (Just ub) = [lb .. ub]  -- expands into a list
 expandBounds _ _ = []  -- no meaningful bounds
@@ -261,9 +258,9 @@ inferValues (Mul e1 e2) nameToID varStates =
          in BoundedValues newLb newUb excl
        -- if bounds are missing in mixed case, result is unknown bounds
        -- TODO: kan misschien slimmer? 
-       _ -> BoundedValues Nothing Nothing Nothing
+       _ -> defaultValueDomain
 
-inferValues _ _ _ = BoundedValues Nothing Nothing -- TODO: Handle other cases properly
+inferValues _ _ _ = defaultValueDomain -- TODO: Handle other cases properly
 
 
 -- Helper function: Computes modular inverse
@@ -283,29 +280,16 @@ extractRootFactors _ = Nothing
 
 zeroOne :: Int -> String -> String -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
 zeroOne _ xName yName nameToID oldVarStates = do
-   xID <- case Map.lookup xName nameToID of
-             Just vid -> pure vid
-             Nothing  -> Left ("Unknown var: " ++ xName)
-   yID <- case Map.lookup yName nameToID of
-             Just vid -> pure vid
-             Nothing  -> Left ("Unknown var: " ++ yName)
+   xID <- lookupVarID xName nameToID
+   yID <- lookupVarID yName nameToID
 
-   let xState = maybe
-                  (Left ("No VariableState for " ++ xName))
-                  Right
-                  (Map.lookup xID oldVarStates)
-   let yState = maybe
-                  (Left ("No VariableState for " ++ yName))
-                  Right
-                  (Map.lookup yID oldVarStates)
-
-   xSt <- xState
-   ySt <- yState
+   xSt <- lookupVarState xID oldVarStates
+   ySt <- lookupVarState yID oldVarStates
 
    -- checking if x is already known to be in [0,1]
    if isIn01 xSt then do
      -- if so, setting y to [0,1]
-     newY <- updateValues ySt (BoundedValues (Just 0) (Just 1))
+     newY <- updateValues ySt (BoundedValues (Just 0) (Just 1) Nothing)
      let changedY = newY /= ySt
          newMapY  = if changedY
                     then Map.insert yID newY oldVarStates
@@ -315,7 +299,7 @@ zeroOne _ xName yName nameToID oldVarStates = do
    -- otherwise, checking if y is already known to be in [0,1]
    else if isIn01 ySt then do
      -- if so, setting x to [0,1]
-     newX <- updateValues xSt (BoundedValues (Just 0) (Just 1))
+     newX <- updateValues xSt (BoundedValues (Just 0) (Just 1) Nothing)
      let changedX = newX /= xSt
          newMapX  = if changedX
                     then Map.insert xID newX oldVarStates
@@ -333,7 +317,7 @@ isIn01 st = case domain st of
     BoundedValues (Just lb) (Just ub) maybeEx ->
         lb >= 0 && ub <= 1 &&
         -- ensuring 0 and 1 are not both excluded if the range is exactly [0, 1]
-        not (lb == 0 && ub == 1 && maybe False (Set.isSupersetOf (Set.fromList [0,1])) maybeEx) &&
+        not (lb == 0 && ub == 1 && maybe False (Set.isSubsetOf (Set.fromList [0,1])) maybeEx) &&
         -- ensuring the single value isn't excluded if lb == ub
         not (lb == ub && maybe False (Set.member lb) maybeEx)
     BoundedValues (Just lb) Nothing _ -> False -- cannot be [0,1] if upper bound is open
@@ -375,11 +359,11 @@ analyzeConstraint (EqC _ (Var xName) e) nameToID varStates =
       let omega = inferValues e nameToID varStates -- inferring domain of expression e
       -- updating x's state by intersecting its current domain with the inferred domain of e
       case updateValues xState omega of
-        Right updatedState -> do
+        Right updatedState ->
           let changed = xState /= updatedState -- checking if the state actually changed
               updatedMap = if changed then Map.insert xID updatedState varStates else varStates
-          return $ Right (changed, updatedMap)
-        Left errMsg -> return $ Left errMsg -- intersection failed, contradiction
+          in Right (changed, updatedMap)
+        Left errMsg -> Left errMsg -- intersection failed, contradiction
 
 -- ALREADY HANDLED BY THE ROOT RULE:
 --analyzeConstraint (EqC cid (Var xName) (Int 0)) nameToID varStates =
@@ -414,7 +398,7 @@ analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
                       in KnownValues possibleValuesX
 
                 -- if bounds are unknown, result is unknown 
-                _ -> BoundedValues Nothing Nothing Nothing -- Or defaultValueDomain?
+                _ -> defaultValueDomain -- Or defaultValueDomain?
 
           -- updating x's state
           updatedState <- updateValues xState newDomain
@@ -515,7 +499,7 @@ analyzeConstraint (AndC cid subCs) nameToID varStates = do
 --   same for a * b = 1
 -- TODO: rekening houden met prime field!
 analyzeConstraint (EqC cid (Add (Var zName) (Mul (Var xName) (Var yName))) (Int c)) nameToID varStates = do
-    zState <- lookupVarStateByName zName nameToID varStates -- Use helper
+    zState <- lookupVarStateByName zName nameToID varStates
     let p = fieldModulus
     if isCertainlyZero zState && c /= 0 -- TODO: (c `mod` p /= 0) ?
        then markNonZeroPair xName yName nameToID varStates
@@ -575,30 +559,12 @@ isCertainlyZero st = case domain st of
         maybe True (not . Set.member 0) maybeEx
     _ -> False
 
-markVarDefinitelyZero :: String -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
-markVarDefinitelyZero xName nameToID varStates = do
-  xID <- case Map.lookup xName nameToID of
-            Just i  -> Right i
-            Nothing -> Left $ "Unknown variable " ++ xName
-  oldSt <- case Map.lookup xID varStates of
-             Just s  -> Right s
-             Nothing -> Left $ "No VariableState for varID=" ++ show xID
-
-  let newSt = oldSt { values  = Set.singleton 0
-                    , nonZero = False }
-      changed = newSt /= oldSt
-      newMap  = if changed
-                then Map.insert xID newSt varStates
-                else varStates
-
-  pure (changed, newMap)
-
 markNonZeroPair :: String -> String -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
 markNonZeroPair xName yName nameToID varStates = do
-    xID <- lookupID xName
-    yID <- lookupID yName
-    oldXSt <- lookupVarState xID
-    oldYSt <- lookupVarState yID
+    xID <- lookupVarID xName nameToID
+    yID <- lookupVarID yName nameToID
+    oldXSt <- lookupVarState xID varStates
+    oldYSt <- lookupVarState yID varStates
 
     -- trying to update x by excluding zero
     -- We use updateValues because excludeZero alone, while adding 0 to exclusions and
@@ -610,13 +576,9 @@ markNonZeroPair xName yName nameToID varStates = do
     -- 1. Correctly merge the "exclude zero" information with the variable's *existing* domain (bounds and exclusions).
     -- 2. Detect resulting inconsistencies like the lb > ub conflict shown above, or cases where exclusions empty the domain.
     -- This ensures the analysis remains sound.
-    newXStEither <- updateValues oldXSt (excludeZero (domain oldXSt))
+    newXSt <- updateValues oldXSt (excludeZero (domain oldXSt))
     -- trying to update y by excluding zero
-    newYStEither <- updateValues oldYSt (excludeZero (domain oldYSt))
-
-    -- handling potential errors from updateValues
-    newXSt <- newXStEither
-    newYSt <- newYStEither
+    newYSt <- updateValues oldYSt (excludeZero (domain oldYSt))
 
     let changed = newXSt /= oldXSt || newYSt /= oldYSt
         -- applying updates only if they succeeded
@@ -678,7 +640,7 @@ decodeSumOfPowers
   -> Map String Int             -- nameToID
   -> Map Int VariableState      -- varStates
   -> Either String (Map Int VariableState)
-decodeSumOfPowers c z terms nameToID varStates0 =
+decodeSumOfPowers cBase knownZ terms nameToID varStates0 =
   foldl step (Right varStates0) terms
   where
     step :: Either String (Map Int VariableState) -> (String, Integer) -> Either String (Map Int VariableState)
@@ -694,10 +656,8 @@ decodeSumOfPowers c z terms nameToID varStates0 =
           newDomain = KnownValues (Set.singleton requiredVal)
 
       -- updating the bit variable's state
-      updatedStEither <- updateValues st newDomain
-      case updatedStEither of
-           Left msg -> Left $ "Contradiction decoding bit " ++ bName ++ ": " ++ msg
-           Right updatedSt -> Right (Map.insert bID updatedSt currentVarStates)
+      updatedSt <- updateValues st newDomain
+      pure (Map.insert bID updatedSt currentVarStates)
 
 -- | Helper function to invert the nameToID map
 invertMap :: Map String Int -> Map Int String
@@ -867,7 +827,7 @@ applyUserAction (ConstrainRange placeholderName lo up) plHoNameToID varStates =
     Nothing -> (False, varStates)
     Just realID ->
       let oldState = Map.findWithDefault initVarState realID varStates
-          newState = updateValues oldState (BoundedValues (Just lo) (Just up))
+          newState = updateValues oldState (BoundedValues (Just lo) (Just up) Nothing)
         in case newState of
                 Left msg         -> (False, varStates)
                 Right newState  -> (True, Map.insert realID newState varStates)
@@ -970,7 +930,7 @@ checkBoolean st varName =
               ubOk = maybe True (<= 1) ub
               -- checking if exclusions make the domain empty within [0, 1]
               isEmpty = case (lb, ub) of
-                          (Just 0, Just 1) -> maybe False (Set.isSupersetOf (Set.fromList [0,1])) maybeEx
+                          (Just 0, Just 1) -> maybe False (Set.isSubsetOf (Set.fromList [0,1])) maybeEx
                           (Just 0, Just 0) -> maybe False (Set.member 0) maybeEx
                           (Just 1, Just 1) -> maybe False (Set.member 1) maybeEx
                           _ -> False -- other bound combinations are handled by lbOk/ubOk
