@@ -43,6 +43,26 @@ initializeVarStates vars = Map.fromList [(vid v, initVarState) | v <- vars]
 buildVarNameToIDMap :: [Binding] -> Map String Int
 buildVarNameToIDMap vars = Map.fromList [(name v, vid v) | v <- vars]
 
+-- Helper: Lookup variable ID by name
+lookupVarID :: String -> Map String Int -> Either String Int
+lookupVarID name nameToID =
+  case Map.lookup name nameToID of
+    Just vID -> Right vID
+    Nothing  -> Left $ "Variable name not found in nameToID map: " ++ name
+
+-- Helper: Lookup variable state by ID
+lookupVarState :: Int -> Map Int VariableState -> Either String VariableState
+lookupVarState vID varStates =
+  case Map.lookup vID varStates of
+    Just state -> Right state
+    Nothing    -> Left $ "Variable state not found in varStates for ID: " ++ show vID
+
+-- Helper: Lookup variable state by name
+lookupVarStateByName :: String -> Map String Int -> Map Int VariableState -> Either String VariableState
+lookupVarStateByName name nameToID varStates = do
+  vID <- lookupVarID name nameToID
+  lookupVarState vID varStates
+
 --------------------------
 -- 3) Mapping Variables to Constraints
 --------------------------
@@ -347,20 +367,17 @@ analyzeConstraint (EqC _ (Var xName) e) nameToID varStates =
         _ -> Left $ "Variable name not found in nameToID map during x = y analysis: " ++ xName ++ " or " ++ yName
 
     -- EQUALITY Rule: x = e (where e is not just a variable)
-    _ -> let omega = inferValues e nameToID varStates -- inferring domain of expression e
-         in case Map.lookup xName nameToID of
-              Nothing -> Left $ "Variable name not found in nameToID: " ++ xName
-              Just xID ->
-                case Map.lookup xID varStates of
-                  Nothing -> Left $ "Variable state not found in varStates for ID: " ++ show xID
-                  Just xState ->
-                    -- updating x's state by intersecting its current domain with the inferred domain of e
-                    case updateValues xState omega of
-                      Right updatedState ->
-                        let changed = xState /= updatedState -- checking if the state actually changed
-                            updatedMap = if changed then Map.insert xID updatedState varStates else varStates
-                        in Right (changed, updatedMap)
-                      Left errMsg -> Left errMsg -- intersection failed, contradiction
+    _ -> do
+      xID <- lookupVarID xName nameToID
+      xState <- lookupVarState xID varStates
+      let omega = inferValues e nameToID varStates -- inferring domain of expression e
+      -- updating x's state by intersecting its current domain with the inferred domain of e
+      case updateValues xState omega of
+        Right updatedState -> do
+          let changed = xState /= updatedState -- checking if the state actually changed
+              updatedMap = if changed then Map.insert xID updatedState varStates else varStates
+          return $ Right (changed, updatedMap)
+        Left errMsg -> return $ Left errMsg -- intersection failed, contradiction
 
 -- ALREADY HANDLED BY THE ROOT RULE:
 --analyzeConstraint (EqC cid (Var xName) (Int 0)) nameToID varStates =
@@ -565,17 +582,6 @@ markNonZeroPair xName yName nameToID varStates = do
         newMap = Map.insert xID newXSt (Map.insert yID newYSt varStates)
 
     pure (changed, newMap)
-
-  where
-    lookupID nm =
-      case Map.lookup nm nameToID of
-        Just i  -> Right i
-        Nothing -> Left ("Unknown variable " ++ nm)
-
-    lookupVarState vid =
-      case Map.lookup vid varStates of
-        Just s  -> Right s
-        Nothing -> Left ("No VariableState for varID=" ++ show vid)
 
 -- | We try to convert `expr` into a sum of terms: c^exponent * Var(b).
 --   Returns Nothing if checking fails or if 'expr' is not that pattern.
