@@ -1011,13 +1011,6 @@ checkMaxVal maxVal st varName =
      then ["Variable `" ++ varName ++ "` has no possible values (unconstrained)"]
      else errs
 
--- | Returns 'True' if the variable is guaranteed to be non-zero.
-isVarNonZero :: String -> Map String VariableState -> Bool
-isVarNonZero xName st =
-  case lookupVarStateByName xName nameToID varStates of
-    Left _ -> False -- Variable not found or no state
-    Right st -> isDefinitelyNonZero (domain st)
-
 -- | Checks if any PfRecip expression could be zero "at runtime", more precisely :
 --   1) if the expression is constrained to be nonZero (via nonZero flag)
 --   2) or, 0 is not in the expression's value domain
