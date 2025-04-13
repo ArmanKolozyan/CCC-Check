@@ -388,27 +388,39 @@ analyzeConstraint (EqC _ (Var xName) e) nameToID varStates =
 
 -- ASSIGN Rule from PICUS paper: c * x = e  => x = e / c
 analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
-  | c /= 0 = do
+  | let p = fieldModulus
+  , let cModP = c `mod` p
+  , cModP /= 0 = do -- ensuring c is not zero in the field
       xID <- lookupVarID xName nameToID
       xState <- lookupVarState xID varStates
       let omega = inferValues e nameToID varStates
-          -- TODO: Proper modular inverse for field arithmetic needed here!
-          cInv = modularInverse c
-          -- calculating the potential new domain for x based on omega / c
-          newDomain = case omega of
-                        KnownValues vSet -> KnownValues (Set.map (* cInv) vSet)
-                        BoundedValues (Just lb) (Just ub) excl ->
-                            let v1 = lb * cInv
-                                v2 = ub * cInv
-                            in BoundedValues (Just (min v1 v2)) (Just (max v1 v2)) excl -- just passing exclusions for now
-                        _ -> defaultValueDomain -- cannot determine new bounds/values
+      case modInverse cModP p of
+        Nothing -> Left $ "Modular inverse does not exist for " ++ show cModP ++ " mod " ++ show p
+        Just cInv -> do
+          let newDomain = case omega of
+                -- knownvalues: we apply inverse directly
+                KnownValues vSet ->
+                  KnownValues (Set.map (\v -> (v * cInv) `mod` p) vSet)
 
-      -- updating x's state
-      updatedState <- updateValues xState newDomain
-      let changed = xState /= updatedState
-          updatedMap = if changed then Map.insert xID updatedState varStates else varStates
-      pure (changed, updatedMap)
-  | otherwise = Right (False, varStates)
+                -- boundedValues: we enumerate first
+                BoundedValues (Just lb) (Just ub) maybeEx ->
+                  let excludedSet = fromMaybe Set.empty maybeEx
+                      -- enumerating values in [lb..ub], excluding those in excludedSet
+                      possibleValuesE = Set.fromList [v | v <- [lb..ub], not (v `Set.member` excludedSet)]
+                      -- calculating corresponding x values
+                      possibleValuesX = Set.map (\v -> (v * cInv) `mod` p) possibleValuesE
+                      in KnownValues possibleValuesX
+
+                -- if bounds are unknown, result is unknown 
+                _ -> BoundedValues Nothing Nothing Nothing -- Or defaultValueDomain?
+
+          -- updating x's state
+          updatedState <- updateValues xState newDomain
+          let changed = xState /= updatedState
+              updatedMap = if changed then Map.insert xID updatedState varStates else varStates
+          pure (changed, updatedMap)
+
+  | otherwise = Right (False, varStates) -- if c is 0 mod p, constraint is 0 = e
 
 -- handling symmetric case: e = c * x
 analyzeConstraint (EqC cid e (Mul (Int c) (Var xName))) nameToID varStates =
@@ -528,6 +540,30 @@ analyzeConstraint (EqC cid (Mul (Var xName) (Var yName)) (Int c)) nameToID varSt
 
 analyzeConstraint _ _ varStates = Right (False, varStates)  -- TODO: handle other constraints
 
+-- Extended Euclidean Algorithm: egcd a b = (g, x, y) where g = gcd(a, b) and ax + by = g
+egcd :: Integer -> Integer -> (Integer, Integer, Integer)
+egcd a 0 = (a, 1, 0)
+egcd a b =
+    let (g, x1, y1) = egcd b (a `mod` b)
+        x = y1
+        y = x1 - (a `div` b) * y1
+    in (g, x, y)
+
+-- Modular Multiplicative Inverse: modInverse a m computes a^-1 mod m
+-- Returns Nothing if the inverse does not exist (i.e., gcd(a, m) /= 1)
+modInverse :: Integer -> Integer -> Maybe Integer
+modInverse a m
+ | m <= 1 = Nothing -- modulus must be > 1
+ | otherwise =
+    let (g, x, _) = egcd a m
+    in if g /= 1
+       then Nothing -- inverse doesn't exist
+       else Just (x `mod` m) -- x might be negative, so we take mod m
+
+-- Field modulus (e.g., BN254 prime)
+-- TODO: We should obtain this from the IR and save this information in the Program structure.
+fieldModulus :: Integer
+fieldModulus = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
 -- Helper function
 isCertainlyZero :: VariableState -> Bool
