@@ -105,7 +105,6 @@ combineUpperBounds Nothing b = b
 combineExclusions :: Maybe (Set Integer) -> Maybe (Set Integer) -> Set Integer
 combineExclusions maybeS1 maybeS2 = Set.union (fromMaybe Set.empty maybeS1) (fromMaybe Set.empty maybeS2)
 
-
 -- Helper: Finds the smallest integer >= l that is not in the exclusion set.
 -- Returns Nothing if all integers >= l are excluded (or if l itself is Nothing).
 findNextValidLowerBound :: Maybe Integer -> Set Integer -> Maybe Integer

@@ -116,118 +116,19 @@ getConstraintID (NotC cid _) = cid
 --------------------------
 
 -- | Updates values of a variable and checks consistency.
+--   It does this by intersecting the existing domain with new domain information.
+--   Returns Left String on contradiction, Right VariableState on success.
 updateValues :: VariableState -> ValueDomain -> Either String VariableState
-updateValues vState (KnownValues newVals)
-  -- if we already had some explicit values, we check consistency
-  | not (Set.null (values vState)) =
-      let oldVals      = values vState
-          oldNonZero   = nonZero vState
-          includesZero = Set.member 0 newVals
-      in
-        if not (Set.isSubsetOf newVals oldVals)
-           then Left $ "Inconsistent value inference! New values " ++ show newVals
-                    ++ " are not a subset of existing " ++ show oldVals
-           
-           -- we also check if the old nonZero was True but newVals includes 0:
-           else if oldNonZero && includesZero
-               then Left $ "Contradiction: var was NonZero but new values " 
-                        ++ show newVals ++ " contain 0!"
-               
-               else 
-                 -- safe update
-                 let updatedNonZero = not includesZero
-                 in Right vState 
-                    { values  = newVals
-                    , nonZero = updatedNonZero
-                    }
-  
-  -- if no explicit values, we infer from bounds or just assign directly
-  | otherwise =
-      let lowerBound   = fromMaybe (minimum newVals) (low_b vState)
-          upperBound   = fromMaybe (maximum newVals) (upp_b vState)
-          inferredVals = Set.fromList [lowerBound .. upperBound]
-          includesZero = Set.member 0 newVals
-          oldNonZero   = nonZero vState
-      in
-        if not (Set.isSubsetOf newVals inferredVals)
-           then Left $ "Value inference contradicts bounds! New values: "
-                    ++ show newVals ++ " do not fit in range: "
-                    ++ show [lowerBound .. upperBound]
-        else if oldNonZero && includesZero
-           then Left $ "Contradiction: var was NonZero but new values " 
-                    ++ show newVals ++ " contain 0!"
-        else 
-          let updatedNonZero = not includesZero
-          in Right vState 
-             { values  = newVals
-             , nonZero = updatedNonZero
-             }
+updateValues oldState newDomainInfo =
+  -- 1. getting the current domain from the old state
+  let currentDomain = domain oldState
+  -- 2. intersecting the current domain with the new information
+  in case intersectDomains currentDomain newDomainInfo of
+       -- 3a. if intersection fails (contradiction), we return the error
+       Left errMsg -> Left errMsg
+       -- 3b. if intersection succeeds, we create a new VariableState with the updated domain
+       Right updatedDomain -> Right (oldState { domain = updatedDomain })
 
-updateValues vState (BoundedValues maybeLb maybeUb) =
-  -- we have bounding info, not an exact set.
-  -- So we unify it with any existing explicit values or bounds.
-  let oldVals      = values vState
-      oldLb        = low_b vState
-      oldUb        = upp_b vState
-      oldNonZero   = nonZero vState
-      newLb        = case (oldLb, maybeLb) of
-                       (Just a, Just b) -> Just (max a b)
-                       (Just a, Nothing) -> Just a
-                       (Nothing, Just b) -> Just b
-                       (Nothing, Nothing) -> Nothing
-      newUb        = case (oldUb, maybeUb) of
-                       (Just a, Just b) -> Just (min a b)
-                       (Just a, Nothing) -> Just a
-                       (Nothing, Just b) -> Just b
-                       (Nothing, Nothing) -> Nothing
-
-  in case (newLb, newUb) of
-       (Just lb, Just ub) | lb > ub ->
-          Left $ "Bound conflict: lower bound " ++ show lb
-               ++ " exceeds upper bound " ++ show ub
-       
-       -- if we already had explicit values, we need to keep only those that fit
-       -- in the new (lb..ub)
-       _ ->
-        let restrictedVals = 
-              case (Set.null (values vState), newLb, newUb) of
-                (True,  _, _ )       -> Set.empty
-                (False, Just lb, Just ub) ->
-                     Set.filter (\x -> x >= lb && x <= ub) (values vState)
-                (False, Just lb, Nothing) ->
-                    Set.filter (>= lb) (values vState)
-                (False, Nothing, Just ub) ->
-                    Set.filter (<= ub) (values vState)
-                (False, Nothing, Nothing) ->
-                    values vState
-
-            includesZero = Set.member 0 restrictedVals
-            oldNonZero   = nonZero vState
-
-            -- if oldNonZero is true but we see a 0, that's a contradiction
-            newNonZero =
-              if oldNonZero && includesZero
-                then error $ "Contradiction: var was NonZero but domain includes 0!"
-                else oldNonZero && not includesZero
-
-        in
-          -- updating the state
-          Right vState
-            { values  = restrictedVals
-            , low_b   = 
-                if not (Set.null $ values vState)
-                then if Set.null restrictedVals
-                    then Nothing
-                    else Just $ Set.findMin restrictedVals
-                else newLb
-            , upp_b   = 
-                if not (Set.null $ values vState)
-                then if Set.null restrictedVals
-                    then Nothing
-                    else Just $ Set.findMax restrictedVals
-                else newUb   
-            , nonZero = newNonZero
-            }
 getVarID = Map.lookup
 
 expandBounds :: Maybe Integer -> Maybe Integer -> [Integer]
