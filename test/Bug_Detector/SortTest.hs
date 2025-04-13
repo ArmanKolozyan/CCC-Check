@@ -118,7 +118,7 @@ spec = describe "Bug Detection Tests" $ do
         -- we expect bug messages for all variables
         errs `shouldMatchList` -- `shouldMatchList` is chosen over `shouldBe`, as it does not take order into account
           ["Boolean variable `b` has values outside {0,1}: [2]",
-          "Denominator expression `Var \"nz\"` may be 0!",
-          "Variable `f` has out-of-range values: [9]"]
+          "Potential division by zero: Denominator expression `Var \"nz\"` might be zero.",
+          "Variable `f` has out-of-range values: [9] (expected [0..4])"]
       Right () ->
         expectationFailure "We expected bug errors, but detectBugs returned Right ()"

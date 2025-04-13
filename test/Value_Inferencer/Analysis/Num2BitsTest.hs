@@ -4,6 +4,7 @@ import Test.Hspec
 import ValueAnalysis.Analysis
 import Syntax.AST
 import qualified Data.Map.Strict as Map
+import Data.Set
 
 spec :: Spec
 spec = describe "Value Inference Tests" $ do
@@ -45,12 +46,12 @@ spec = describe "Value Inference Tests" $ do
     -- checking inferred domain for b0 (should be [0, 1])
     case Map.lookup "b0" inferredStates of
       Nothing -> expectationFailure "No state for 'b0'"
-      Just st -> domain st `shouldBe` BoundedValues (Just 0) (Just 1) Nothing
+      Just st -> domain st `shouldBe` KnownValues (fromList [0,1])
 
     -- checking inferred domain for b1 (should be [0, 1])
     case Map.lookup "b1" inferredStates of
       Nothing -> expectationFailure "No state for 'b1'"
-      Just st -> domain st `shouldBe` BoundedValues (Just 0) (Just 1) Nothing
+      Just st -> domain st `shouldBe` KnownValues (fromList [0,1])
 
     -- checking inferred domain for x (should be [0, 3] based on sum-of-powers)
     case Map.lookup "x" inferredStates of
