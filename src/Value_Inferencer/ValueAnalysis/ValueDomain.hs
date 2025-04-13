@@ -2,7 +2,7 @@ module ValueAnalysis.ValueDomain where
 
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Maybe (fromMaybe, isJust) 
+import Data.Maybe (fromMaybe, isJust, isNothing) 
 
 -- | Represents values of variables.
 data ValueDomain
@@ -39,27 +39,34 @@ intersectDomains d1 d2 = case (d1, d2) of
 
     -- both Bounded: we combine bounds and exclusions
     (BoundedValues lb1 ub1 ex1, BoundedValues lb2 ub2 ex2) ->
-        let newLb = combineLowerBounds lb1 lb2
-            newUb = combineUpperBounds ub1 ub2
+        let combinedLb = combineLowerBounds lb1 lb2
+            combinedUb = combineUpperBounds ub1 ub2
+
             -- we combine exclusions by taking the union
             newExSet = combineExclusions ex1 ex2
             newEx = if Set.null newExSet then Nothing else Just newExSet
 
+            -- we adjust bounds iteratively based on exclusions
+            adjustedLb = findNextValidLowerBound combinedLb newExSet
+            adjustedUb = findPrevValidUpperBound combinedUb newExSet
+
             -- we check for immediate bound conflict (e.g., new lower > new upper)
-            boundConflict = case (newLb, newUb) of
+            boundConflict = case (adjustedLb, adjustedUb) of
                               (Just l, Just u) | l > u -> True
                               _ -> False
-            -- we check if a resulting bound is now explicitly excluded
-            boundExclusionConflict = (maybe False (`Set.member` newExSet) newLb) ||
-                                     (maybe False (`Set.member` newExSet) newUb)
-        in if boundConflict then Left $ "Bound conflict during intersection: new lower " ++ show newLb ++ " > new upper " ++ show newUb
-           else if boundExclusionConflict then Left $ "Bound excluded during intersection: bounds " ++ show (newLb, newUb) ++ ", exclusions " ++ show newExSet
-           -- we check if the resulting range [lb, ub] combined with exclusions becomes empty (e.g., [5, 5] with excluded {5})
-           else if case (newLb, newUb) of
-                      (Just l, Just u) | l == u && maybe False (Set.member l) newEx -> True
-                      _ -> False
-                then Left $ "Intersection resulted in empty domain: bounds " ++ show (newLb, newUb) ++ " with exclusions " ++ show newExSet
-           else Right $ BoundedValues newLb newUb newEx
+            
+            -- we heck for conflict where exclusions removed all values
+            --    (This happens if adjusted bounds are both Nothing,
+            --     but at least one initial bound was Just)
+            adjustedBoundConflict_ExclusionEmptied =
+              isNothing adjustedLb && isNothing adjustedUb && (isJust combinedLb || isJust combinedLb)                  
+        
+        in if boundConflict 
+          then Left $ "Bound conflict during intersection: new lower " ++ show adjustedLb ++ " > new upper " ++ show adjustedUb
+          else if adjustedBoundConflict_ExclusionEmptied then
+                  Left $ "Intersection resulted in empty domain (exclusions removed all values): initial bounds were ["
+                       ++ show combinedLb ++ ", " ++ show combinedUb ++ "], exclusions " ++ show newExSet
+          else Right $ BoundedValues adjustedLb adjustedUb newEx
 
 -- Helper to filter a KnownValues set by Bounded constraints
 filterKnown :: Set Integer -> Maybe Integer -> Maybe Integer -> Maybe (Set Integer) -> Either String ValueDomain
@@ -93,3 +100,20 @@ combineUpperBounds Nothing b = b
 -- Helper to combine exclusion sets (takes union)
 combineExclusions :: Maybe (Set Integer) -> Maybe (Set Integer) -> Set Integer
 combineExclusions maybeS1 maybeS2 = Set.union (fromMaybe Set.empty maybeS1) (fromMaybe Set.empty maybeS2)
+
+
+-- Helper: Finds the smallest integer >= l that is not in the exclusion set.
+-- Returns Nothing if all integers >= l are excluded (or if l itself is Nothing).
+findNextValidLowerBound :: Maybe Integer -> Set Integer -> Maybe Integer
+findNextValidLowerBound Nothing _ = Nothing
+findNextValidLowerBound (Just l) excludedSet
+  | Set.member l excludedSet = findNextValidLowerBound (Just (l + 1)) excludedSet
+  | otherwise = Just l
+
+-- Helper: Finds the largest integer <= u that is not in the exclusion set.
+-- Returns Nothing if all integers <= u are excluded (or if u itself is Nothing).
+findPrevValidUpperBound :: Maybe Integer -> Set Integer -> Maybe Integer
+findPrevValidUpperBound Nothing _ = Nothing
+findPrevValidUpperBound (Just u) excludedSet
+  | Set.member u excludedSet = findPrevValidUpperBound (Just (u - 1)) excludedSet
+  | otherwise = Just u
