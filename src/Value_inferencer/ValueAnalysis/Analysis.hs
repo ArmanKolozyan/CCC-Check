@@ -432,7 +432,7 @@ analyzeConstraint (EqC cid (Int 0) rootExpr) nameToID varStates =
 
 -- | Rule 3 from Ecne
 --    Sum-of-powers rule:  EqC cid (some expression) (Var zName)
---    If that expression is c^k * b_k + ... + c^m * b_m with each b in [0,1],
+--    If that expression is a sum of terms like c^k * b_k or b_k * c^k, with each b in [0,1],
 --    then z ∈ [0, c^(maxExponent+1)-1].
 analyzeConstraint (EqC cid lhs (Var zName)) nameToID varStates
   | Just terms <- checkSumOfPowers 2 lhs  -- TODO: generalize
@@ -586,7 +586,8 @@ markNonZeroPair xName yName nameToID varStates = do
 
     pure (changed, newMap)
 
--- | We try to convert `expr` into a sum of terms: c^exponent * Var(b).
+-- | We try to convert `expr` into a sum of terms: c^exponent * Var(b) or Var(b) * c^exponent.
+--   c^k * b_k + ... + c^m * b_m or b_k * c^k + ... + b_m * c^m
 --   Returns Nothing if checking fails or if 'expr' is not that pattern.
 checkSumOfPowers
   :: Integer -- c, the base of the powers
@@ -599,8 +600,14 @@ checkSumOfPowers c = go
       rightTerms <- go r
       pure (leftTerms ++ rightTerms)
 
+    -- case 1: c^k * b
     go (Mul (Int k) (Var bName)) = do
-      expK <- isExactPowerOf c k  -- e.g. if c=2, k=4 => exponent=2
+      expK <- isExactPowerOf c k  -- e.g., if c=2, k=4 => exponent=2
+      pure [(bName, expK)]
+
+    -- case 2: b * c^k (symmetric case)
+    go (Mul (Var bName) (Int k)) = do
+      expK <- isExactPowerOf c k
       pure [(bName, expK)]
 
     -- c^0 * Var(b) is just (Var b), i.e. exponent=0
