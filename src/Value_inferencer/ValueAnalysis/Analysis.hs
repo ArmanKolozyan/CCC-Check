@@ -475,9 +475,9 @@ analyzeConstraint (EqC cid (Add (Var xName) (Var yName)) (Int 1)) nameToID varSt
 
 -- AND case
 analyzeConstraint (AndC cid subCs) nameToID varStates = do
-    let initialAcc = (False, varStates)  -- (changed?, current map)
-    (finalChanged, finalMap) <- foldlAndM nameToID initialAcc subCs
-    pure (finalChanged, finalMap)
+  let initialAcc = (False, varStates)  -- (changed?, current map)
+  (finalChanged, finalMap) <- foldlAndM nameToID initialAcc subCs
+  pure (finalChanged, finalMap)
   where
     -- we go over the sub-constraints in [Constraint] with a 
     --            left-biased Either: if any sub-constraint fails, we propagate the error.
@@ -498,32 +498,98 @@ analyzeConstraint (AndC cid subCs) nameToID varStates = do
 -- | NonZero rule: a * b + 1 = 0 then a is nonzero and b is nonzero.
 --   same for a * b = 1
 -- TODO: rekening houden met prime field!
-analyzeConstraint (EqC cid (Add (Var zName) (Mul (Var xName) (Var yName))) (Int c)) nameToID varStates = do
-    zState <- lookupVarStateByName zName nameToID varStates
-    let p = fieldModulus
-    if isCertainlyZero zState && c /= 0 -- TODO: (c `mod` p /= 0) ?
-       then markNonZeroPair xName yName nameToID varStates
-       else Right (False, varStates)
+analyzeConstraint (EqC cid (Add expr3 (Mul expr1 expr2)) (Int c)) nameToID varStates = do
+  let p = fieldModulus
+  let cModP = c `mod` p
+  let domain3 = inferValues expr3 nameToID varStates
+  if isCertainlyZeroDomain domain3 && cModP /= 0
+      then markExprPairNonZero expr1 expr2 nameToID varStates
+      else Right (False, varStates)
 --analyzeConstraint (EqC cid (Int c) (Mul (Var xName) (Var yName))) nameToID varStates =
 --     if c /= 0 then markNonZeroPair xName yName nameToID varStates
 --      else Right (False, varStates)
-analyzeConstraint (EqC cid (Add (Mul (Var xName) (Var yName)) (Int c1)) (Int c2)) nameToID varStates =
-     if c1 /= 0 && c2 == 0 then markNonZeroPair xName yName nameToID varStates -- TODO: (c1 `mod` p /= 0) && (c2 `mod` p == 0) ?
-      else Right (False, varStates)
-analyzeConstraint (EqC cid (Mul (Var xName) (Var yName)) (Int c)) nameToID varStates =
-    if c /= 0 then markNonZeroPair xName yName nameToID varStates -- TODO: (c `mod` p /= 0) ?
+analyzeConstraint (EqC cid (Add (Mul expr1 expr2) (Int c1)) (Int c2)) nameToID varStates = do
+  let p = fieldModulus
+  let c1ModP = c1 `mod` p
+  let c2ModP = c2 `mod` p
+  -- this corresponds to expr1 * expr2 = c2 - c1 (mod p)
+  -- we need c2 - c1 != 0 (mod p), which means c2 != c1 (mod p)
+  if c2ModP /= c1ModP
+      then markExprPairNonZero expr1 expr2 nameToID varStates
       else Right (False, varStates)
 
+analyzeConstraint (EqC cid (Mul expr1 expr2) (Int c)) nameToID varStates = do
+  let p = fieldModulus
+  let cModP = c `mod` p
+  if cModP /= 0
+      then markExprPairNonZero expr1 expr2 nameToID varStates
+      else Right (False, varStates)
 
 -- Symmetric cases for NonZero rules
-analyzeConstraint (EqC cid (Int c) (Add (Var zName) (Mul (Var xName) (Var yName)))) nameToID varStates =
-    analyzeConstraint (EqC cid (Add (Var zName) (Mul (Var xName) (Var yName))) (Int c)) nameToID varStates
-analyzeConstraint (EqC cid (Int c2) (Add (Mul (Var xName) (Var yName)) (Int c1))) nameToID varStates =
-    analyzeConstraint (EqC cid (Add (Mul (Var xName) (Var yName)) (Int c1)) (Int c2)) nameToID varStates
-analyzeConstraint (EqC cid (Int c) (Mul (Var xName) (Var yName))) nameToID varStates =
-    analyzeConstraint (EqC cid (Mul (Var xName) (Var yName)) (Int c)) nameToID varStates
+analyzeConstraint (EqC cid (Int c) (Add expr3 (Mul expr1 expr2))) nameToID varStates =
+  analyzeConstraint (EqC cid (Add expr3 (Mul expr1 expr2)) (Int c)) nameToID varStates
+
+analyzeConstraint (EqC cid (Int c2) (Add (Mul expr1 expr2) (Int c1))) nameToID varStates =
+  analyzeConstraint (EqC cid (Add (Mul expr1 expr2) (Int c1)) (Int c2)) nameToID varStates
+
+analyzeConstraint (EqC cid (Int c) (Mul expr1 expr2)) nameToID varStates =
+  analyzeConstraint (EqC cid (Mul expr1 expr2) (Int c)) nameToID varStates
 
 analyzeConstraint _ _ varStates = Right (False, varStates)  -- TODO: handle other constraints
+
+-- Marks an expression as non-zero and updates variable states accordingly.
+-- Returns (changed, updatedStates) or an error message.
+markExprNonZero :: Expression -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+markExprNonZero (Var xName) nameToID varStates = do
+    xID <- lookupVarID xName nameToID
+    oldXSt <- lookupVarState xID varStates
+    let p = fieldModulus 
+    let valToExclude = 0
+    let currentDomain = domain oldXSt
+    -- using excludeValue which handles KnownValues and BoundedValues
+    let domainWithoutZero = excludeValue currentDomain valToExclude
+    -- intersecting with the original domain to ensure consistency and detect contradictions
+    -- updateValues performs the intersection and checks for emptiness/contradiction
+    newState <- updateValues oldXSt domainWithoutZero
+    let changed = newState /= oldXSt
+    let newMap = if changed then Map.insert xID newState varStates else varStates
+    pure (changed, newMap)
+
+markExprNonZero (Sub (Int c) (Var xName)) nameToID varStates = do
+    xID <- lookupVarID xName nameToID
+    oldXSt <- lookupVarState xID varStates
+    -- we need c - x != 0 (mod p), so x != c (mod p)
+    let p = fieldModulus
+    let valToExclude = c `mod` p
+    let currentDomain = domain oldXSt
+    let domainWithoutC = excludeValue currentDomain valToExclude
+    newState <- updateValues oldXSt domainWithoutC
+    let changed = newState /= oldXSt
+    let newMap = if changed then Map.insert xID newState varStates else varStates
+    pure (changed, newMap)
+
+markExprNonZero (Sub (Var xName) (Int c)) nameToID varStates = do
+    -- x - c != 0 (mod p) => x != c (mod p)
+    -- re-using the logic by passing equivalent expression structure
+    markExprNonZero (Sub (Int c) (Var xName)) nameToID varStates
+
+markExprNonZero (Int c) _ varStates =
+    let p = fieldModulus
+    in if c `mod` p == 0
+       then Left $ "Contradiction: Constant expression " ++ show c ++ " is zero, cannot mark as non-zero."
+       else Right (False, varStates) -- constant is non-zero, no state change needed
+
+-- TODO: Add, Mul, etc. If e.g., Add e1 e2 != 0 and e1 is known zero,
+-- then markExprNonZero e2 could be called I think??
+markExprNonZero _ _ varStates = Right (False, varStates)
+
+-- Marks a pair of expressions as non-zero.
+markExprPairNonZero :: Expression -> Expression -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+markExprPairNonZero expr1 expr2 nameToID varStates = do
+    (changed1, states1) <- markExprNonZero expr1 nameToID varStates
+    -- applying the second check to the potentially updated state from the first check
+    (changed2, states2) <- markExprNonZero expr2 nameToID states1
+    pure (changed1 || changed2, states2)
 
 -- Extended Euclidean Algorithm: egcd a b = (g, x, y) where g = gcd(a, b) and ax + by = g
 egcd :: Integer -> Integer -> (Integer, Integer, Integer)
@@ -550,9 +616,9 @@ modInverse a m
 fieldModulus :: Integer
 fieldModulus = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
--- Helper function: Checks if a variable state guarantees the value is exactly zero.
-isCertainlyZero :: VariableState -> Bool
-isCertainlyZero st = case domain st of
+-- Helper function: Checks if a value domain guarantees the value is exactly zero.
+isCertainlyZeroDomain :: ValueDomain -> Bool
+isCertainlyZeroDomain domainVal = case domainVal of
     KnownValues s -> s == Set.singleton 0
     BoundedValues (Just 0) (Just 0) maybeEx ->
         -- only if bounds are [0, 0] AND 0 is not excluded
