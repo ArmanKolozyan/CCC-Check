@@ -495,9 +495,13 @@ analyzeConstraint (AndC cid subCs) nameToID varStates = do
 -- TODO: handle the symmetrical case:  EqC cid (Var zName) rhs
 -- if checkSumOfPowers 2 rhs = ...
 
--- | NonZero rule: a * b + 1 = 0 then a is nonzero and b is nonzero.
---   same for a * b = 1
--- TODO: rekening houden met prime field!
+-- | NonZero rule.
+-- Pattern 1: expr3 + expr1 * expr2 = c
+-- Soundness: If we know expr3 is definitely 0 (mod p) and c is non-zero (mod p),
+-- the constraint simplifies to expr1 * expr2 = c (mod p). In a field, if the product
+-- of two elements (i.e., c) is non-zero, then neither element can be zero.
+-- Therefore, we can conclude expr1 != 0 (mod p) and expr2 != 0 (mod p).
+-- TODO: correct rekening houden met prime field!
 analyzeConstraint (EqC cid (Add expr3 (Mul expr1 expr2)) (Int c)) nameToID varStates = do
   let p = fieldModulus
   let cModP = c `mod` p
@@ -505,9 +509,12 @@ analyzeConstraint (EqC cid (Add expr3 (Mul expr1 expr2)) (Int c)) nameToID varSt
   if isCertainlyZeroDomain domain3 && cModP /= 0
       then markExprPairNonZero expr1 expr2 nameToID varStates
       else Right (False, varStates)
---analyzeConstraint (EqC cid (Int c) (Mul (Var xName) (Var yName))) nameToID varStates =
---     if c /= 0 then markNonZeroPair xName yName nameToID varStates
---      else Right (False, varStates)
+
+-- Pattern 2: expr1 * expr2 + c1 = c2
+-- Soundness: This constraint is equivalent to expr1 * expr2 = c2 - c1 (mod p).
+-- If c2 is not equal to c1 (mod p), then c2 - c1 is non-zero (mod p).
+-- Let c' = c2 - c1. We have expr1 * expr2 = c' (mod p) where c' != 0 (mod p).
+-- As in Pattern 1, this implies expr1 != 0 (mod p) and expr2 != 0 (mod p).
 analyzeConstraint (EqC cid (Add (Mul expr1 expr2) (Int c1)) (Int c2)) nameToID varStates = do
   let p = fieldModulus
   let c1ModP = c1 `mod` p
@@ -518,6 +525,10 @@ analyzeConstraint (EqC cid (Add (Mul expr1 expr2) (Int c1)) (Int c2)) nameToID v
       then markExprPairNonZero expr1 expr2 nameToID varStates
       else Right (False, varStates)
 
+-- Pattern 3: expr1 * expr2 = c
+-- Soundness: The constraint is expr1 * expr2 = c (mod p).
+-- If c is non-zero (mod p), then for the equality to hold in the field,
+-- neither expr1 nor expr2 can be zero (mod p).
 analyzeConstraint (EqC cid (Mul expr1 expr2) (Int c)) nameToID varStates = do
   let p = fieldModulus
   let cModP = c `mod` p
