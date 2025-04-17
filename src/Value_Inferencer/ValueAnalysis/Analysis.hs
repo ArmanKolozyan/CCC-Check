@@ -27,40 +27,13 @@ import ValueAnalysis.ValueDomain
 -- 1) Variable State Representation
 --------------------------
 
--- Moved to separate file
+-- Moved to separate file (VariableState.hs)
 
 --------------------------
 -- 2) Initializing Variable States
 --------------------------
 
--- | Builds a map from variable IDs to their initial state.
-initializeVarStates :: [Binding] -> Map Int VariableState
-initializeVarStates vars = Map.fromList [(vid v, initVarState) | v <- vars]
-
--- | Builds a map from variable names to their IDs for lookup.
--- TODO: just replace all vars in constraints by their ID during compilation!
-buildVarNameToIDMap :: [Binding] -> Map String Int
-buildVarNameToIDMap vars = Map.fromList [(name v, vid v) | v <- vars]
-
--- Helper: Lookup variable ID by name
-lookupVarID :: String -> Map String Int -> Either String Int
-lookupVarID name nameToID =
-  case Map.lookup name nameToID of
-    Just vID -> Right vID
-    Nothing  -> Left $ "Variable name not found in nameToID map: " ++ name
-
--- Helper: Lookup variable state by ID
-lookupVarState :: Int -> Map Int VariableState -> Either String VariableState
-lookupVarState vID varStates =
-  case Map.lookup vID varStates of
-    Just state -> Right state
-    Nothing    -> Left $ "Variable state not found in varStates for ID: " ++ show vID
-
--- Helper: Lookup variable state by name
-lookupVarStateByName :: String -> Map String Int -> Map Int VariableState -> Either String VariableState
-lookupVarStateByName name nameToID varStates = do
-  vID <- lookupVarID name nameToID
-  lookupVarState vID varStates
+-- Moved to separate file (VariableState.hs)
 
 --------------------------
 -- 3) Mapping Variables to Constraints
@@ -129,7 +102,7 @@ getConstraintID (NotC cid _) = cid
 --------------------------
 
 -- | Updates values of a variable and checks consistency.
---   It does this by intersecting the existing domain with new domain information.
+--   It does this by intersecting the existing domain with the new domain information.
 --   Returns Left String on contradiction, Right VariableState on success.
 updateValues :: VariableState -> ValueDomain -> Either String VariableState
 updateValues oldState newDomainInfo =
@@ -142,10 +115,6 @@ updateValues oldState newDomainInfo =
        -- 3b. if intersection succeeds, we create a new VariableState with the updated domain
        Right updatedDomain -> Right (oldState { domain = updatedDomain })
 
-expandBounds :: Maybe Integer -> Maybe Integer -> [Integer]
-expandBounds (Just lb) (Just ub) = [lb .. ub]  -- expands into a list
-expandBounds _ _ = []  -- no meaningful bounds
-
 -- | Recursively infers possible values of an expression
 -- TODO: fix code duplication
 inferValues :: Expression -> Map String Int -> Map Int VariableState -> ValueDomain
@@ -157,44 +126,55 @@ inferValues (Var xName) nameToID varStates =
     -- Variable known but no state? We return default domain.
     Just varID -> maybe defaultValueDomain domain (Map.lookup varID varStates)
     -- Variable name not found? We return default domain.
+    -- TODO: beter error geven denk ik
     Nothing -> defaultValueDomain 
 
 inferValues (Add e1 e2) nameToID varStates =
     let d1 = inferValues e1 nameToID varStates
         d2 = inferValues e2 nameToID varStates
     in case (d1, d2) of
+      -- we enumerate values, but should not be a problem since KnownValues are supposed to be
+      -- small sets
        (KnownValues s1, KnownValues s2) ->
-         KnownValues (Set.fromList [x + y | x <- Set.toList s1, y <- Set.toList s2])
-       (BoundedValues lb1 ub1 ex1, BoundedValues lb2 ub2 ex2) ->
-         -- we use <$> to add only if the bounds are Just
-         let newLb = (+) <$> lb1 <*> lb2 
-             newUb = (+) <$> ub1 <*> ub2 
-             -- TODO: we currently sum the exclusions, which seems fine thinking about
-             -- our main goal of detecting division-by-zero. However, we have to
-             -- verify whether this approach makes sense for general cases.
-             newEx = combineExclusions ex1 ex2 
-         in BoundedValues newLb newUb (if Set.null newEx then Nothing else Just newEx)
+         KnownValues $ Set.fromList [ (v1 + v2) `mod` p | v1 <- Set.toList s1, v2 <- Set.toList s2 ]
 
-       -- mixed cases (KnownValues + BoundedValues)
-       -- we combine them into BoundedValues
-       (KnownValues s, BoundedValues lb ub excl) ->
-         if Set.null s 
-          then defaultValueDomain 
-          else
-            let minS = Set.findMin s
-                maxS = Set.findMax s
-                newLb = (+) <$> Just minS <*> lb
-                newUb = (+) <$> Just maxS <*> ub
-            in BoundedValues newLb newUb excl;
-       (BoundedValues lb ub excl, KnownValues s) ->
-         if Set.null s 
-          then defaultValueDomain 
-          else
-            let minS = Set.findMin s
-                maxS = Set.findMax s
-                newLb = (+) <$> lb <*> Just minS
-                newUb = (+) <$> ub <*> Just maxS
-            in BoundedValues newLb newUb excl
+       (BoundedValues (Just lb1) (Just ub1) _, KnownValues s2) | not (Set.null s2) ->
+         let minSum = minimum $ Set.map (\v2 -> (lb1 + v2) `mod` p) s2
+             maxSum = maximum $ Set.map (\v2 -> (ub1 + v2) `mod` p) s2
+         in if minSum <= maxSum then
+              -- no wrap-around: result is [minSum, maxSum]
+              -- We drop original exclusions, which is sound as we only
+              -- lose precision with this (we over-approximate).
+              -- TODO: maybe we can keep the exclusions in a smart way? Yes should be doable.
+              BoundedValues (Just minSum) (Just maxSum) Set.empty
+            else
+              -- wrap-around: we represent as [0, p-1] excluding the gap.
+              let gaps = getWrapAroundExclusion maxSum minSum p
+              in BoundedValues (Just 0) (Just (p - 1)) gaps
+
+       (KnownValues s1, BoundedValues (Just lb2) (Just ub2) _) | not (Set.null s1) ->
+         -- symmetric
+         let minSum = minimum $ Set.map (\v1 -> (v1 + lb2) `mod` p) s1
+             maxSum = maximum $ Set.map (\v1 -> (v1 + ub2) `mod` p) s1
+         in if minSum <= maxSum then
+              BoundedValues (Just minSum) (Just maxSum) Set.empty
+            else
+              let gaps = getWrapAroundExclusion maxSum minSum p
+              in BoundedValues (Just 0) (Just (p - 1)) gaps
+
+       (BoundedValues (Just lb1) (Just ub1) _, BoundedValues (Just lb2) (Just ub2) _) ->
+         let newLb = (lb1 + lb2) `mod` p
+             newUb = (ub1 + ub2) `mod` p
+         in if newLb <= newUb then
+              -- no wrap-around: Result is [newLb, newUb]
+              -- We drop original exclusions.
+              BoundedValues (Just newLb) (Just newUb) Set.empty
+            else
+              -- wrap-around: we represent as [0, p-1] excluding the gap.
+              let gaps = getWrapAroundExclusion newUb newLb p
+              in BoundedValues (Just 0) (Just (p - 1)) gaps
+
+       _ -> defaultValueDomain
 
 inferValues (Sub e1 e2) nameToID varStates =
   let d1 = inferValues e1 nameToID varStates
