@@ -543,10 +543,18 @@ analyzeConstraint (EqC cid lhs (Var zName)) nameToID varStates
            let changed1   = updatedZState /= zState
                varStates1 = Map.insert zID updatedZState varStates
 
-           -- 4) if 'z' is exactly known => we can infer the bits
+           -- 4) If the analysis (potentially after intersecting with previous knowledge or other constraints)
+           --    determines that 'z' must have a single, specific numerical value (i.e., its domain becomes
+           --    KnownValues {v}), we can deduce the exact value of each boolean variable 'b_i'.
+           --    Since z = b_0*c^0 + b_1*c^1 + ... + b_maxExp*c^maxExp, and each b_i is 0 or 1,
+           --    the known value of 'z' essentially *is* the number represented in base 'c' by the bits 'b_i'.
+           --    We can extract the required value (0 or 1) for each b_i by looking at the corresponding
+           --    base-c digit of the known value of 'z'. This allows us to further constrain the domains
+           --    of the 'b_i' variables, setting them to KnownValues {0} or KnownValues {1}.
+           --    The `decodeSumOfPowers` function performs this bit extraction and state update.
            case domain updatedZState of
                  KnownValues zVals | Set.size zVals == 1 -> do
-                   let knownZ = Set.findMin zVals -- Get the single value
+                   let knownZ = Set.findMin zVals -- getting the single value
                    varStates2 <- decodeSumOfPowers cBase knownZ terms nameToID varStates1
                    pure (True, varStates2)
                  _ -> pure (changed1, varStates1)
@@ -566,7 +574,7 @@ analyzeConstraint (AndC cid subCs) nameToID varStates = do
   pure (finalChanged, finalMap)
   where
     -- we go over the sub-constraints in [Constraint] with a 
-    --            left-biased Either: if any sub-constraint fails, we propagate the error.
+    -- left-biased Either: if any sub-constraint fails, we propagate the error.
     foldlAndM
       :: Map String Int
       -> (Bool, Map Int VariableState)
