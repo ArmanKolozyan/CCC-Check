@@ -4,6 +4,12 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe (fromMaybe)
 
+-- TODO: we maken vaak onderscheid tussen normal interval en wrapped,
+-- maar eigenlijk kan wrapped nooit voorkomen want wordt omgezet naar
+-- normal + exclusions (i.e., gaps).
+
+-- TODO: terminologie "exclusions" en "gaps" consistent maken
+
 -- | Represents values of variables.
 -- `gaps` stores intervals (l, u) of values *excluded* from the domain.
 -- This allows representing non-contiguous sets.
