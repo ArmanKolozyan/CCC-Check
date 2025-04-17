@@ -297,7 +297,19 @@ inferValues (Mul e1 e2) nameToID varStates =
 
        _ -> defaultValueDomain
 
+inferValues (PfRecip e) nameToID varStates =
+  inferValues e nameToID varStates
+
+inferValues (Ite cond eThen eElse) nameToID varStates =
+  let dThen = inferValues eThen nameToID varStates
+      dElse = inferValues eElse nameToID varStates
+  in joinDomains dThen dElse
+
 inferValues _ _ _ = defaultValueDomain -- TODO: Handle other cases properly
+
+-- TODO: Implement joinDomains
+joinDomains :: ValueDomain -> ValueDomain -> ValueDomain
+joinDomains d1 d2 = defaultValueDomain -- placeholder
 
 
 -- Helper function: Computes modular inverse
