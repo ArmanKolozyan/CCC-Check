@@ -391,20 +391,25 @@ zeroOne _ xName yName nameToID oldVarStates = do
      -- no update if neither is already in [0,1].
      pure (False, oldVarStates)
 
--- Helper function: checks whether a VariableState is restricted to exactly [0,1].
+-- Helper function: checks whether a VariableState is restricted to [0,1].
 isIn01 :: VariableState -> Bool
 isIn01 st = case domain st of
     KnownValues s -> Set.isSubsetOf s (Set.fromList [0, 1])
-    BoundedValues (Just lb) (Just ub) maybeEx ->
-        lb >= 0 && ub <= 1 &&
-        -- ensuring 0 and 1 are not both excluded if the range is exactly [0, 1]
-        not (lb == 0 && ub == 1 && maybe False (Set.isSubsetOf (Set.fromList [0,1])) maybeEx) &&
-        -- ensuring the single value isn't excluded if lb == ub
-        not (lb == ub && maybe False (Set.member lb) maybeEx)
-    BoundedValues (Just lb) Nothing _ -> False -- cannot be [0,1] if upper bound is open
-    BoundedValues Nothing (Just ub) _ -> False -- cannot be [0,1] if lower bound is open
-    BoundedValues Nothing Nothing _ -> False -- cannot be [0,1] if bounds are unknown
+    BoundedValues lbM ubM gaps ->
+        let -- checking whether bounds are within [0, 1]
+            boundsOk = case (lbM, ubM) of
+                         (Just lb, Just ub) -> lb >= 0 && ub <= 1
+                         _ -> False -- Cannot be exactly [0, 1]
 
+            -- checking whether exclusions don't make it impossible
+            exclusionsOk = case (lbM, ubM) of
+                             (Just 0, Just 1) -> not (isExcluded 0 gaps p && isExcluded 1 gaps p) 
+                             (Just 0, Just 0) -> not (isExcluded 0 gaps p) 
+                             (Just 1, Just 1) -> not (isExcluded 1 gaps p)
+                             _ -> True -- if bounds aren't exactly [0,0], [1,1] or [0,1], exclusions don't invalidate the [0,1] check
+
+        in boundsOk && exclusionsOk
+        
 -- | Applies an "interesting" constraint to update variable states.
 -- TODO: OrC, ... !!
 analyzeConstraint :: Constraint -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
