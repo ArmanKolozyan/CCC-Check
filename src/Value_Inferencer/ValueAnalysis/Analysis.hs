@@ -311,11 +311,28 @@ inferValues _ _ _ = defaultValueDomain -- TODO: Handle other cases properly
 joinDomains :: ValueDomain -> ValueDomain -> ValueDomain
 joinDomains d1 d2 = defaultValueDomain -- placeholder
 
+-- In modular arithmetic (mod p), an interval can "wrap around" the modulus.
+-- If the calculated lower bound `newLb` is GREATER than the calculated upper bound `newUb`,
+-- it signifies wrap-around. The actual values represented are [newLb, p-1] U [0, newUb].
+-- Instead of representing this union directly (which our BoundedValues doesn't support),
+-- we represent it as the entire field [0, p-1] but EXCLUDING the "gap" interval
+-- from (newUb + 1) to (newLb - 1) modulo p.
+--
+-- Example: We calculate `A - B` where A is [1, 2], B is [1, 2], and p=17.
+-- The rule is `[a, b] - [c, d] = [a-d, b-c] mod p`.
+-- 1. Calculate `newLb = (a - d) mod p = (1 - 2) mod 17 = -1 mod 17 = 16`.
+-- 2. Calculate `newUb = (b - c) mod p = (2 - 1) mod 17 = 1 mod 17 = 1`. => [16, 1] 
+-- 3. Check: Is `newLb > newUb`? Yes, `16 > 1`. This signifies wrap-around.
+-- 4. The actual values are `[newLb, p-1] U [0, newUb]`, which is `[16, 16] U [0, 1]`.
+--    The set of possible values is {16, 0, 1}.
+-- 5. Representation: We represent this as the field `[0, p-1]` but EXCLUDING the "gap".
+--    The gap is `[(newUb + 1) mod p, (newLb - 1 + p) mod p]`.
+--    `gapStart = (1 + 1) mod 17 = 2`.
+--    `gapEnd = (16 - 1 + 17) mod 17 = 15`.
+--    The excluded gap interval is `[2, 15]`.
+--    The result is stored as `BoundedValues (Just 0) (Just (p-1)) (Just [(2, 15)])`.
+--    TODO: We assume here that ValueDomain uses excluded intervals. Check if we respect this everywhere.
 
--- Helper function: Computes modular inverse
-modularInverse :: Integer -> Integer
-modularInverse c = if c /= 0 then 1 `div` c else error "Division by zero"
--- TODO: Implement modular inverse properly for field arithmetic.
 
 -- | Helper function: Extracts (x - c) terms from a multiplication expression.
 extractRootFactors :: Expression -> Maybe (String, [Integer])
