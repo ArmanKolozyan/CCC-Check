@@ -216,34 +216,85 @@ inferValues (Sub e1 e2) nameToID varStates =
 inferValues (Mul e1 e2) nameToID varStates =
   let d1 = inferValues e1 nameToID varStates
       d2 = inferValues e2 nameToID varStates
+
   in case (d1, d2) of
+       -- if either is certainly zero, the result is certainly zero
+       _ | isCertainlyZeroDomain d1 || isCertainlyZeroDomain d2 -> KnownValues (Set.singleton 0)
+
        (KnownValues s1, KnownValues s2) ->
-         KnownValues (Set.fromList [x * y | x <- Set.toList s1, y <- Set.toList s2])
-       (BoundedValues (Just lb1) (Just ub1) ex1, BoundedValues (Just lb2) (Just ub2) ex2) ->
-         let newLb = Just (lb1 * lb2)
-             newUb = Just (ub1 * ub2)
-             newEx = combineExclusions ex1 ex2
-         in BoundedValues newLb newUb (if Set.null newEx then Nothing else Just newEx)
-       -- if any bound is missing in Bounded*Bounded, result is unknown bounds
-       -- TODO: kan misschien slimmer? 
-       (BoundedValues _ _ ex1, BoundedValues _ _ ex2) ->
-         let newEx = combineExclusions ex1 ex2
-         in BoundedValues Nothing Nothing (if Set.null newEx then Nothing else Just newEx)
-       -- mixed cases
-       (KnownValues s, BoundedValues (Just lb) (Just ub) excl) ->
-         if Set.null s then defaultValueDomain else
-         let products = [v * b | v <- Set.toList s, b <- [lb, ub]]
-             newLb = Just (minimum products)
-             newUb = Just (maximum products)
-         in BoundedValues newLb newUb excl
-       (BoundedValues (Just lb) (Just ub) excl, KnownValues s) ->
-         if Set.null s then defaultValueDomain else
-         let products = [b * v | b <- [lb, ub], v <- Set.toList s]
-             newLb = Just (minimum products)
-             newUb = Just (maximum products)
-         in BoundedValues newLb newUb excl
-       -- if bounds are missing in mixed case, result is unknown bounds
-       -- TODO: kan misschien slimmer? 
+         KnownValues $ Set.fromList [ (v1 * v2) `mod` p | v1 <- Set.toList s1, v2 <- Set.toList s2 ]
+
+       -- bounded * known (non-zero)
+       (BoundedValues (Just lb1) (Just ub1) _, KnownValues s2) | not (Set.null s2) && not (Set.member 0 s2) ->
+         -- checking if the interval operand might contain zero
+         if couldBeZero d1 then
+           -- Multiplying an interval that might contain zero (e.g., [0, 2] mod p)
+           -- by a non-zero constant `k` can result in a set that is not easily
+           -- representable as a single interval `[l, u]` or even `[0, p-1]` excluding a gap.
+           -- Example: `[0, 2] * 10 mod 17` = `{0, 1, 2} * 10 mod 17`
+           -- = `{0*10, 1*10, 2*10} mod 17` = `{0, 10, 20} mod 17` = `{0, 10, 3}`.
+           -- This resulting set `{0, 3, 10}` cannot be efficiently captured by our BoundedValues structure
+           -- without significant loss of precision (e.g., becoming [0, 16]).
+           -- Returning `defaultValueDomain` (unknown) is a safe over-approximation,
+           -- by which we acknowledge the limitations of our analysis.
+           -- TODO: think more about this, maybe we can represent this easily?
+           defaultValueDomain
+         else
+           -- interval does not contain 0. 
+           -- multiplying bounds by min/max of known constants
+           let min_k = minimum s2
+               max_k = maximum s2
+               corners = [ (lb1 * min_k) `mod` p, (lb1 * max_k) `mod` p,
+                           (ub1 * min_k) `mod` p, (ub1 * max_k) `mod` p ]
+               minProd = minimum corners
+               maxProd = maximum corners
+           in if minProd <= maxProd then
+                -- we drop original exclusions as mapping them through multiplication is complex
+                BoundedValues (Just minProd) (Just maxProd) Set.empty
+              else
+                -- we wrap around
+                let gaps = getWrapAroundExclusion maxProd minProd p
+                in BoundedValues (Just 0) (Just (p - 1)) gaps
+
+       -- known (non-zero) * bounded
+       (KnownValues s1, BoundedValues (Just lb2) (Just ub2) maybeEx2) | not (Set.null s1) && not (Set.member 0 s1) ->
+         -- symmetric case
+         if couldBeZero d1 then
+           -- same reasoning as above applies
+           defaultValueDomain
+         else
+           let min_k = minimum s1
+               max_k = maximum s1
+               corners = [ (min_k * lb2) `mod` p, (max_k * lb2) `mod` p,
+                           (min_k * ub2) `mod` p, (max_k * ub2) `mod` p ]
+               minProd = minimum corners
+               maxProd = maximum corners
+           in if minProd <= maxProd then
+                BoundedValues (Just minProd) (Just maxProd) Set.empty
+              else
+                let gaps = getWrapAroundExclusion maxProd minProd p
+                in BoundedValues (Just 0) (Just (p - 1)) gaps
+
+       -- if zero is involved with intervals (and not handled by the non-zero constant cases above), result is 
+       -- the default domain as calculating the exact domain efficiently is difficult. 
+       (KnownValues s1, BoundedValues lb2M ub2M _) | Set.member 0 s1 -> defaultValueDomain
+       (BoundedValues lb1M ub1M ex1M, KnownValues s2) | Set.member 0 s2 -> defaultValueDomain
+       (BoundedValues lb1M ub1M ex1M, BoundedValues lb2M ub2M _) | couldBeZero d1 || couldBeZero d2 -> defaultValueDomain
+
+       -- bounded * bounded (where neither contains zero)
+       (BoundedValues (Just lb1) (Just ub1) _, BoundedValues (Just lb2) (Just ub2) _) ->
+          -- approximation: multiplying bounds, finding min/max mod p
+          let corners = [ (lb1*lb2) `mod` p, (lb1*ub2) `mod` p,
+                          (ub1*lb2) `mod` p, (ub1*ub2) `mod` p ]
+              minProd = minimum corners
+              maxProd = maximum corners
+          in if minProd <= maxProd then
+               BoundedValues (Just minProd) (Just maxProd) Set.empty
+             else
+               -- wrapping around
+               let gaps = getWrapAroundExclusion maxProd minProd p
+               in BoundedValues (Just 0) (Just (p - 1)) gaps
+
        _ -> defaultValueDomain
 
 inferValues _ _ _ = defaultValueDomain -- TODO: Handle other cases properly
