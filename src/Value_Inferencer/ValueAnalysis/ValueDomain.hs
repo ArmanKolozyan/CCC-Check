@@ -2,40 +2,82 @@ module ValueAnalysis.ValueDomain where
 
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Maybe (fromMaybe, isJust, isNothing) 
+import Data.Maybe (fromMaybe)
 
 -- | Represents values of variables.
+-- `gaps` stores intervals (l, u) of values *excluded* from the domain.
+-- This allows representing non-contiguous sets.
+-- Example (p=10): BoundedValues {lb=Just 0, ub=Just 9, gaps=Set.singleton (3, 5)}
+-- represents the set {0, 1, 2, 6, 7, 8, 9}.
+-- A wrap-around interval like [8, 1] (mod 10) is represented by its gap:
+-- BoundedValues {lb=Just 0, ub=Just 9, gaps=Set.singleton (2, 7)}.
+-- TODO: check of we niet gewoon alles via BoundedValues kunnen doen (zonder veel efficiëntie te verliezen).
 data ValueDomain
   = KnownValues (Set Integer) -- explicitly known values
-  | BoundedValues (Maybe Integer) (Maybe Integer) (Maybe (Set Integer))   -- lower bound, upper bound, excluded values
+  | BoundedValues
+    { lowerBound :: Maybe Integer,
+    upperBound :: Maybe Integer,
+    -- Intervals [l, u] that are excluded.
+    -- For a wrap-around [a, p-1] U [0, b], the gap is [(b+1, a-1)].
+    gaps :: Set (Integer, Integer)
+    }
   deriving (Eq, Show)
 
--- | Default value domain (completely unknown).
+-- Default modulus for the field (BN254).
+-- TODO: compile this from the program code
+p :: Integer
+p = 21888242871839275222246405745257275088548364400416034343698204186575808495617
+
+-- | Default value domain (can be every possible value).
 defaultValueDomain :: ValueDomain
-defaultValueDomain = BoundedValues Nothing Nothing Nothing
+defaultValueDomain = BoundedValues (Just 0) (Just (p - 1)) Set.empty
 
 -- | Checks if a value domain guarantees the value is non-zero.
+-- For this to be the case, zero must be explicitly excluded via gaps 
+-- OR the bounds must strictly exclude zero.
 isDefinitelyNonZero :: ValueDomain -> Bool
 isDefinitelyNonZero (KnownValues s) = not (Set.null s) && not (Set.member 0 s)
-isDefinitelyNonZero (BoundedValues lb ub excluded) =
-    let zeroExcluded = maybe False (Set.member 0) excluded
-        boundsExcludeZero = isJust lb && lb > Just 0
-    in zeroExcluded || boundsExcludeZero
+isDefinitelyNonZero (BoundedValues lbM ubM currentGaps) =
+    let zeroIsExcluded = isExcluded 0 currentGaps p
+        boundsStrictlyExcludeZero = case (lbM, ubM) of
+                                      (Just lb, Just ub) ->
+                                          (lb <= ub) && (lb > 0)
+                                          -- ^ otherwise we have a wrapped interval [lb, p-1] U [0, ub] 
+                                          -- and wrapped intervals always contain 0 unless excluded
+
+                                      (Just lb, Nothing) -> lb > 0 -- lower bound > 0
+                                      _ -> False
+    in zeroIsExcluded || boundsStrictlyExcludeZero
+
 
 -- Helper function to check if a domain might possibly contain zero.
 couldBeZero :: ValueDomain -> Bool
 couldBeZero (KnownValues s) = Set.member 0 s
-couldBeZero (BoundedValues lb ub excluded) =
-    let zeroExcluded = maybe False (Set.member 0) excluded
+couldBeZero (BoundedValues lbM ubM currentGaps) =
+    let zeroIsExcluded = isExcluded 0 currentGaps p
         -- checking if 0 is within the bounds (or if bounds are unknown)
-        inRange = case (lb, ub) of -- TODO: normaal zijn negatieve bounds niet mogelijk
-                    (Just l, Just u) -> l <= 0 && 0 <= u -- e.g., [-5, 5]
-                    (Just l, Nothing) -> l <= 0          -- e.g., [-5, ...]
-                    (Nothing, Just u) -> 0 <= u          -- e.g., [..., 5]
-                    (Nothing, Nothing) -> True           -- no bounds, could be zero
-    in not zeroExcluded && inRange
+        zeroInRange = case (lbM, ubM) of
+                        (Just lb, Just ub) ->
+                            if lb <= ub then -- standard interval [lb, ub]
+                                lb <= 0 && ub >= 0
+                            else -- wrapped interval [lb, p-1] U [0, ub]
+                                True -- wrapped intervals always contain 0 unless excluded
+                        _ -> True -- unknown bounds, we assume 0 is possible
+    in not zeroIsExcluded && zeroInRange
 
--- | Intersects two value domains. This is the core logic for value updates.
+-- Helper function to check if a domain is certainly the single value zero.
+isCertainlyZeroDomain :: ValueDomain -> Bool
+isCertainlyZeroDomain (KnownValues s) = s == Set.singleton 0
+isCertainlyZeroDomain (BoundedValues lbM ubM currentGaps) =
+    let -- bounds must be exactly [0, 0]
+        boundsAreZero = case (lbM, ubM) of
+                          (Just 0, Just 0) -> True
+                          _                -> False
+        -- and 0 must NOT be excluded
+        zeroIsExcluded = isExcluded 0 currentGaps p
+    in boundsAreZero && not zeroIsExcluded
+
+-- | Intersects two value domains.
 -- Returns Left with an error message if the intersection results in a contradiction (empty domain).
 -- NOTE: Having a bounded domain value with exclusions that fall within the bounds is not an issue!
 --       It is just a restriction of the possible values that can lie within the bounds.
@@ -43,119 +85,153 @@ couldBeZero (BoundedValues lb ub excluded) =
 --       This is also taken into account by this function.  
 intersectDomains :: ValueDomain -> ValueDomain -> Either String ValueDomain
 intersectDomains d1 d2 = case (d1, d2) of
-    -- both Known: we ntersect the sets
+
+    -- Case 1: KnownValues intersection
     (KnownValues s1, KnownValues s2) ->
         let intersection = Set.intersection s1 s2
         in if Set.null intersection
            then Left $ "Intersection of KnownValues resulted in empty set: " ++ show s1 ++ " and " ++ show s2
            else Right $ KnownValues intersection
 
-    -- known and bounded: we filter known set by bounds and exclusions
-    (KnownValues s, BoundedValues lb ub ex) -> filterKnown s lb ub ex
-    (BoundedValues lb ub ex, KnownValues s) -> filterKnown s lb ub ex
+    -- Case 2: KnownValues intersected with BoundedValues
+    -- (knownvalues are always small sets, so we enumerate them instead of the bounded one)
+    (KnownValues s, BoundedValues lb ub gaps) -> filterKnownByBounded s lb ub gaps p
+    (BoundedValues lb ub gaps, KnownValues s) -> filterKnownByBounded s lb ub gaps p
 
-    -- both Bounded: we combine bounds and exclusions
-    (BoundedValues lb1 ub1 ex1, BoundedValues lb2 ub2 ex2) ->
-        let combinedLb = combineLowerBounds lb1 lb2
-            combinedUb = combineUpperBounds ub1 ub2
+    -- Case 3: BoundedValues intersection
+    (BoundedValues lb1 ub1 gaps1, BoundedValues lb2 ub2 gaps2) ->
+        -- combining bounds: max of lower, min of upper (to over-approximate)
+        let combinedLb = combineBounds max lb1 lb2
+            combinedUb = combineBounds min ub1 ub2
 
-            -- we combine exclusions by taking the union
-            newExSet = combineExclusions ex1 ex2
-            newEx = if Set.null newExSet then Nothing else Just newExSet
+        -- checking for immediate bound conflicts (before considering wrap-around or exclusions)
+        in case (combinedLb, combinedUb) of
+             (Just l, Just u) | l > u ->
+                Left $ "Initial bound conflict during intersection: new lower " ++ show l ++ " > new upper " ++ show u
+             _ -> do
+                 -- combining gaps using Set.union
+                 let combinedGaps = Set.union gaps1 gaps2
 
-            -- we adjust bounds iteratively based on exclusions
-            adjustedLb = findNextValidLowerBound combinedLb newExSet
-            adjustedUb = findPrevValidUpperBound combinedUb newExSet
+                 -- removing wrong intervals covering the whole field
+                 -- TODO: beter noteren, ging om intervals waar (l, l - 1) had
+                 let correctGaps = Set.filter (\(l, u) -> (l - 1 + p) `mod` p /= u) combinedGaps
 
-            -- we check for immediate bound conflict (e.g., new lower > new upper)
-            boundConflict = case (adjustedLb, adjustedUb) of
-                              (Just l, Just u) | l > u -> True
-                              _ -> False
-            
-            -- we check for conflict where exclusions removed all values
-            -- (this happens if adjusted bounds are both Nothing,
-            -- but at least one initial bound was Just)
-            adjustedBoundConflict_ExclusionEmptied =
-              isNothing adjustedLb && isNothing adjustedUb && (isJust combinedLb || isJust combinedUb)                  
-        
-        in if boundConflict 
-          then Left $ "Bound conflict during intersection: new lower " ++ show adjustedLb ++ " > new upper " ++ show adjustedUb
-          else if adjustedBoundConflict_ExclusionEmptied then
-                  Left $ "Intersection resulted in empty domain (exclusions removed all values): initial bounds were ["
-                       ++ show combinedLb ++ ", " ++ show combinedUb ++ "], exclusions " ++ show newExSet
-          else Right $ BoundedValues adjustedLb adjustedUb newEx
+                 -- finding the actual lower bound >= combinedLb, avoiding exclusions
+                 finalLb <- findNextValidLowerBoundInterval combinedLb correctGaps p
 
--- Helper to filter a KnownValues set by Bounded constraints
-filterKnown :: Set Integer -> Maybe Integer -> Maybe Integer -> Maybe (Set Integer) -> Either String ValueDomain
-filterKnown s lb ub maybeEx =
-    let excludedSet = fromMaybe Set.empty maybeEx
-        -- we filter by bounds first
-        boundedS = case (lb, ub) of
-                     (Just l, Just u) -> Set.filter (\x -> x >= l && x <= u) s
-                     (Just l, Nothing) -> Set.filter (>= l) s
-                     (Nothing, Just u) -> Set.filter (<= u) s
-                     (Nothing, Nothing) -> s
-        -- we then filter by exclusions
-        finalS = Set.difference boundedS excludedSet
+                 -- finding the actual upper bound <= combinedUb, avoiding exclusions
+                 finalUb <- findPrevValidUpperBoundInterval combinedUb correctGaps p
 
-    in if Set.null finalS && not (Set.null s) -- checking if filtering made a non-empty set empty
-       then Left $ "Filtering KnownValues " ++ show s ++ " by bounds " ++ show (lb, ub) ++ " and exclusions " ++ show excludedSet ++ " resulted in empty set."
-       else Right $ KnownValues finalS
+                 if finalLb > finalUb then
+                     Left $ "Intersection resulted in empty domain: adjusted lower bound " ++ show finalLb ++ " > adjusted upper bound " ++ show finalUb ++
+                            ". Initial bounds: [" ++ show combinedLb ++ ", " ++ show combinedUb ++ "], Final Exclusions: " ++ show correctGaps
+                 else
+                     Right $ BoundedValues (Just finalLb) (Just finalUb) correctGaps
 
--- Helper to combine lower bounds (takes max)
-combineLowerBounds :: Maybe Integer -> Maybe Integer -> Maybe Integer
-combineLowerBounds (Just a) (Just b) = Just (max a b)
-combineLowerBounds a Nothing = a
-combineLowerBounds Nothing b = b
-
--- Helper to combine upper bounds (takes min)
-combineUpperBounds :: Maybe Integer -> Maybe Integer -> Maybe Integer
-combineUpperBounds (Just a) (Just b) = Just (min a b)
-combineUpperBounds a Nothing = a
-combineUpperBounds Nothing b = b
+-- Helper to combine Maybe bounds using a function (max for lower bounds, min for upper bounds)
+combineBounds :: (Integer -> Integer -> Integer) -> Maybe Integer -> Maybe Integer -> Maybe Integer
+combineBounds _ Nothing Nothing = Nothing
+combineBounds _ (Just a) Nothing = Just a
+combineBounds _ Nothing (Just b) = Just b
+combineBounds f (Just a) (Just b) = Just (f a b)
 
 -- Helper to combine exclusion sets (takes union)
 combineExclusions :: Maybe (Set Integer) -> Maybe (Set Integer) -> Set Integer
 combineExclusions maybeS1 maybeS2 = Set.union (fromMaybe Set.empty maybeS1) (fromMaybe Set.empty maybeS2)
 
--- Helper: Finds the smallest integer >= l that is not in the exclusion set.
--- Returns Nothing if all integers >= l are excluded (or if l itself is Nothing).
-findNextValidLowerBound :: Maybe Integer -> Set Integer -> Maybe Integer
-findNextValidLowerBound Nothing _ = Nothing
-findNextValidLowerBound (Just l) excludedSet
-  | Set.member l excludedSet = findNextValidLowerBound (Just (l + 1)) excludedSet
-  | otherwise = Just l
+-- Helper to filter a KnownValues set by Bounded constraints (bounds and interval exclusions)
+-- Since knownvalues are always small sets, we enumerate them instead of the bounded one!
+filterKnownByBounded :: Set Integer -> Maybe Integer -> Maybe Integer -> Set (Integer, Integer) -> Integer -> Either String ValueDomain
+filterKnownByBounded s lbM ubM currentGaps p =
+    -- filtering by bounds first
+    let boundedS = case (lbM, ubM) of
+                     (Just lb, Just ub) ->
+                         if lb <= ub then Set.filter (\x -> x >= lb && x <= ub) s -- standard interval
+                         else Set.filter (\x -> x >= lb || x <= ub) s            -- wrapped interval
+                     (Just lb, Nothing) -> Set.filter (>= lb) s -- lower bound only
+                     (Nothing, Just ub) -> Set.filter (<= ub) s -- upper bound only
+                     (Nothing, Nothing) -> s                   -- no bounds
 
--- Helper: Finds the largest integer <= u that is not in the exclusion set.
--- Returns Nothing if all integers <= u are excluded (or if u itself is Nothing).
-findPrevValidUpperBound :: Maybe Integer -> Set Integer -> Maybe Integer
-findPrevValidUpperBound Nothing _ = Nothing
-findPrevValidUpperBound (Just u) excludedSet
-  | Set.member u excludedSet = findPrevValidUpperBound (Just (u - 1)) excludedSet
-  | otherwise = Just u
+        -- then filtering by exclusion intervals
+        finalS = Set.filter (\x -> not (isExcluded x currentGaps p)) boundedS
+
+    -- checking if filtering made a non-empty set empty
+    in if Set.null finalS && not (Set.null s) 
+       then Left $ "Filtering KnownValues " ++ show s ++ " by bounds " ++ show (lbM, ubM) ++ " and exclusions " ++ show currentGaps ++ " resulted in empty set."
+       else Right $ KnownValues finalS
+
+-- Helper: Finds the smallest integer >= initialLb (if Just) that is not excluded.
+-- Returns Left if all values >= initialLb are excluded.
+-- TODO: check, dit kan lang duren als lb groot is!    
+findNextValidLowerBoundInterval :: Maybe Integer -> Set (Integer, Integer) -> Integer -> Either String Integer
+findNextValidLowerBoundInterval Nothing _ _ = Right 0 -- if initial lower bound unknown, we start search from 0
+findNextValidLowerBoundInterval (Just lb) currentGaps p =
+    findNext lb
+    where
+      findNext currentLb
+        | isExcluded currentLb currentGaps p =
+            let nextVal = (currentLb + 1) `mod` p
+            -- stop condition: if we wrap around back to the original lb, everything is excluded
+            in if nextVal == lb then
+                 Left $ "Could not find valid lower bound >= " ++ show lb ++ "; all values excluded."
+               else
+                 findNext nextVal
+        | otherwise = Right currentLb
+
+-- Helper: Finds the largest integer <= initialUb (if Just) that is not excluded.
+-- Returns Left if all values <= initialUb are excluded.
+-- TODO: check, dit kan lang duren als ub klein is!    
+findPrevValidUpperBoundInterval :: Maybe Integer -> Set (Integer, Integer) -> Integer -> Either String Integer
+findPrevValidUpperBoundInterval Nothing _ p = Right (p - 1) -- if initial upper bound unknown, we start search from p-1
+findPrevValidUpperBoundInterval (Just ub) currentGaps p =
+    findPrev ub
+    where
+      findPrev currentUb
+        | isExcluded currentUb currentGaps p =
+            let prevVal = (currentUb - 1 + p) `mod` p
+            -- stop condition: If we wrap around back to the original ub, everything is excluded
+            in if prevVal == ub then
+                 Left $ "Could not find valid upper bound <= " ++ show ub ++ "; all values excluded."
+               else
+                findPrev prevVal
+        | otherwise = Right currentUb
 
 -- | Excludes a specific value from a domain.
 excludeValue :: ValueDomain -> Integer -> ValueDomain
-excludeValue (KnownValues s) val = KnownValues (Set.delete val s)
-excludeValue (BoundedValues lb ub maybeEx) val =
-    let currentEx = fromMaybe Set.empty maybeEx
-        newExSet = Set.insert val currentEx
-        newEx = Just newExSet
-        -- checking if the excluded value forces an adjustment of the bounds
-        newLb = case lb of
-                  Just l | l == val -> findNextValidLowerBound (Just (l + 1)) newExSet
-                  _ -> lb
-        newUb = case ub of
-                  Just u | u == val -> findPrevValidUpperBound (Just (u - 1)) newExSet
-                  _ -> ub
-    in BoundedValues newLb newUb newEx
+excludeValue (KnownValues s) v = KnownValues (Set.delete v s)
+excludeValue d@(BoundedValues lbM ubM currentGaps) v =
+  let vModP = v `mod` p
+      -- checking if v is already outside the bounds (simplified check)
+      outsideBounds = case (lbM, ubM) of
+                        (Just lb, Just ub) -> if lb <= ub then vModP < lb || vModP > ub else vModP > ub && vModP < lb
+                        _ -> False
+      -- checking if v is already excluded
+      alreadyExcluded = isExcluded vModP currentGaps p
+
+  in if outsideBounds || alreadyExcluded then
+       d
+     else
+       -- inserting the new interval (v, v) as gap
+       let newInterval = (vModP, vModP)
+           updatedIntervals = Set.insert newInterval currentGaps
+       in BoundedValues lbM ubM updatedIntervals
+
+-- | Checks if a value `v` falls within any of the excluded intervals.
+isExcluded :: Integer -> Set (Integer, Integer) -> Integer -> Bool
+isExcluded v intervals p = any checkInterval (Set.toList intervals)
+  where
+    checkInterval (l, u)
+      | l <= u    = v >= l && v <= u -- standard interval
+      | otherwise = v >= l || v <= u -- wrapped interval
 
 -- | Excludes zero from a domain.
 excludeZero :: ValueDomain -> ValueDomain
 excludeZero domain = excludeValue domain 0
 
--- Helper to check if a domain represents an empty set of values
-domainIsEmpty :: ValueDomain -> Bool
-domainIsEmpty (KnownValues s) = Set.null s
-domainIsEmpty (BoundedValues Nothing Nothing _) = True
-domainIsEmpty _ = False
+-- Checks if a domain is unconstrained.
+-- TODO: check nog eens of de definitie klopt in geval van sets
+domainIsUnconstrained :: ValueDomain -> Bool
+domainIsUnconstrained (KnownValues s) = Set.null s
+domainIsUnconstrained (BoundedValues (Just 0) (Just ul) _)
+  | ul == p - 1 = True
+domainIsUnconstrained _ = False
