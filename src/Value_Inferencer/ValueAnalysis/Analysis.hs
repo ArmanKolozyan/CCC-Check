@@ -116,7 +116,6 @@ updateValues oldState newDomainInfo =
        Right updatedDomain -> Right (oldState { domain = updatedDomain })
 
 -- | Recursively infers possible values of an expression
--- TODO: fix code duplication
 inferValues :: Expression -> Map String Int -> Map Int VariableState -> ValueDomain
 inferValues (Int c) _ _ = KnownValues (Set.singleton c)
 inferValues (FieldConst i p) _ _ = KnownValues $ Set.singleton (i `mod` p)
@@ -182,32 +181,38 @@ inferValues (Sub e1 e2) nameToID varStates =
       d2 = inferValues e2 nameToID varStates
   in case (d1, d2) of
        (KnownValues s1, KnownValues s2) ->
-         KnownValues (Set.fromList [x - y | x <- Set.toList s1, y <- Set.toList s2])
-       (BoundedValues lb1 ub1 ex1, BoundedValues lb2 ub2 ex2) ->
-         -- new lower Bound = lb1 - ub2
-         -- new upper Bound = ub1 - lb2
-         let newLb = (-) <$> lb1 <*> ub2
-             newUb = (-) <$> ub1 <*> lb2
-             newEx = combineExclusions ex1 ex2
-         in BoundedValues newLb newUb (if Set.null newEx then Nothing else Just newEx)
-       -- mixed cases
-       (KnownValues s, BoundedValues lb ub excl) ->
-         if Set.null s then defaultValueDomain else
-         let minS = Set.findMin s
-             maxS = Set.findMax s
-             newLb = (-) <$> Just minS <*> ub
-             newUb = (-) <$> Just maxS <*> lb
-         in BoundedValues newLb newUb excl
-       (BoundedValues lb ub excl, KnownValues s) ->
-         if Set.null s then defaultValueDomain else
-         let minS = Set.findMin s
-             maxS = Set.findMax s
-             newLb = (-) <$> lb <*> Just maxS 
-             newUb = (-) <$> ub <*> Just minS
-         in BoundedValues newLb newUb excl
+         KnownValues $ Set.fromList [ (v1 - v2) `mod` p | v1 <- Set.toList s1, v2 <- Set.toList s2 ]
 
--- TODO: als e1 of e2 0 is/bevat, dan zullen we 0 uit de exclusions 
--- moeten halen!
+       (BoundedValues (Just lb1) (Just ub1) _, KnownValues s2) | not (Set.null s2) ->
+         let minSub = minimum $ Set.map (\v2 -> (lb1 - v2) `mod` p) s2
+             maxSub = maximum $ Set.map (\v2 -> (ub1 - v2) `mod` p) s2
+         in if minSub <= maxSub then
+              BoundedValues (Just minSub) (Just maxSub) Set.empty
+            else
+              let gaps = getWrapAroundExclusion maxSub minSub p
+              in BoundedValues (Just 0) (Just (p - 1)) gaps
+
+       (KnownValues s1, BoundedValues (Just lb2) (Just ub2) _) | not (Set.null s1) ->
+         let minSub = minimum $ Set.map (\v1 -> (v1 - ub2) `mod` p) s1
+             maxSub = maximum $ Set.map (\v1 -> (v1 - lb2) `mod` p) s1
+         in if minSub <= maxSub then
+              BoundedValues (Just minSub) (Just maxSub) Set.empty
+            else
+              let gaps = getWrapAroundExclusion maxSub minSub p
+              in BoundedValues (Just 0) (Just (p - 1)) gaps
+
+       (BoundedValues (Just lb1) (Just ub1) _, BoundedValues (Just lb2) (Just ub2) _) ->
+         let newLb = (lb1 - ub2) `mod` p
+             newUb = (ub1 - lb2) `mod` p
+         in if newLb <= newUb then
+              BoundedValues (Just newLb) (Just newUb) Set.empty
+            else
+              let gaps = getWrapAroundExclusion newUb newLb p
+              in BoundedValues (Just 0) (Just (p - 1)) gaps
+
+       _ -> defaultValueDomain
+
+
 inferValues (Mul e1 e2) nameToID varStates =
   let d1 = inferValues e1 nameToID varStates
       d2 = inferValues e2 nameToID varStates
