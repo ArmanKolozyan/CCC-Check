@@ -333,6 +333,21 @@ joinDomains d1 d2 = defaultValueDomain -- placeholder
 --    The result is stored as `BoundedValues (Just 0) (Just (p-1)) (Just [(2, 15)])`.
 --    TODO: We assume here that ValueDomain uses excluded intervals. Check if we respect this everywhere.
 
+-- Helper to calculate the bounds of the gap interval during wrap-around.
+-- Returns the interval (gapStart, gapEnd) representing excluded values.
+calculateGapInterval :: Integer -> Integer -> Integer -> (Integer, Integer)
+calculateGapInterval ubWrap lbWrap modulus =
+    let gapStart = (ubWrap + 1) `mod` modulus
+        gapEnd   = (lbWrap - 1 + modulus) `mod` modulus
+    in (gapStart, gapEnd)
+
+getWrapAroundExclusion :: Integer -> Integer -> Integer -> Set.Set (Integer, Integer)
+getWrapAroundExclusion ubWrap lbWrap modulus =
+    let (gapStart, gapEnd) = calculateGapInterval ubWrap lbWrap modulus
+    in if (gapStart - 1 + modulus) `mod` modulus == gapEnd then
+         Set.empty -- no effective exclusion
+       else
+         Set.singleton (gapStart, gapEnd)
 
 -- | Helper function: Extracts (x - c) terms from a multiplication expression.
 extractRootFactors :: Expression -> Maybe (String, [Integer])
