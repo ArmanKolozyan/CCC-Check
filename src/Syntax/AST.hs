@@ -77,7 +77,9 @@ data Expression
     -- store(array, index, value)                
   | ArrayStore Expression Expression Expression        
     -- fill(value, sort, size) 
-  | ArrayFill Expression Sort Integer                               
+  | ArrayFill Expression Sort Integer 
+    -- assignments
+  | Assign String Expression
   deriving (Show, Eq)
 
 -- | Minimal set of constraints: equality.
