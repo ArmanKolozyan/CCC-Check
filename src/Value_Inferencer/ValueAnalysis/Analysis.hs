@@ -460,34 +460,63 @@ analyzeConstraint (EqC _ (Var xName) e) nameToID varStates =
 
 -- ASSIGN Rule from PICUS paper: c * x = e  => x = e / c
 analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
-  | let p = fieldModulus
-  , let cModP = c `mod` p
+  | let cModP = c `mod` p
   , cModP /= 0 = do -- ensuring c is not zero in the field
       xID <- lookupVarID xName nameToID
       xState <- lookupVarState xID varStates
-      let omega = inferValues e nameToID varStates
+      let omega = inferValues e nameToID varStates -- domain of e
       case modInverse cModP p of
         Nothing -> Left $ "Modular inverse does not exist for " ++ show cModP ++ " mod " ++ show p
         Just cInv -> do
-          let newDomain = case omega of
-                -- knownvalues: we apply inverse directly
+          -- calculating the domain for x by multiplying omega by cInv
+          let newDomainX = case omega of
+
+                -- knownValues: Apply inverse directly
                 KnownValues vSet ->
                   KnownValues (Set.map (\v -> (v * cInv) `mod` p) vSet)
 
-                -- boundedValues: we enumerate first
-                BoundedValues (Just lb) (Just ub) maybeEx ->
-                  let excludedSet = fromMaybe Set.empty maybeEx
-                      -- enumerating values in [lb..ub], excluding those in excludedSet
-                      possibleValuesE = Set.fromList [v | v <- [lb..ub], not (v `Set.member` excludedSet)]
-                      -- calculating corresponding x values
-                      possibleValuesX = Set.map (\v -> (v * cInv) `mod` p) possibleValuesE
-                      in KnownValues possibleValuesX
+                -- boundedValues: multiplying domain by cInv
+                BoundedValues lbM ubM gapsSetE ->
+                  case (lbM, ubM) of
+                    (Just lbE, Just ubE) ->
+                      -- checking if the original interval omega might contain zero.
+                      if couldBeZero omega then
+                        defaultValueDomain
+                      else
+                        -- omega is guaranteed non-zero, multiplying bounds
+                        let newLbX = (lbE * cInv) `mod` p
+                            newUbX = (ubE * cInv) `mod` p
+                            -- checking if the resulting interval [newLbX, newUbX] wraps around
+                            wrapAround = newLbX > newUbX
 
-                -- if bounds are unknown, result is unknown 
-                _ -> defaultValueDomain -- Or defaultValueDomain?
+                            -- mapping the exclusion intervals from omega (e) to x
+                            -- each interval (lE, uE) becomes (lE*cInv, uE*cInv) mod p
+                            mappedExclusionsX = Set.map (\(lE, uE) ->
+                                      let lx = (lE * cInv) `mod` p
+                                          ux = (uE * cInv) `mod` p
+                                      -- TODO: the resulting interval (lx, ux) might wrap around itself
+                                      in (lx, ux)
+                                    ) gapsSetE
 
-          -- updating x's state
-          updatedState <- updateValues xState newDomain
+                            -- Combining exclusions:
+                            -- 1. if the main interval [newLbX, newUbX] wrapped around,
+                            --    we calculate its gap
+                            -- 2. we add the mapped exclusions from the original domain
+                            finalExclusionsSet = if wrapAround then
+                                                    let wrapExclusionSet = getWrapAroundExclusion newUbX newLbX p
+                                                    in Set.union wrapExclusionSet mappedExclusionsX
+                                                  else
+                                                    mappedExclusionsX
+
+                            -- determining final bounds for x
+                            (finalLbX, finalUbX) = if wrapAround then (0, p - 1) else (newLbX, newUbX)
+
+                        in BoundedValues (Just finalLbX) (Just finalUbX) finalExclusionsSet
+
+                    _ -> defaultValueDomain -- if omega has unknown bounds, x is unknown
+
+          -- updating x's state using the calculated newDomainX
+          updatedState <- updateValues xState newDomainX
           let changed = xState /= updatedState
               updatedMap = if changed then Map.insert xID updatedState varStates else varStates
           pure (changed, updatedMap)
