@@ -481,6 +481,16 @@ analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
                     (Just lbE, Just ubE) ->
                       -- checking if the original interval omega might contain zero.
                       if couldBeZero omega then
+                        -- If omega might contain zero, multiplying by cInv can create
+                        -- complex, non-contiguous sets.
+                        -- Example: omega = [0, 2] = {0, 1, 2}. Let cInv = 12 (mod 17).
+                        -- omega * cInv = {0*12, 1*12, 2*12} mod 17 = {0, 12, 24} mod 17 = {0, 12, 7}.
+                        -- The set {0, 7, 12} is not a single interval and requires multiple
+                        -- exclusion gaps (e.g., [0, 12] excluding (1, 6) and (8, 11))
+                        -- to be represented by BoundedValues.
+                        -- Calculating these precisely is complex, so we over-approximate
+                        -- x's domain as unknown (`defaultValueDomain`) for simplicity and soundness.
+                        -- TODO: Could potentially refine this case further.
                         defaultValueDomain
                       else
                         -- omega is guaranteed non-zero, multiplying bounds
