@@ -119,6 +119,7 @@ updateValues oldState newDomainInfo =
 -- TODO: fix code duplication
 inferValues :: Expression -> Map String Int -> Map Int VariableState -> ValueDomain
 inferValues (Int c) _ _ = KnownValues (Set.singleton c)
+inferValues (FieldConst i p) _ _ = KnownValues $ Set.singleton (i `mod` p)
 
 inferValues (Var xName) nameToID varStates =
   case Map.lookup xName nameToID of
