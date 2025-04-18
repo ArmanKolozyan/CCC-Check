@@ -410,7 +410,7 @@ zeroOne _ xName yName nameToID oldVarStates = do
    -- checking if x is already known to be in [0,1]
    if isIn01 xSt then do
      -- if so, setting y to [0,1]
-     newY <- updateValues ySt (BoundedValues (Just 0) (Just 1) Nothing)
+     newY <- updateValues ySt (BoundedValues (Just 0) (Just 1) Set.empty)
      let changedY = newY /= ySt
          newMapY  = if changedY
                     then Map.insert yID newY oldVarStates
@@ -420,7 +420,7 @@ zeroOne _ xName yName nameToID oldVarStates = do
    -- otherwise, checking if y is already known to be in [0,1]
    else if isIn01 ySt then do
      -- if so, setting x to [0,1]
-     newX <- updateValues xSt (BoundedValues (Just 0) (Just 1) Nothing)
+     newX <- updateValues xSt (BoundedValues (Just 0) (Just 1) Set.empty)
      let changedX = newX /= xSt
          newMapX  = if changedX
                     then Map.insert xID newX oldVarStates
@@ -457,7 +457,6 @@ analyzeConstraint :: Constraint -> Map String Int -> Map Int VariableState -> Ei
 -- EQUALITY Rule: x = y
 analyzeConstraint (EqC _ (Var xName) e) nameToID varStates =
   case e of
-    -- | Rule 4a from Ecne: x = y
     (Var yName) ->
       case (Map.lookup xName nameToID, Map.lookup yName nameToID) of
         (Just xID, Just yID) ->
@@ -488,7 +487,9 @@ analyzeConstraint (EqC _ (Var xName) e) nameToID varStates =
         Right updatedState ->
           let changed = xState /= updatedState -- checking if the state actually changed
               updatedMap = if changed then Map.insert xID updatedState varStates else varStates
-          in Right (changed, updatedMap)
+              (backwardChanged, finalStates) =
+                  propagateExclusionsBackward e (domain updatedState) nameToID updatedMap
+          in Right (changed || backwardChanged, finalStates)
         Left errMsg -> Left errMsg -- intersection failed, contradiction
 
 -- ALREADY HANDLED BY THE ROOT RULE:
@@ -573,12 +574,13 @@ analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
 
   | otherwise = Right (False, varStates) -- if c is 0 mod p, constraint is 0 = e
 
--- handling symmetric case: e = c * x
+-- handling symmetric e = c * x
 analyzeConstraint (EqC cid e (Mul (Int c) (Var xName))) nameToID varStates =
     analyzeConstraint (EqC cid (Mul (Int c) (Var xName)) e) nameToID varStates
 
 -- | ROOT Rule from PICUS paper: expr = 0
 analyzeConstraint (EqC _ rootExpr (Int 0)) nameToID varStates =
+    -- extracting root factors from the expression
     case extractRootFactors rootExpr of
         Just (xName, rootValues) -> do
             xID <- lookupVarID xName nameToID
@@ -617,7 +619,7 @@ analyzeConstraint (EqC cid lhs (Var zName)) nameToID varStates
 
            -- 3) we update the variable 'z' with [0, upBound]
            updatedZState <-
-             updateValues zState (BoundedValues (Just 0) (Just upBound) Nothing)
+             updateValues zState (BoundedValues (Just 0) (Just upBound) Set.empty)
 
            let changed1   = updatedZState /= zState
                varStates1 = Map.insert zID updatedZState varStates
@@ -665,7 +667,7 @@ analyzeConstraint (AndC cid subCs) nameToID varStates = do
        let combinedChanged = accChanged || changedNow
        foldlAndM nmToID (combinedChanged, newMap) cs
 
--- TODO: handle the symmetrical case:  EqC cid (Var zName) rhs
+-- TODO: handle the symmetrical case: EqC cid (Var zName) rhs
 -- if checkSumOfPowers 2 rhs = ...
 
 -- | NonZero rule.
@@ -676,7 +678,6 @@ analyzeConstraint (AndC cid subCs) nameToID varStates = do
 -- Therefore, we can conclude expr1 != 0 (mod p) and expr2 != 0 (mod p).
 -- TODO: correct rekening houden met prime field!
 analyzeConstraint (EqC cid (Add expr3 (Mul expr1 expr2)) (Int c)) nameToID varStates = do
-  let p = fieldModulus
   let cModP = c `mod` p
   let domain3 = inferValues expr3 nameToID varStates
   if isCertainlyZeroDomain domain3 && cModP /= 0
@@ -689,7 +690,6 @@ analyzeConstraint (EqC cid (Add expr3 (Mul expr1 expr2)) (Int c)) nameToID varSt
 -- Let c' = c2 - c1. We have expr1 * expr2 = c' (mod p) where c' != 0 (mod p).
 -- As in Pattern 1, this implies expr1 != 0 (mod p) and expr2 != 0 (mod p).
 analyzeConstraint (EqC cid (Add (Mul expr1 expr2) (Int c1)) (Int c2)) nameToID varStates = do
-  let p = fieldModulus
   let c1ModP = c1 `mod` p
   let c2ModP = c2 `mod` p
   -- this corresponds to expr1 * expr2 = c2 - c1 (mod p)
@@ -703,7 +703,6 @@ analyzeConstraint (EqC cid (Add (Mul expr1 expr2) (Int c1)) (Int c2)) nameToID v
 -- If c is non-zero (mod p), then for the equality to hold in the field,
 -- neither expr1 nor expr2 can be zero (mod p).
 analyzeConstraint (EqC cid (Mul expr1 expr2) (Int c)) nameToID varStates = do
-  let p = fieldModulus
   let cModP = c `mod` p
   if cModP /= 0
       then markExprPairNonZero expr1 expr2 nameToID varStates
@@ -721,6 +720,86 @@ analyzeConstraint (EqC cid (Int c) (Mul expr1 expr2)) nameToID varStates =
 
 analyzeConstraint _ _ varStates = Right (False, varStates)  -- TODO: handle other constraints
 
+  let gapsX = getExclusionIntervals xDomain
+  in if Set.null gapsX
+     then (False, varStates)
+     else go expr gapsX nameToID varStates
+  where
+    -- gets the list of excluded intervals, or Nothing if none
+    getExclusionIntervals :: ValueDomain -> Set.Set (Integer, Integer)
+    getExclusionIntervals (KnownValues _) = Set.empty -- KnownValues don't have separate exclusions
+    getExclusionIntervals (BoundedValues _ _ currentGaps) = currentGaps
+
+    -- helper to handle different expression structures
+    go :: Expression -> Set.Set (Integer, Integer) -> Map String Int -> Map Int VariableState -> (Bool, Map Int VariableState)
+
+    -- x = y - c  =>  y = x + c
+    go (Sub (Var yName) (Int c)) intervalsX nameToID currentStates =
+      -- for each interval (l, u) excluded for x, we calculate the set of excluded y values
+      let excludedValuesY = concatMap (calculateExcludedSet (\v -> (v + c) `mod` p) p) (Set.toList intervalsX)
+      in applyExclusionsToVar yName excludedValuesY nameToID currentStates
+
+    -- x = c - y  =>  y = c - x
+    go (Sub (Int c) (Var yName)) intervalsX nameToID currentStates =
+      let excludedValuesY = concatMap (calculateExcludedSet (\v -> (c - v + p) `mod` p) p) (Set.toList intervalsX)
+      in trace ("aightttttt" ++ (show excludedValuesY))  applyExclusionsToVar yName excludedValuesY nameToID currentStates
+
+    -- x = y + c  =>  y = x - c
+    go (Add (Var yName) (Int c)) intervalsX nameToID currentStates =
+      let excludedValuesY = concatMap (calculateExcludedSet (\v -> (v - c + p) `mod` p) p) (Set.toList intervalsX)
+      in applyExclusionsToVar yName excludedValuesY nameToID currentStates
+
+    -- x = c + y => y = x - c (same as above)
+    go (Add (Int c) (Var yName)) intervalsX nameToID currentStates =
+      go (Add (Var yName) (Int c)) intervalsX nameToID currentStates
+
+    -- x = y * c => y = x * c^-1
+    go (Mul (Var yName) (Int c)) intervalsX nameToID currentStates =
+      let cModP = c `mod` p
+      in if cModP == 0 then
+            -- if c is 0, x must be 0. If x excludes non-zero values, that's okay.
+            -- If x excludes 0, it's a contradiction handled by updateValues earlier.
+            (False, currentStates)
+          else case modInverse cModP p of 
+                Nothing -> (False, currentStates) -- cannot invert, cannot propagate
+                Just cInv ->
+                  let excludedValuesY = concatMap (calculateExcludedSet (\v -> (v * cInv) `mod` p) p) intervalsX
+                  in applyExclusionsToVar yName excludedValuesY nameToID currentStates
+
+    -- x = c * y (same as above)
+    go (Mul (Int c) (Var yName)) intervalsX nameToID currentStates =
+      go (Mul (Var yName) (Int c)) intervalsX nameToID currentStates
+
+    -- cannot propagate exclusions backward for other complex expressions yet
+    -- TODO
+    go _ _ _ currentStates = (False, currentStates)
+
+
+-- Helper: Given an operation `op`, modulus `p`, and an interval `(l, u)`,
+-- calculates the set of values { op(v) mod p } for all v in the interval.
+calculateExcludedSet :: (Integer -> Integer) -> Integer -> (Integer, Integer) -> [Integer]
+calculateExcludedSet op p (l, u) =
+    let valuesX = [l..u] -- TODO: check this, can be very inefficient if gaps are large
+    in map (\v -> op v `mod` p) valuesX
+
+-- Helper: Applies a list of exclusions to a specific variable using excludeValue repeatedly.
+applyExclusionsToVar :: String -> [Integer] -> Map String Int -> Map Int VariableState -> (Bool, Map Int VariableState)
+applyExclusionsToVar varName exclusions nameToID currentStates =
+  case lookupVarID varName nameToID of
+    Left _ -> (False, currentStates) -- var not found
+    Right varID ->
+      case lookupVarState varID currentStates of
+        Left _ -> (False, currentStates) -- state not found
+        Right oldVarState ->
+          -- using foldl to apply each exclusion value
+          foldl (\(changedAcc, statesAcc) valToExclude ->
+                    -- getting the most recent state for the variable
+                    let currentVarState = statesAcc Map.! varID
+                        currentVarDomain = domain currentVarState
+                        -- creating the domain with the single value excluded
+                        domainWithExclusion = excludeValue currentVarDomain valToExclude
+                    in case updateValues currentVarState domainWithExclusion of
+                           in (changedAcc || changedNow, Map.insert varID newVarState statesAcc)
 -- Marks an expression as non-zero and updates variable states accordingly.
 -- Returns (changed, updatedStates) or an error message.
 markExprNonZero :: Expression -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
