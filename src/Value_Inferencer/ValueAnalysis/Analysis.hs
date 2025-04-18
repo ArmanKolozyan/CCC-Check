@@ -772,7 +772,7 @@ propagateExclusionsBackward expr xDomain nameToID varStates =
     -- x = y + c  =>  y = x - c
     go (Add (Var yName) (Int c)) intervalsX nameToID currentStates =
       let excludedValuesY = concatMap (calculateExcludedSet (\v -> (v - c + p) `mod` p) p) (Set.toList intervalsX)
-      in trace (show excludedValuesY)applyExclusionsToVar yName excludedValuesY nameToID currentStates
+      in applyExclusionsToVar yName excludedValuesY nameToID currentStates
 
     -- x = c + y => y = x - c (same as above)
     go (Add (Int c) (Var yName)) intervalsX nameToID currentStates =
@@ -1360,7 +1360,6 @@ checkPfRecips denominators store nameToID =
       -- using the functions from ValueDomain to check zero status
       in if isDefinitelyNonZero inferredDomain
          then [] -- guaranteed non-zero, OK
-         then trace ("aaa" ++ (show denominators) ++ (show inferredDomain)) [] -- guaranteed non-zero, OK
          -- checking if it *could* be zero
          else (["Potential division by zero: Denominator expression `" ++ show expr ++ "` might be zero." | couldBeZero inferredDomain])
 

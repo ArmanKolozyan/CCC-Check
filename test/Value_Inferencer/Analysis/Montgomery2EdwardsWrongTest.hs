@@ -23,14 +23,14 @@ spec = describe "Montgomery2Edwards template test (Wrong)" $ do
     let out0 = Binding { name = "out0", vid = 2, sort = FieldMod p }
     let out1 = Binding { name = "out1", vid = 3, sort = FieldMod p }
 
-    -- computations (representing <-- assignments using the Assign constructor)
+    -- computations
 
     -- out0 <-- in0 / in1
     let comp0 = Assign "out0" (Mul (Var "in0") (PfRecip (Var "in1")))
     -- out1 <-- (in0 - 1) / (in0 + 1)
     let comp1 = Assign "out1" (Mul (Sub (Var "in0") (Int 1)) (PfRecip (Add (Var "in0") (Int 1))))
 
-    -- constraints (representing === equations)
+    -- constraints
 
     -- out0 * in1 === in0
     let constraint1ID = 10

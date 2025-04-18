@@ -32,11 +32,12 @@ spec = describe "Fixed Montgomery2Edwards template test" $ do
     let cz1_out = Binding { name = "cz1_out", vid = 21, sort = FieldMod p }
     let cz1_inv = Binding { name = "cz1_inv", vid = 22, sort = FieldMod p }
 
-    -- computations (representing <-- assignments)
+    -- computations
+    
     let comp0 = Assign "out0" (Mul (Var "in0") (PfRecip (Var "in1")))
     let comp1 = Assign "out1" (Mul (Sub (Var "in0") (Int 1)) (PfRecip (Add (Var "in0") (Int 1))))
 
-    -- constraints (representing === equations and <= assignments)
+    -- constraints
 
     -- constraints for checkZero0 instance (checks in1 != 0)
     let cz0_assign_in = EqC 100 (Var "cz0_in") (Var "in1") -- cz0_in <= in1
