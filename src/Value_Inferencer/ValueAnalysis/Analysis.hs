@@ -1007,8 +1007,15 @@ isBinaryVar nameToID varStates varName =
     Left _ -> False -- Variable not found or no state
     Right st -> isIn01 st
 
--- | If z is single-valued, we decode each (bName, exponent)
---   so that bName ∈ {0,1} matches the corresponding 'bit' in base c.
+-- | If the analysis (potentially after intersecting with previous knowledge or other constraints)
+--    determines that 'z' must have a single, specific numerical value (i.e., its domain becomes
+--    KnownValues {v}), we can deduce the exact value of each boolean variable 'b_i'.
+--    Since z = b_0*c^0 + b_1*c^1 + ... + b_maxExp*c^maxExp, and each b_i is 0 or 1,
+--    the known value of 'z' essentially *is* the number represented in base 'c' by the bits 'b_i'.
+--    We can extract the required value (0 or 1) for each b_i by looking at the corresponding
+--    base-c digit of the known value of 'z'. This allows us to further constrain the domains
+--    of the 'b_i' variables, setting them to KnownValues {0} or KnownValues {1}.
+--    The `decodeSumOfPowers` function performs this bit extraction and state update.
 decodeSumOfPowers
   :: Integer                    -- c, the base
   -> Integer                    -- known value of z
