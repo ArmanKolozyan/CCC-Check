@@ -22,6 +22,7 @@ import ValueAnalysis.UserRules
 import ValueAnalysis.VariableState
 import ValueAnalysis.ValueDomain
 import ValueAnalysis.Printer
+import Debug.Trace (trace)
 
 --------------------------
 -- 1) Variable State Representation
@@ -1189,7 +1190,7 @@ applyUserAction (ConstrainRange placeholderName lo up) plHoNameToID varStates =
     Nothing -> (False, varStates)
     Just realID ->
       let oldState = Map.findWithDefault initVarState realID varStates
-          newState = updateValues oldState (BoundedValues (Just lo) (Just up) Nothing)
+          newState = updateValues oldState (BoundedValues (Just lo) (Just up) Set.empty)
         in case newState of
                 Left msg         -> (False, varStates)
                 Right newState  -> (True, Map.insert realID newState varStates)
@@ -1242,7 +1243,7 @@ detectBugs program maybeVars =
       errors = sortErrors ++ divByZeroErrors
   in if null errors
        then Right ()
-       else Left errors
+       else trace ("lookhere" ++ (show errors)) Left errors
 
 -- | Checks whether one variable's final state is consistent with its declared Sort.
 --   Returns either an empty list (no issues) or a list of error messages.
@@ -1287,22 +1288,20 @@ checkBoolean st varName =
              else ["Boolean variable `" ++ varName ++ "` has values outside {0,1}: " ++ show (Set.toList invalidVals)]
 
         -- bounded values: checking if bounds are within [0, 1] and no contradictions
-        BoundedValues lb ub maybeEx ->
-          let lbOk = maybe True (>= 0) lb
-              ubOk = maybe True (<= 1) ub
+        BoundedValues lbM ubM maybeExIntervals ->
+          let lbOk = maybe True (>= 0) lbM
+              ubOk = maybe True (<= 1) ubM
               -- checking if exclusions make the domain empty within [0, 1]
-              isEmpty = case (lb, ub) of
-                          (Just 0, Just 1) -> maybe False (Set.isSubsetOf (Set.fromList [0,1])) maybeEx
-                          (Just 0, Just 0) -> maybe False (Set.member 0) maybeEx
-                          (Just 1, Just 1) -> maybe False (Set.member 1) maybeEx
-                          _ -> False -- other bound combinations are handled by lbOk/ubOk
+              isEmptyDueToExclusions = case (lbM, ubM) of
+                                         (Just 0, Just 1) -> isExcluded 0 maybeExIntervals p && isExcluded 1 maybeExIntervals p
+                                         (Just 0, Just 0) -> isExcluded 0 maybeExIntervals p
+                                         (Just 1, Just 1) -> isExcluded 1 maybeExIntervals p
+                                         _ -> False -- other bound combinations handled by lbOk/ubOk or don't cover [0,1]
           in (["Boolean variable `" ++ varName ++ "` has lower bound < 0" | not lbOk]) ++
              (["Boolean variable `" ++ varName ++ "` has upper bound > 1" | not ubOk]) ++
-             (["Boolean variable `" ++ varName ++ "` has empty domain due to exclusions within [0, 1]" | isEmpty])
+             (["Boolean variable `" ++ varName ++ "` has empty domain due to exclusions within [0, 1]" | isEmptyDueToExclusions])
 
-  in if null errs && domainIsEmpty d -- checking for general emptiness if no specific boolean errors found
-     then ["Boolean variable `" ++ varName ++ "` has no possible values (unconstrained)"]
-     else errs
+  in errs
 
 -- Checking BitVectors and FieldMods
 
@@ -1323,15 +1322,13 @@ checkMaxVal maxVal st varName =
              else ["Variable `" ++ varName ++ "` has out-of-range values: " ++ show (Set.toList invalidVals) ++ " (expected [0.." ++ show maxVal ++ "])"]
 
         -- bounded values: checking if bounds are within [0, maxVal]
-        BoundedValues lb ub _ -> -- exclusions don't cause out-of-range, only emptiness
-          let lbOk = maybe True (>= 0) lb
-              ubOk = maybe True (<= maxVal) ub
+        BoundedValues lbM ubM _ -> -- exclusions don't cause out-of-range, only emptiness
+          let lbOk = maybe True (>= 0) lbM
+              ubOk = maybe True (<= maxVal) ubM
           in (if not lbOk then ["Variable `" ++ varName ++ "` has lower bound < 0"] else []) ++
              (if not ubOk then ["Variable `" ++ varName ++ "` has upper bound > " ++ show maxVal] else [])
 
-  in if null errs && domainIsEmpty d -- checking for general emptiness
-     then ["Variable `" ++ varName ++ "` has no possible values (unconstrained)"]
-     else errs
+  in errs
 
 -- | Checks if any PfRecip expression could be zero "at runtime", more precisely :
 --   1) if the expression is constrained to be nonZero (via nonZero flag)
