@@ -221,13 +221,27 @@ inferValues (Sub e1 e2) nameToID varStates =
 
        -- keeping original exclusions is very complex here, so we drop them
        (BoundedValues (Just lb1) (Just ub1) _, BoundedValues (Just lb2) (Just ub2) _) ->
-         let newLb = (lb1 - ub2) `mod` p
-             newUb = (ub1 - lb2) `mod` p
-         in if newLb <= newUb then
-              BoundedValues (Just newLb) (Just newUb) Set.empty
+         -- we first calculate number of elements in each interval based on bounds
+         let 
+          -- helper to count values in [lb, ub] mod p
+          numValues lb ub = (ub - lb + p) `mod` p
+          n1 = numValues lb1 ub1
+          n2 = numValues lb2 ub2
+         in -- then we check using Cauchy-Davenport condition: 
+            -- if n1 + n2 - 1 >= p, the result might cover the full field.
+            -- https://arxiv.org/pdf/1202.1816  
+            if n1 + n2 - 1 >= p then
+              -- we soundly over-approximate the result as the full field
+              -- we lose precision (original bounds and gaps), but ensure soundness
+              BoundedValues (Just 0) (Just (p - 1)) Set.empty
             else
-              let gaps = getWrapAroundExclusion newUb newLb p
-              in BoundedValues (Just 0) (Just (p - 1)) gaps
+              let newLb = (lb1 - ub2) `mod` p
+                  newUb = (ub1 - lb2) `mod` p
+              in if newLb <= newUb then
+                    BoundedValues (Just newLb) (Just newUb) Set.empty
+                  else
+                    let gaps = getWrapAroundExclusion newUb newLb p
+                    in BoundedValues (Just 0) (Just (p - 1)) gaps
 
        _ -> defaultValueDomain
 
@@ -1346,6 +1360,7 @@ checkPfRecips denominators store nameToID =
       -- using the functions from ValueDomain to check zero status
       in if isDefinitelyNonZero inferredDomain
          then [] -- guaranteed non-zero, OK
+         then trace ("aaa" ++ (show denominators) ++ (show inferredDomain)) [] -- guaranteed non-zero, OK
          -- checking if it *could* be zero
          else (["Potential division by zero: Denominator expression `" ++ show expr ++ "` might be zero." | couldBeZero inferredDomain])
 
