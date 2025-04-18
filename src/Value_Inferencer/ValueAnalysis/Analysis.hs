@@ -692,7 +692,6 @@ analyzeConstraint (AndC cid subCs) nameToID varStates = do
 -- the constraint simplifies to expr1 * expr2 = c (mod p). In a field, if the product
 -- of two elements (i.e., c) is non-zero, then neither element can be zero.
 -- Therefore, we can conclude expr1 != 0 (mod p) and expr2 != 0 (mod p).
--- TODO: correct rekening houden met prime field!
 analyzeConstraint (EqC cid (Add expr3 (Mul expr1 expr2)) (Int c)) nameToID varStates = do
   let cModP = c `mod` p
   let domain3 = inferValues expr3 nameToID varStates
