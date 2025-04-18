@@ -123,6 +123,9 @@ intersectDomains d1 d2 = case (d1, d2) of
                  let correctGaps = Set.filter (\(l, u) -> (l - 1 + p) `mod` p /= u) combinedGaps
 
                  -- finding the actual lower bound >= combinedLb, avoiding exclusions
+                 -- TODO: dit is volgens mij toch niet strictly nodig, + 
+                 -- als we de bounds aanpassen, dan mogen we denk ik correctGaps weggooien?
+                 -- HMMM JAWEL? VOOR EMPTINESS DETECTION
                  finalLb <- findNextValidLowerBoundInterval combinedLb correctGaps p
 
                  -- finding the actual upper bound <= combinedUb, avoiding exclusions
