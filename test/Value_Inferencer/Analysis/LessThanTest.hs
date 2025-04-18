@@ -9,7 +9,7 @@ import Test.Hspec
 import ValueAnalysis.Analysis
 
 -- Value inferencing a fully flattened (i.e., everything in a single template) 
--- version of the LessThan template. We correctly contrain
+-- version of the LessThan template. We correctly constrain
 -- the input variables to be representable in 2 bits.
 spec :: Spec
 spec = describe "Value Inferencer Detects" $ do
@@ -213,14 +213,14 @@ spec = describe "Value Inferencer Detects" $ do
       Nothing -> expectationFailure "No state for 'a'"
       Just st ->
         st
-          `shouldBe` (VariableState {domain = BoundedValues (Just 0) (Just 3) Nothing})
+          `shouldBe` (VariableState {domain = BoundedValues (Just 0) (Just 3) Set.empty})
 
     -- checking that input b is [0, 3]
     case Map.lookup "b" finalStates of
       Nothing -> expectationFailure "No state for 'b'"
       Just st ->
         st
-          `shouldBe` (VariableState {domain = BoundedValues (Just 0) (Just 3) Nothing})
+          `shouldBe` (VariableState {domain = BoundedValues (Just 0) (Just 3) Set.empty})
 
     -- checking binary values
     case Map.lookup "a_b0" finalStates of
@@ -264,4 +264,4 @@ spec = describe "Value Inferencer Detects" $ do
       Nothing -> expectationFailure "No state for 'diff'"
       Just st ->
         st
-          `shouldBe` (VariableState {domain = BoundedValues (Just 1) (Just 7) Nothing})
+          `shouldBe` (VariableState {domain = BoundedValues (Just 1) (Just 7) Set.empty})
