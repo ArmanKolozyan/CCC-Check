@@ -18,10 +18,10 @@ import Data.Sequence (Seq, (|>), viewl, ViewL(..))
 import qualified Data.Sequence as Seq
 import Data.Maybe (fromMaybe)
 import Syntax.Compiler (parseAndCompile)
-import Data.List (intercalate)
 import ValueAnalysis.UserRules
 import ValueAnalysis.VariableState
 import ValueAnalysis.ValueDomain
+import ValueAnalysis.Printer
 
 --------------------------
 -- 1) Variable State Representation
@@ -1131,27 +1131,6 @@ analyzeFromFile filePath = do
             let store = analyzeProgram program
             putStrLn "\n====== Inferred Value Information ======\n"
             prettyPrintStore store
-
--- | Nicely prints the analysis results.
-prettyPrintStore :: Map String VariableState -> IO ()
-prettyPrintStore store = do
-    mapM_ printVariable (Map.toList store)
-  where
-    printVariable (varName, vState) = do
-        putStrLn $ "Variable: " ++ varName
-        putStr "- Inferred Domain: "
-        case domain vState of
-            KnownValues s -> putStrLn $ "{" ++ intercalate ", " (map show (Set.toList s)) ++ "}"
-            BoundedValues (Just lb) (Just ub) Nothing -> putStrLn $ "[" ++ show lb ++ ", " ++ show ub ++ "]"
-            BoundedValues (Just lb) (Just ub) (Just ex) -> putStrLn $ "[" ++ show lb ++ ", " ++ show ub ++ "] excluding {" ++ intercalate ", " (map show (Set.toList ex)) ++ "}"
-            BoundedValues (Just lb) Nothing Nothing -> putStrLn $ "[" ++ show lb ++ ", inf)"
-            BoundedValues (Just lb) Nothing (Just ex) -> putStrLn $ "[" ++ show lb ++ ", inf) excluding {" ++ intercalate ", " (map show (Set.toList ex)) ++ "}"
-            BoundedValues Nothing (Just ub) Nothing -> putStrLn $ "(-inf, " ++ show ub ++ "]"
-            BoundedValues Nothing (Just ub) (Just ex) -> putStrLn $ "(-inf, " ++ show ub ++ "] excluding {" ++ intercalate ", " (map show (Set.toList ex)) ++ "}"
-            BoundedValues Nothing Nothing Nothing -> putStrLn "Unknown (no bounds)"
-            BoundedValues Nothing Nothing (Just ex) -> putStrLn $ "Unknown (no bounds) excluding {" ++ intercalate ", " (map show (Set.toList ex)) ++ "}"
-        putStrLn "" -- adding a blank line for readability
-
 
 -- USER RULES -- TODO: move to separate file!
 
