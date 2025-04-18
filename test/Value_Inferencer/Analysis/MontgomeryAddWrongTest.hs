@@ -72,7 +72,7 @@ spec = describe "MontgomeryAdd template test (Wrong)" $ do
     -- the test program
     let testProgram = Program
           { inputs          = [in1_0, in1_1, in2_0, in2_1]
-          , computationVars = [out_0, out_1, lamda] -- lamda is treated as a computation var
+          , computationVars = [out_0, out_1, lamda]
           , constraintVars  = []
           , computations    = [comp0]
           , constraints     = [c1, c2, c3]

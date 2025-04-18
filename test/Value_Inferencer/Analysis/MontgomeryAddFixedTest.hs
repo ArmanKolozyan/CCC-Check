@@ -19,6 +19,7 @@ spec = describe "Fixed MontgomeryAdd template test" $ do
     let p = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
     -- constants from the template
+    -- (WE WORKED THE EQUATIONS OUT BECAUSE CIRC NORMALLY DOES THIS AS WELL!)
     let a = 168_700
     let d_ = 168_696
     let constA = 168_698
@@ -75,7 +76,7 @@ spec = describe "Fixed MontgomeryAdd template test" $ do
     let testProgram = Program
           { inputs          = [in1_0, in1_1, in2_0, in2_1]
           , computationVars = [out_0, out_1, lamda]
-          , constraintVars  = [ cz_in, cz_out, cz_inv ] -- Variables internal to IsZero check
+          , constraintVars  = [ cz_in, cz_out, cz_inv ]
           , computations    = [comp0]
           , constraints     = allConstraints
           , pfRecipExpressions = denominators

@@ -73,3 +73,5 @@ tests:
       - Value_Inferencer.Analysis.Montgomery2EdwardsFixedTest
       - Value_Inferencer.Analysis.MontgomeryAddWrongTest
       - Value_Inferencer.Analysis.MontgomeryAddFixedTest
+      - Value_Inferencer.Analysis.MontgomeryDoubleWrongTest
+      - Value_Inferencer.Analysis.MontgomeryDoubleFixedTest

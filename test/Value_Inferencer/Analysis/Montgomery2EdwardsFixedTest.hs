@@ -33,7 +33,7 @@ spec = describe "Fixed Montgomery2Edwards template test" $ do
     let cz1_inv = Binding { name = "cz1_inv", vid = 22, sort = FieldMod p }
 
     -- computations
-    
+
     let comp0 = Assign "out0" (Mul (Var "in0") (PfRecip (Var "in1")))
     let comp1 = Assign "out1" (Mul (Sub (Var "in0") (Int 1)) (PfRecip (Add (Var "in0") (Int 1))))
 
@@ -70,7 +70,7 @@ spec = describe "Fixed Montgomery2Edwards template test" $ do
     let testProgram = Program
           { inputs          = [in0, in1]
           , computationVars = [out0, out1]
-          , constraintVars  = [ cz0_in, cz0_out, cz0_inv -- Variables internal to constraints/checks
+          , constraintVars  = [ cz0_in, cz0_out, cz0_inv
                               , cz1_in, cz1_out, cz1_inv
                               ]
           , computations    = [comp0, comp1]

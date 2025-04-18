@@ -16,6 +16,8 @@ import qualified Value_Inferencer.Analysis.Montgomery2EdwardsFixedTest
 import qualified Value_Inferencer.Analysis.MontgomeryAddWrongTest
 import qualified Value_Inferencer.Analysis.MontgomeryAddWrongTest
 import qualified Value_Inferencer.Analysis.MontgomeryAddFixedTest
+import qualified Value_Inferencer.Analysis.MontgomeryDoubleWrongTest
+import qualified Value_Inferencer.Analysis.MontgomeryDoubleFixedTest
 
 
 main :: IO ()
@@ -34,3 +36,5 @@ main = hspec $ do
     Value_Inferencer.Analysis.Montgomery2EdwardsFixedTest.spec
     Value_Inferencer.Analysis.MontgomeryAddWrongTest.spec
     Value_Inferencer.Analysis.MontgomeryAddFixedTest.spec
+    Value_Inferencer.Analysis.MontgomeryDoubleWrongTest.spec
+    Value_Inferencer.Analysis.MontgomeryDoubleFixedTest.spec
