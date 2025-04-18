@@ -13,7 +13,7 @@ import Data.Either (fromLeft)
 -- FIXED V-CIRCOMLIB-VUL-004 from Veridise Circomlib audit
 spec :: Spec
 spec = describe "Fixed MontgomeryAdd template test" $ do
-  it "detects no division by zero errors" $ do
+  it "still signals division by zero error after fix" $ do
 
     -- using BN254 as prime field for demonstration
     let p = 21888242871839275222246405745257275088548364400416034343698204186575808495617
@@ -45,13 +45,14 @@ spec = describe "Fixed MontgomeryAdd template test" $ do
     -- constraints
 
     -- constraints for checkZero instance (checks in2[0] - in1[0] != 0)
-    let cz_assign_in = EqC 100 (Var "cz_in")  -- cz_in <= in2[0]- in1[0]
+    let denomExpr = Sub (Var "in2_0") (Var "in1_0")
+    let cz_assign_in = EqC 100 (Var "cz_in") denomExpr  -- cz_in <= in2[0]- in1[0]
     let cz_c1 = EqC 101 (Add (Var "cz_out") (Mul (Var "cz_in") (Var "cz_inv"))) (Int 1)
     let cz_c2 = EqC 102 (Mul (Var "cz_in") (Var "cz_out")) (Int 0)
     let cz_force_out = EqC 103 (Var "cz_out") (Int 0) -- cz_out === 0 (enforces cz_in != 0)
 
     -- original MontgomeryAdd constraints
-    let c1 = EqC 200 (Mul (Var "lamda") (Sub (Var "in2_0") (Var "in1_0"))) (Sub (Var "in2_1") (Var "in1_1"))
+    let c1 = EqC 200 (Mul (Var "lamda") denomExpr) (Sub (Var "in2_1") (Var "in1_1"))
     let c2 = EqC 201 (Var "out_0")
                      (Sub (Sub (Sub (Mul (Int constB) (Mul (Var "lamda") (Var "lamda")))
                                     (Int constA))
@@ -67,7 +68,7 @@ spec = describe "Fixed MontgomeryAdd template test" $ do
                          ]
 
     -- expressions used in PfRecip (denominators)
-    let denominators = [ (Sub (Var "in2_0") (Var "in1_0")) -- from comp0
+    let denominators = [ denomExpr -- from comp0
                        ]
 
     -- the test program
@@ -87,6 +88,25 @@ spec = describe "Fixed MontgomeryAdd template test" $ do
     -- assertions
 
     -- checking that detectBugs returned Right () (no errors)
+    -- OUR ANALYSIS CAN NOT DETECT THAT THIS BUG IS ACTUALLY FIXED.
+    -- Explanation of why the analysis reports a potential error:
+    -- The IsZero constraint correctly enforces that cz_in != 0.
+    -- Since cz_in = in2_0 - in1_0, this mathematically implies that
+    -- the denominator in2_0 - in1_0 is never zero.
+    -- However, the value analysis is non-relational. It only tracks the possible values (domain)
+    -- for each variable independently.
+    -- 1. The analysis processes the IsZero constraints and correctly deduces that
+    --    `cz_in` can not be zero.
+    -- 2. The analysis cannot directly use the fact that `cz_in != 0` and `cz_in = in2_0 - in1_0`
+    --    to conclude that `in2_0 - in1_0` is non-zero when evaluating the denominator expression itself,
+    --    as this requires reasoning about the relationship between variables, which the current
+    --    abstract domain (intervals with gaps) does not support. We thus cannot save this information by solely
+    --    adjusting values of the individual variable domains.
+    -- 3. When checking the denominator `Sub (Var "in2_0") (Var "in1_0")` for potential division by zero,
+    --    the analysis infers the domains for `in1_0` and `in2_0` individually (which is the default [0, p-1]).
+    -- 4. It then calculates the domain for the subtraction `[0, p-1] - [0, p-1]`, which results in the
+    --    full field `[0, p-1]`.
+    -- 5. Because the resulting domain for the denominator includes zero, the analysis reports a potential error.
 
     let errors = fromLeft [] bugResult
     let errorString = unlines errors
