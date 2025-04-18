@@ -22,7 +22,6 @@ import ValueAnalysis.UserRules
 import ValueAnalysis.VariableState
 import ValueAnalysis.ValueDomain
 import ValueAnalysis.Printer
-import Debug.Trace (trace)
 
 --------------------------
 -- 1) Variable State Representation
@@ -752,7 +751,7 @@ propagateExclusionsBackward expr xDomain nameToID varStates =
     -- x = c - y  =>  y = c - x
     go (Sub (Int c) (Var yName)) intervalsX nameToID currentStates =
       let excludedValuesY = concatMap (calculateExcludedSet (\v -> (c - v + p) `mod` p) p) (Set.toList intervalsX)
-      in trace ("aightttttt" ++ (show excludedValuesY))  applyExclusionsToVar yName excludedValuesY nameToID currentStates
+      in applyExclusionsToVar yName excludedValuesY nameToID currentStates
 
     -- x = y + c  =>  y = x - c
     go (Add (Var yName) (Int c)) intervalsX nameToID currentStates =
@@ -1243,7 +1242,7 @@ detectBugs program maybeVars =
       errors = sortErrors ++ divByZeroErrors
   in if null errors
        then Right ()
-       else trace ("lookhere" ++ (show errors)) Left errors
+       else Left errors
 
 -- | Checks whether one variable's final state is consistent with its declared Sort.
 --   Returns either an empty list (no issues) or a list of error messages.
