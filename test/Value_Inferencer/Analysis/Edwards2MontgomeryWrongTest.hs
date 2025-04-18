@@ -9,11 +9,12 @@ import ValueAnalysis.Analysis
 import Data.Either (isLeft, fromLeft)
 import Data.List (isInfixOf)
 
+-- V-CIRCOMLIB-VUL-002 from Veridise Circomlib audit
 spec :: Spec
 spec = describe "Edwards2Montgomery template test" $ do
   it "detects potential division by zero" $ do
-    -- using 17 as prime field for demonstration
-    let p = 17
+    -- using BN254 as prime field for demonstration
+    let p = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
     -- variables
     let in0  = Binding { name = "in0",  vid = 0, sort = FieldMod p }
