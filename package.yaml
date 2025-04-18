@@ -16,6 +16,7 @@ library:
     - ValueAnalysis.UserRules
     - ValueAnalysis.VariableState
     - ValueAnalysis.ValueDomain
+    - ValueAnalysis.Printer
   other-modules:
     - Paths_zkp_analysis
   dependencies:
