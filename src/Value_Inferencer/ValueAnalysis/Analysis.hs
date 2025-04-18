@@ -183,24 +183,41 @@ inferValues (Sub e1 e2) nameToID varStates =
        (KnownValues s1, KnownValues s2) ->
          KnownValues $ Set.fromList [ (v1 - v2) `mod` p | v1 <- Set.toList s1, v2 <- Set.toList s2 ]
 
-       (BoundedValues (Just lb1) (Just ub1) _, KnownValues s2) | not (Set.null s2) ->
-         let minSub = minimum $ Set.map (\v2 -> (lb1 - v2) `mod` p) s2
-             maxSub = maximum $ Set.map (\v2 -> (ub1 - v2) `mod` p) s2
-         in if minSub <= maxSub then
-              BoundedValues (Just minSub) (Just maxSub) Set.empty
-            else
-              let gaps = getWrapAroundExclusion maxSub minSub p
-              in BoundedValues (Just 0) (Just (p - 1)) gaps
+       (BoundedValues (Just lb1) (Just ub1) gaps1, KnownValues s2) | not (Set.null s2) ->
+         let minSub = minimum $ Set.map (\v2 -> (lb1 - v2 + p) `mod` p) s2
+             maxSub = maximum $ Set.map (\v2 -> (ub1 - v2 + p) `mod` p) s2
+             wrapAround = minSub > maxSub
+             -- mapping exclusions from gaps1: applying mapExclusionSubKnown to each interval in gaps1 
+             -- and we union the results
+             mappedExclusions = Set.unions $ Set.map (\interval -> mapExclusionSubKnown interval s2 p) gaps1
+             -- combining with wrap-around gap
+             finalExclusions =
+               if wrapAround then
+                 let wrapGapSet = getWrapAroundExclusion maxSub minSub p
+                 in Set.union wrapGapSet mappedExclusions
+               else
+                 mappedExclusions
+             (finalLb, finalUb) = if wrapAround then (0, p-1) else (minSub, maxSub)
+         in BoundedValues (Just finalLb) (Just finalUb) finalExclusions
 
-       (KnownValues s1, BoundedValues (Just lb2) (Just ub2) _) | not (Set.null s1) ->
-         let minSub = minimum $ Set.map (\v1 -> (v1 - ub2) `mod` p) s1
-             maxSub = maximum $ Set.map (\v1 -> (v1 - lb2) `mod` p) s1
-         in if minSub <= maxSub then
-              BoundedValues (Just minSub) (Just maxSub) Set.empty
-            else
-              let gaps = getWrapAroundExclusion maxSub minSub p
-              in BoundedValues (Just 0) (Just (p - 1)) gaps
+       (KnownValues s1, BoundedValues (Just lb2) (Just ub2) gaps2) | not (Set.null s1) ->
+         let minSub = minimum $ Set.map (\v1 -> (v1 - ub2 + p) `mod` p) s1 -- v1 - max(d2)
+             maxSub = maximum $ Set.map (\v1 -> (v1 - lb2 + p) `mod` p) s1 -- v1 - min(d2)
+             wrapAround = minSub > maxSub
+             -- mapping exclusions from gaps2: applying mapExclusionKnownSub to each interval in gaps2 
+             -- and we union results
+             mappedExclusions = Set.unions $ Set.map (\interval -> mapExclusionKnownSub s1 interval p) gaps2
 
+             finalExclusions =
+               if wrapAround then
+                 let wrapGapSet = getWrapAroundExclusion maxSub minSub p
+                 in Set.union wrapGapSet mappedExclusions
+               else
+                 mappedExclusions
+             (finalLb, finalUb) = if wrapAround then (0, p-1) else (minSub, maxSub)
+         in BoundedValues (Just finalLb) (Just finalUb) finalExclusions
+
+       -- keeping original exclusions is very complex here, so we drop them
        (BoundedValues (Just lb1) (Just ub1) _, BoundedValues (Just lb2) (Just ub2) _) ->
          let newLb = (lb1 - ub2) `mod` p
              newUb = (ub1 - lb2) `mod` p
@@ -310,6 +327,29 @@ inferValues _ _ _ = defaultValueDomain -- TODO: Handle other cases properly
 -- TODO: Implement joinDomains
 joinDomains :: ValueDomain -> ValueDomain -> ValueDomain
 joinDomains d1 d2 = defaultValueDomain -- placeholder
+
+-- Helper function to map an exclusion interval through subtraction by a set of constants
+-- Input: (l1, u1) from gaps1, Set s2, modulus p
+-- Output: Set of resulting exclusion intervals {(l1-v2, u1-v2) | v2 in s2}
+mapExclusionSubKnown :: (Integer, Integer) -> Set.Set Integer -> Integer -> Set.Set (Integer, Integer)
+mapExclusionSubKnown (l1, u1) s2 p =
+  Set.map (\v2 ->
+    let newL = (l1 - v2 + p) `mod` p
+        newU = (u1 - v2 + p) `mod` p
+    -- Note: The resulting interval (newL, newU) might wrap around itself (newL > newU).
+    in (newL, newU)
+  ) s2
+
+-- Helper function to map an exclusion interval through subtraction *from* a set of constants
+-- Input: Set s1, (l2, u2) from gaps2, modulus p
+-- Output: Set of resulting exclusion intervals {(v1-u2, v1-l2) | v1 in s1}
+mapExclusionKnownSub :: Set.Set Integer -> (Integer, Integer) -> Integer -> Set.Set (Integer, Integer)
+mapExclusionKnownSub s1 (l2, u2) p =
+  Set.map (\v1 ->
+    let newL = (v1 - u2 + p) `mod` p -- subtracting the upper bound of the gap gives the lower bound of the result gap
+        newU = (v1 - l2 + p) `mod` p -- subtracting the lower bound of the gap gives the upper bound of the result gap
+    in (newL, newU)
+  ) s1
 
 -- In modular arithmetic (mod p), an interval can "wrap around" the modulus.
 -- If the calculated lower bound `newLb` is GREATER than the calculated upper bound `newUb`,
