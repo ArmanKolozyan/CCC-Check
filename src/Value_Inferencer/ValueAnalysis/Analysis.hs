@@ -819,6 +819,18 @@ applyExclusionsToVar varName exclusions nameToID currentStates =
 
 -- Marks an expression as non-zero and updates variable states accordingly.
 -- Returns (changed, updatedStates) or an error message.
+--
+-- Why we don't just change bounds:
+-- 1. Simply adjusting the lower/upper bounds of a BoundedValues domain is often
+-- insufficient or incorrect when excluding a specific value 'c':
+-- If the domain is [0, 10] and we need to exclude 5 (e.g., because x - 5 != 0),
+-- the resulting set is {0, 1, 2, 3, 4} U {6, 7, 8, 9, 10}.
+-- This split set cannot be represented by simply changing the bounds [0, 10].
+-- We must introduce an exclusion.
+-- 2. Wrap-around Intervals:
+-- If the domain is a wrap-around interval like [15, 2] mod 17 (i.e., {15, 16, 0, 1, 2}),
+-- excluding an internal value like 0 requires careful handling that simple bound
+-- adjustments cannot manage generically.
 markExprNonZero :: Expression -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
 markExprNonZero (Var xName) nameToID varStates = do
     xID <- lookupVarID xName nameToID
@@ -860,9 +872,9 @@ markExprNonZero (Sub (Int c) (Var xName)) nameToID varStates = do
     xID <- lookupVarID xName nameToID
     oldXSt <- lookupVarState xID varStates
     -- we need c - x != 0 (mod p), so x != c (mod p)
-    let p = fieldModulus
     let valToExclude = c `mod` p
     let currentDomain = domain oldXSt
+    -- using excludeValue and updateValues for consistency and contradiction detection
     let domainWithoutC = excludeValue currentDomain valToExclude
     newState <- updateValues oldXSt domainWithoutC
     let changed = newState /= oldXSt
