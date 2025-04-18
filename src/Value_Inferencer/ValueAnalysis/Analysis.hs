@@ -720,6 +720,15 @@ analyzeConstraint (EqC cid (Int c) (Mul expr1 expr2)) nameToID varStates =
 
 analyzeConstraint _ _ varStates = Right (False, varStates)  -- TODO: handle other constraints
 
+
+-- | Propagates exclusions backward from a result domain to variables in an expression.
+propagateExclusionsBackward
+    :: Expression
+    -> ValueDomain  -- the domain of the variable the expression is equal to (e.g., x's domain)
+    -> Map String Int
+    -> Map Int VariableState
+    -> (Bool, Map Int VariableState) -- returns (if any change occurred, updated states)
+propagateExclusionsBackward expr xDomain nameToID varStates =
   let gapsX = getExclusionIntervals xDomain
   in if Set.null gapsX
      then (False, varStates)
@@ -799,20 +808,49 @@ applyExclusionsToVar varName exclusions nameToID currentStates =
                         -- creating the domain with the single value excluded
                         domainWithExclusion = excludeValue currentVarDomain valToExclude
                     in case updateValues currentVarState domainWithExclusion of
+                         -- if intersection fails (contradiction), we keep previous state 
+                         -- TODO: should maybe log error?
+                         Left _ -> (changedAcc, statesAcc)
+                         Right newVarState ->
+                           let changedNow = newVarState /= currentVarState
+                           -- updating the state map only if a change occurred
                            in (changedAcc || changedNow, Map.insert varID newVarState statesAcc)
+                ) (False, currentStates) exclusions -- initial state for fold
+
 -- Marks an expression as non-zero and updates variable states accordingly.
 -- Returns (changed, updatedStates) or an error message.
 markExprNonZero :: Expression -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
 markExprNonZero (Var xName) nameToID varStates = do
     xID <- lookupVarID xName nameToID
     oldXSt <- lookupVarState xID varStates
-    let p = fieldModulus 
     let valToExclude = 0
     let currentDomain = domain oldXSt
-    -- using excludeValue which handles KnownValues and BoundedValues
+
+    -- Step 1: Excluding 0 from the current domain.
+    -- The `excludeValue` function handles both KnownValues (by set deletion)
+    -- and BoundedValues (by adding (0, 0) to gaps and potentially
+    -- adjusting bounds if they were exactly 0).
     let domainWithoutZero = excludeValue currentDomain valToExclude
-    -- intersecting with the original domain to ensure consistency and detect contradictions
-    -- updateValues performs the intersection and checks for emptiness/contradiction
+
+    -- Step 2: Intersecting the original domain with the domain-without-zero using updateValues.
+    -- We use `updateValues` (which calls `intersectDomains`) for several crucial reasons,
+    -- rather than just using the result of `excludeValue` directly:
+    --
+    -- a) Consistency & Merging: `intersectDomains` correctly merges the "exclude zero"
+    --    information with the variable's *existing* domain, including any pre-existing
+    --    bounds and exclusion intervals. Simply using `domainWithoutZero` would discard
+    --    prior information.
+    --
+    --
+    -- b) Contradiction Detection: `intersectDomains` is essential for detecting if
+    --    excluding zero leads to an invalid or empty state. Examples:
+    --    - If the original domain was `KnownValues {0}`, the intersection results in an
+    --      empty set, correctly identified by `intersectDomains`.
+    --    - If the original domain was `BoundedValues [0, 0] Nothing`, `excludeValue` might
+    --      produce an intermediate state with `gaps = Just [(0, 0)]`.
+    --      `intersectDomains` correctly identifies this as an empty domain.
+    --
+    -- Therefore, using `updateValues` ensures the analysis remains sound.
     newState <- updateValues oldXSt domainWithoutZero
     let changed = newState /= oldXSt
     let newMap = if changed then Map.insert xID newState varStates else varStates
@@ -833,14 +871,13 @@ markExprNonZero (Sub (Int c) (Var xName)) nameToID varStates = do
 
 markExprNonZero (Sub (Var xName) (Int c)) nameToID varStates = do
     -- x - c != 0 (mod p) => x != c (mod p)
-    -- re-using the logic by passing equivalent expression structure
+    -- re-using the logic by calling the symmetric case handler
     markExprNonZero (Sub (Int c) (Var xName)) nameToID varStates
 
 markExprNonZero (Int c) _ varStates =
-    let p = fieldModulus
-    in if c `mod` p == 0
-       then Left $ "Contradiction: Constant expression " ++ show c ++ " is zero, cannot mark as non-zero."
-       else Right (False, varStates) -- constant is non-zero, no state change needed
+    if c `mod` p == 0
+    then Left $ "Contradiction: Constant expression " ++ show c ++ " is zero, cannot mark as non-zero."
+    else Right (False, varStates) -- constant is non-zero, no state change needed
 
 -- TODO: Add, Mul, etc. If e.g., Add e1 e2 != 0 and e1 is known zero,
 -- then markExprNonZero e2 could be called I think??
@@ -878,15 +915,6 @@ modInverse a m
 -- TODO: We should obtain this from the IR and save this information in the Program structure.
 fieldModulus :: Integer
 fieldModulus = 21888242871839275222246405745257275088548364400416034343698204186575808495617
-
--- Helper function: Checks if a value domain guarantees the value is exactly zero.
-isCertainlyZeroDomain :: ValueDomain -> Bool
-isCertainlyZeroDomain domainVal = case domainVal of
-    KnownValues s -> s == Set.singleton 0
-    BoundedValues (Just 0) (Just 0) maybeEx ->
-        -- only if bounds are [0, 0] AND 0 is not excluded
-        maybe True (not . Set.member 0) maybeEx
-    _ -> False
 
 markNonZeroPair :: String -> String -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
 markNonZeroPair xName yName nameToID varStates = do
