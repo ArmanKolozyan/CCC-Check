@@ -65,6 +65,8 @@ test-suite all-tests
       Value_Inferencer.Analysis.NonZeroTemplateTest
       Value_Inferencer.Analysis.LessThanTest
       Bug_Detector.SortTest
+      Value_Inferencer.Analysis.Edwards2MontgomeryWrongTest
+      Value_Inferencer.Analysis.Edwards2MontgomeryFixedTest
   main-is: TestRunner.hs
   hs-source-dirs:
       test
