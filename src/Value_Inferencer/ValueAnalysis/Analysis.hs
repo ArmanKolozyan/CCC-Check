@@ -23,6 +23,8 @@ import ValueAnalysis.VariableState
 import ValueAnalysis.ValueDomain
 import ValueAnalysis.Printer
 
+import Debug.Trace (trace)
+
 --------------------------
 -- 1) Variable State Representation
 --------------------------
@@ -756,7 +758,7 @@ propagateExclusionsBackward expr xDomain nameToID varStates =
     -- x = y + c  =>  y = x - c
     go (Add (Var yName) (Int c)) intervalsX nameToID currentStates =
       let excludedValuesY = concatMap (calculateExcludedSet (\v -> (v - c + p) `mod` p) p) (Set.toList intervalsX)
-      in applyExclusionsToVar yName excludedValuesY nameToID currentStates
+      in trace (show excludedValuesY)applyExclusionsToVar yName excludedValuesY nameToID currentStates
 
     -- x = c + y => y = x - c (same as above)
     go (Add (Int c) (Var yName)) intervalsX nameToID currentStates =

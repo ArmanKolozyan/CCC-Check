@@ -70,7 +70,7 @@ spec = describe "Fixed Edwards2Montgomery template test" $ do
     let testProgram = Program
           { inputs          = [in0, in1]
           , computationVars = [out0, out1]
-          , constraintVars  = [ cz0_in, cz0_out, cz0_inv -- Variables internal to constraints/checks
+          , constraintVars  = [ cz0_in, cz0_out, cz0_inv
                               , cz1_in, cz1_out, cz1_inv
                               ]
           , computations    = [comp0, comp1]
