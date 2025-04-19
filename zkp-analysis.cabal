@@ -20,6 +20,7 @@ library
       ValueAnalysis.VariableState
       ValueAnalysis.ValueDomain
       ValueAnalysis.Printer
+      BugDetection.BugDetection
   other-modules:
       Paths_zkp_analysis
   hs-source-dirs:
@@ -64,11 +65,15 @@ test-suite all-tests
       Value_Inferencer.Analysis.NonZeroTest
       Value_Inferencer.Analysis.NonZeroTemplateTest
       Value_Inferencer.Analysis.LessThanTest
-      Bug_Detector.SortTest
+      BugDetection.SortTest
       Value_Inferencer.Analysis.Edwards2MontgomeryWrongTest
       Value_Inferencer.Analysis.Edwards2MontgomeryFixedTest
       Value_Inferencer.Analysis.Montgomery2EdwardsWrongTest
       Value_Inferencer.Analysis.Montgomery2EdwardsFixedTest
+      Value_Inferencer.Analysis.MontgomeryAddWrongTest
+      Value_Inferencer.Analysis.MontgomeryAddFixedTest
+      Value_Inferencer.Analysis.MontgomeryDoubleWrongTest
+      Value_Inferencer.Analysis.MontgomeryDoubleFixedTest
   main-is: TestRunner.hs
   hs-source-dirs:
       test

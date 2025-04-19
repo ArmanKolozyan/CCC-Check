@@ -8,12 +8,11 @@ import qualified Value_Inferencer.Analysis.Num2BitsTest
 import qualified Value_Inferencer.Analysis.NonZeroTest
 import qualified Value_Inferencer.Analysis.NonZeroTemplateTest
 import qualified Value_Inferencer.Analysis.LessThanTest
-import qualified Bug_Detector.SortTest
+import qualified BugDetection.SortTest
 import qualified Value_Inferencer.Analysis.Edwards2MontgomeryWrongTest
 import qualified Value_Inferencer.Analysis.Edwards2MontgomeryFixedTest
 import qualified Value_Inferencer.Analysis.Montgomery2EdwardsWrongTest
 import qualified Value_Inferencer.Analysis.Montgomery2EdwardsFixedTest
-import qualified Value_Inferencer.Analysis.MontgomeryAddWrongTest
 import qualified Value_Inferencer.Analysis.MontgomeryAddWrongTest
 import qualified Value_Inferencer.Analysis.MontgomeryAddFixedTest
 import qualified Value_Inferencer.Analysis.MontgomeryDoubleWrongTest
@@ -29,7 +28,7 @@ main = hspec $ do
     Value_Inferencer.Analysis.NonZeroTest.spec
     Value_Inferencer.Analysis.NonZeroTemplateTest.spec
     Value_Inferencer.Analysis.LessThanTest.spec
-    Bug_Detector.SortTest.spec
+    BugDetection.SortTest.spec
     Value_Inferencer.Analysis.Edwards2MontgomeryWrongTest.spec
     Value_Inferencer.Analysis.Edwards2MontgomeryFixedTest.spec
     Value_Inferencer.Analysis.Montgomery2EdwardsWrongTest.spec

@@ -5,7 +5,7 @@ module Value_Inferencer.Analysis.Edwards2MontgomeryWrongTest (spec) where
 
 import Test.Hspec
 import Syntax.AST
-import ValueAnalysis.Analysis
+import BugDetection.BugDetection
 import Data.Either (isLeft, fromLeft)
 import Data.List (isInfixOf)
 

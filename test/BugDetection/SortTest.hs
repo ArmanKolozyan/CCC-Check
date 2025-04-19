@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Bug_Detector.SortTest (spec) where
+module BugDetection.SortTest (spec) where
 
 import Syntax.AST
 import Test.Hspec
-import ValueAnalysis.Analysis (detectBugs)
+import BugDetection.BugDetection (detectBugs)
 
 spec :: Spec
 spec = describe "Bug Detection Tests" $ do

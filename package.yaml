@@ -17,6 +17,7 @@ library:
     - ValueAnalysis.VariableState
     - ValueAnalysis.ValueDomain
     - ValueAnalysis.Printer
+    - BugDetection.BugDetection
   other-modules:
     - Paths_zkp_analysis
   dependencies:
@@ -66,7 +67,7 @@ tests:
       - Value_Inferencer.Analysis.NonZeroTest
       - Value_Inferencer.Analysis.NonZeroTemplateTest
       - Value_Inferencer.Analysis.LessThanTest
-      - Bug_Detector.SortTest
+      - BugDetection.SortTest
       - Value_Inferencer.Analysis.Edwards2MontgomeryWrongTest
       - Value_Inferencer.Analysis.Edwards2MontgomeryFixedTest
       - Value_Inferencer.Analysis.Montgomery2EdwardsWrongTest

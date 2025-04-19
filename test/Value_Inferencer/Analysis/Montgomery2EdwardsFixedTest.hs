@@ -5,7 +5,7 @@ module Value_Inferencer.Analysis.Montgomery2EdwardsFixedTest (spec) where
 
 import Test.Hspec
 import Syntax.AST
-import ValueAnalysis.Analysis
+import BugDetection.BugDetection
 import Data.Either (isRight)
 
 -- FIXED V-CIRCOMLIB-VUL-003 from Veridise Circomlib audit

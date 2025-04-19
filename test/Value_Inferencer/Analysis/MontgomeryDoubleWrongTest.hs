@@ -6,7 +6,7 @@ module Value_Inferencer.Analysis.MontgomeryDoubleWrongTest (spec) where
 
 import Test.Hspec
 import Syntax.AST
-import ValueAnalysis.Analysis
+import BugDetection.BugDetection
 import Data.Either (isLeft, fromLeft)
 import Data.List (isInfixOf)
 

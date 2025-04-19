@@ -6,7 +6,7 @@ module Value_Inferencer.Analysis.MontgomeryAddFixedTest (spec) where
 
 import Test.Hspec
 import Syntax.AST
-import ValueAnalysis.Analysis
+import BugDetection.BugDetection
 import Data.List (isInfixOf)
 import Data.Either (fromLeft)
 
