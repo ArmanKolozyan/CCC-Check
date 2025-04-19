@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Value_Inferencer.Analysis.LessThanTest (spec) where
+module Value_Inferencer.ValueAnalysis.LessThanTest (spec) where
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set

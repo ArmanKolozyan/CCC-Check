@@ -4,36 +4,36 @@ import Test.Hspec
 import qualified Syntax.ExpressionsParseTest
 import qualified CP_Analysis.Analysis.FullyConstrainedTest
 import qualified Syntax.IteParseTest
-import qualified Value_Inferencer.Analysis.Num2BitsTest
-import qualified Value_Inferencer.Analysis.NonZeroTest
-import qualified Value_Inferencer.Analysis.NonZeroTemplateTest
-import qualified Value_Inferencer.Analysis.LessThanTest
-import qualified BugDetection.SortTest
-import qualified Value_Inferencer.Analysis.Edwards2MontgomeryWrongTest
-import qualified Value_Inferencer.Analysis.Edwards2MontgomeryFixedTest
-import qualified Value_Inferencer.Analysis.Montgomery2EdwardsWrongTest
-import qualified Value_Inferencer.Analysis.Montgomery2EdwardsFixedTest
-import qualified Value_Inferencer.Analysis.MontgomeryAddWrongTest
-import qualified Value_Inferencer.Analysis.MontgomeryAddFixedTest
-import qualified Value_Inferencer.Analysis.MontgomeryDoubleWrongTest
-import qualified Value_Inferencer.Analysis.MontgomeryDoubleFixedTest
+import qualified Value_Inferencer.ValueAnalysis.Num2BitsTest
+import qualified Value_Inferencer.ValueAnalysis.NonZeroTest
+import qualified Value_Inferencer.ValueAnalysis.NonZeroTemplateTest
+import qualified Value_Inferencer.ValueAnalysis.LessThanTest
+import qualified Value_Inferencer.BugDetection.SortTest
+import qualified Value_Inferencer.BugDetection.Edwards2MontgomeryWrongTest
+import qualified Value_Inferencer.BugDetection.Edwards2MontgomeryFixedTest
+import qualified Value_Inferencer.BugDetection.Montgomery2EdwardsWrongTest
+import qualified Value_Inferencer.BugDetection.Montgomery2EdwardsFixedTest
+import qualified Value_Inferencer.BugDetection.MontgomeryAddWrongTest
+import qualified Value_Inferencer.BugDetection.MontgomeryAddFixedTest
+import qualified Value_Inferencer.BugDetection.MontgomeryDoubleWrongTest
+import qualified Value_Inferencer.BugDetection.MontgomeryDoubleFixedTest
 
 
 main :: IO ()
 main = hspec $ do
     Syntax.ExpressionsParseTest.spec
-    CP_Analysis.Analysis.FullyConstrainedTest.spec
     Syntax.IteParseTest.spec
-    Value_Inferencer.Analysis.Num2BitsTest.spec
-    Value_Inferencer.Analysis.NonZeroTest.spec
-    Value_Inferencer.Analysis.NonZeroTemplateTest.spec
-    Value_Inferencer.Analysis.LessThanTest.spec
-    BugDetection.SortTest.spec
-    Value_Inferencer.Analysis.Edwards2MontgomeryWrongTest.spec
-    Value_Inferencer.Analysis.Edwards2MontgomeryFixedTest.spec
-    Value_Inferencer.Analysis.Montgomery2EdwardsWrongTest.spec
-    Value_Inferencer.Analysis.Montgomery2EdwardsFixedTest.spec
-    Value_Inferencer.Analysis.MontgomeryAddWrongTest.spec
-    Value_Inferencer.Analysis.MontgomeryAddFixedTest.spec
-    Value_Inferencer.Analysis.MontgomeryDoubleWrongTest.spec
-    Value_Inferencer.Analysis.MontgomeryDoubleFixedTest.spec
+    CP_Analysis.Analysis.FullyConstrainedTest.spec
+    Value_Inferencer.ValueAnalysis.Num2BitsTest.spec
+    Value_Inferencer.ValueAnalysis.NonZeroTest.spec
+    Value_Inferencer.ValueAnalysis.NonZeroTemplateTest.spec
+    Value_Inferencer.ValueAnalysis.LessThanTest.spec
+    Value_Inferencer.BugDetection.SortTest.spec
+    Value_Inferencer.BugDetection.Edwards2MontgomeryWrongTest.spec
+    Value_Inferencer.BugDetection.Edwards2MontgomeryFixedTest.spec
+    Value_Inferencer.BugDetection.Montgomery2EdwardsWrongTest.spec
+    Value_Inferencer.BugDetection.Montgomery2EdwardsFixedTest.spec
+    Value_Inferencer.BugDetection.MontgomeryAddWrongTest.spec
+    Value_Inferencer.BugDetection.MontgomeryAddFixedTest.spec
+    Value_Inferencer.BugDetection.MontgomeryDoubleWrongTest.spec
+    Value_Inferencer.BugDetection.MontgomeryDoubleFixedTest.spec

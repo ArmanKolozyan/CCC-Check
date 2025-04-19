@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Value_Inferencer.Analysis.NonZeroTemplateTest (spec) where
+module Value_Inferencer.ValueAnalysis.NonZeroTemplateTest (spec) where
 
 import Test.Hspec
 import Syntax.AST

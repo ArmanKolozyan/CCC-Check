@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module BugDetection.SortTest (spec) where
+module Value_Inferencer.BugDetection.SortTest (spec) where
 
 import Syntax.AST
 import Test.Hspec

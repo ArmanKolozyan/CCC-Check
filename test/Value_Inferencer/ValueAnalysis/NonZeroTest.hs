@@ -1,4 +1,4 @@
-module Value_Inferencer.Analysis.NonZeroTest (spec) where
+module Value_Inferencer.ValueAnalysis.NonZeroTest (spec) where
 
 import Test.Hspec
 import ValueAnalysis.Analysis

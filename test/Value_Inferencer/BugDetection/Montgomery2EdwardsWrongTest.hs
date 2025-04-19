@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 -- V-CIRCOMLIB-VUL-003 from Veridise Circomlib audit
-module Value_Inferencer.Analysis.Montgomery2EdwardsWrongTest (spec) where
+module Value_Inferencer.BugDetection.Montgomery2EdwardsWrongTest (spec) where
 
 import Test.Hspec
 import Syntax.AST

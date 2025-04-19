@@ -1,4 +1,4 @@
-module Value_Inferencer.Analysis.Num2BitsTest (spec) where
+module Value_Inferencer.ValueAnalysis.Num2BitsTest (spec) where
 
 import Test.Hspec
 import ValueAnalysis.Analysis

@@ -2,7 +2,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 
 -- V-CIRCOMLIB-VUL-004 from Veridise Circomlib audit
-module Value_Inferencer.Analysis.MontgomeryAddWrongTest (spec) where
+module Value_Inferencer.BugDetection.MontgomeryAddWrongTest (spec) where
 
 import Test.Hspec
 import Syntax.AST

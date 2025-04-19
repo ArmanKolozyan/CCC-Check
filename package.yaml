@@ -60,19 +60,19 @@ tests:
       - hspec
     other-modules:
       - Syntax.ExpressionsParseTest
-      - CP_Analysis.Analysis.FullyConstrainedTest
       - Syntax.IteParseTest
+      - CP_Analysis.Analysis.FullyConstrainedTest
       - CP_Analysis.Analysis.ExpressionsAnalysisTest
-      - Value_Inferencer.Analysis.Num2BitsTest
-      - Value_Inferencer.Analysis.NonZeroTest
-      - Value_Inferencer.Analysis.NonZeroTemplateTest
-      - Value_Inferencer.Analysis.LessThanTest
-      - BugDetection.SortTest
-      - Value_Inferencer.Analysis.Edwards2MontgomeryWrongTest
-      - Value_Inferencer.Analysis.Edwards2MontgomeryFixedTest
-      - Value_Inferencer.Analysis.Montgomery2EdwardsWrongTest
-      - Value_Inferencer.Analysis.Montgomery2EdwardsFixedTest
-      - Value_Inferencer.Analysis.MontgomeryAddWrongTest
-      - Value_Inferencer.Analysis.MontgomeryAddFixedTest
-      - Value_Inferencer.Analysis.MontgomeryDoubleWrongTest
-      - Value_Inferencer.Analysis.MontgomeryDoubleFixedTest
+      - Value_Inferencer.ValueAnalysis.Num2BitsTest
+      - Value_Inferencer.ValueAnalysis.NonZeroTest
+      - Value_Inferencer.ValueAnalysis.NonZeroTemplateTest
+      - Value_Inferencer.ValueAnalysis.LessThanTest
+      - Value_Inferencer.BugDetection.SortTest
+      - Value_Inferencer.BugDetection.Edwards2MontgomeryWrongTest
+      - Value_Inferencer.BugDetection.Edwards2MontgomeryFixedTest
+      - Value_Inferencer.BugDetection.Montgomery2EdwardsWrongTest
+      - Value_Inferencer.BugDetection.Montgomery2EdwardsFixedTest
+      - Value_Inferencer.BugDetection.MontgomeryAddWrongTest
+      - Value_Inferencer.BugDetection.MontgomeryAddFixedTest
+      - Value_Inferencer.BugDetection.MontgomeryDoubleWrongTest
+      - Value_Inferencer.BugDetection.MontgomeryDoubleFixedTest
