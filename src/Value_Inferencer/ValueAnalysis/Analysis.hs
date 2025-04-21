@@ -7,6 +7,8 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Redundant if" #-}
 
 module ValueAnalysis.Analysis (analyzeProgram, VariableState(..), updateValues, initVarState, ValueDomain(..), analyzeFromFile, inferValues) where
 
@@ -470,6 +472,55 @@ isIn01 st = case domain st of
 -- TODO: OrC, ... !!
 analyzeConstraint :: Constraint -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
 
+
+-- | Boolean OR Rule: out = a + b - a*b
+--   If a and b are binary, then out must be binary.
+analyzeConstraint (EqC _ (Var outName) (Sub (Add (Var aName1) (Var bName1)) (Mul (Var aName2) (Var bName2)))) nameToID varStates =
+  -- checking if variables match for OR pattern
+  if aName1 == aName2 && bName1 == bName2 then
+    -- it is the OR pattern, now checking if inputs are binary
+    if isBinaryVar nameToID varStates aName1 && isBinaryVar nameToID varStates bName1 then
+      -- applying the OR rule
+      constrainVarToBinary outName nameToID varStates
+    else
+      Right (False, varStates)
+  else
+    Right (False, varStates)
+
+-- | Boolean XOR Rule: out = a + b - 2*a*b
+--   If a and b are binary, then out must be binary.
+analyzeConstraint (EqC _ (Var outName) (Sub (Add (Var aName1) (Var bName1)) (Mul (Int 2) (Mul (Var aName2) (Var bName2))))) nameToID varStates =
+  -- checking if variables match for XOR pattern
+  if aName1 == aName2 && bName1 == bName2 then
+    if isBinaryVar nameToID varStates aName1 && isBinaryVar nameToID varStates bName1 then
+      -- applying XOR rule
+      constrainVarToBinary outName nameToID varStates
+    else
+      Right (False, varStates)
+  else
+    Right (False, varStates)
+
+-- | Boolean NOT Rule: out = 1 - in (equivalent to 1 + in - 2*in for binary in)
+--   If in is binary, then out must be binary.
+analyzeConstraint (EqC _ (Var outName) (Sub (Int 1) (Var inName))) nameToID varStates =
+  if isBinaryVar nameToID varStates inName then
+    constrainVarToBinary outName nameToID varStates
+  else
+    Right (False, varStates)
+
+-- | Boolean NOR Rule: out = a*b + 1 - a - b (equivalent to 1 - OR(a,b))
+--   If a and b are binary, then out must be binary.
+analyzeConstraint (EqC _ (Var outName) (Sub (Sub (Add (Mul (Var aName1) (Var bName1)) (Int 1)) (Var aName2)) (Var bName2))) nameToID varStates =
+  -- checking if variables match for NOR pattern
+  trace "dddd" $ if aName1 == aName2 && bName1 == bName2 then
+    if isBinaryVar nameToID varStates aName1 && isBinaryVar nameToID varStates bName1 then
+      -- applying NOR rule
+      constrainVarToBinary outName nameToID varStates 
+    else
+      Right (False, varStates)
+  else
+    Right (False, varStates)
+
 -- EQUALITY Rule: x = y
 analyzeConstraint (EqC _ (Var xName) e) nameToID varStates =
   case e of
@@ -735,6 +786,18 @@ analyzeConstraint (EqC cid (Int c) (Mul expr1 expr2)) nameToID varStates =
 
 analyzeConstraint _ _ varStates = Right (False, varStates)  -- TODO: handle other constraints
 
+
+-- Helper function to constrain a variable to binary {0, 1}
+constrainVarToBinary :: String -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+constrainVarToBinary varName nameToID varStates = do
+  varID <- lookupVarID varName nameToID
+  oldState <- lookupVarState varID varStates
+  -- using BoundedValues for consistency, could also use KnownValues {0, 1}
+  let binaryDomain = BoundedValues (Just 0) (Just 1) Set.empty
+  newState <- updateValues oldState binaryDomain
+  let changed = newState /= oldState
+  let newMap = if changed then Map.insert varID newState varStates else varStates
+  pure (changed, newMap)
 
 -- | Propagates exclusions backward from a result domain to variables in an expression.
 propagateExclusionsBackward
