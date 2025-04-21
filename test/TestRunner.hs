@@ -18,6 +18,7 @@ import qualified Value_Inferencer.BugDetection.Veridise.MontgomeryAddFixedTest
 import qualified Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleWrongTest
 import qualified Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleFixedTest
 import qualified Value_Inferencer.BugDetection.TrailOfBits.ToBinaryTest
+import qualified Value_Inferencer.BugDetection.TrailOfBits.EnforceAuthTest
 
 
 main :: IO ()
@@ -39,3 +40,4 @@ main = hspec $ do
     Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleWrongTest.spec
     Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleFixedTest.spec
     Value_Inferencer.BugDetection.TrailOfBits.ToBinaryTest.spec
+    Value_Inferencer.BugDetection.TrailOfBits.EnforceAuthTest.spec

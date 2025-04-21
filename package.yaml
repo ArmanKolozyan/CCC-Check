@@ -77,3 +77,4 @@ tests:
       - Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleWrongTest
       - Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleFixedTest
       - Value_Inferencer.BugDetection.TrailOfBits.ToBinaryTest
+      - Value_Inferencer.BugDetection.TrailOfBits.EnforceAuthTest
