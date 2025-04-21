@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 -- FIXED V-CIRCOMLIB-VUL-003 from Veridise Circomlib audit
-module Value_Inferencer.BugDetection.Montgomery2EdwardsFixedTest (spec) where
+module Value_Inferencer.BugDetection.Veridise.Montgomery2EdwardsFixedTest (spec) where
 
 import Test.Hspec
 import Syntax.AST

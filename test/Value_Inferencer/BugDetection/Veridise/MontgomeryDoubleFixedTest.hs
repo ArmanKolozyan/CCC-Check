@@ -2,7 +2,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 
 -- FIXED V-CIRCOMLIB-VUL-005 from Veridise Circomlib audit
-module Value_Inferencer.BugDetection.MontgomeryDoubleFixedTest (spec) where
+module Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleFixedTest (spec) where
 
 import Test.Hspec
 import Syntax.AST

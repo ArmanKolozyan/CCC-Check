@@ -9,14 +9,15 @@ import qualified Value_Inferencer.ValueAnalysis.NonZeroTest
 import qualified Value_Inferencer.ValueAnalysis.NonZeroTemplateTest
 import qualified Value_Inferencer.ValueAnalysis.LessThanTest
 import qualified Value_Inferencer.BugDetection.SortTest
-import qualified Value_Inferencer.BugDetection.Edwards2MontgomeryWrongTest
-import qualified Value_Inferencer.BugDetection.Edwards2MontgomeryFixedTest
-import qualified Value_Inferencer.BugDetection.Montgomery2EdwardsWrongTest
-import qualified Value_Inferencer.BugDetection.Montgomery2EdwardsFixedTest
-import qualified Value_Inferencer.BugDetection.MontgomeryAddWrongTest
-import qualified Value_Inferencer.BugDetection.MontgomeryAddFixedTest
-import qualified Value_Inferencer.BugDetection.MontgomeryDoubleWrongTest
-import qualified Value_Inferencer.BugDetection.MontgomeryDoubleFixedTest
+import qualified Value_Inferencer.BugDetection.Veridise.Edwards2MontgomeryWrongTest
+import qualified Value_Inferencer.BugDetection.Veridise.Edwards2MontgomeryFixedTest
+import qualified Value_Inferencer.BugDetection.Veridise.Montgomery2EdwardsWrongTest
+import qualified Value_Inferencer.BugDetection.Veridise.Montgomery2EdwardsFixedTest
+import qualified Value_Inferencer.BugDetection.Veridise.MontgomeryAddWrongTest
+import qualified Value_Inferencer.BugDetection.Veridise.MontgomeryAddFixedTest
+import qualified Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleWrongTest
+import qualified Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleFixedTest
+import qualified Value_Inferencer.BugDetection.TrailOfBits.ToBinaryTest
 
 
 main :: IO ()
@@ -29,11 +30,12 @@ main = hspec $ do
     Value_Inferencer.ValueAnalysis.NonZeroTemplateTest.spec
     Value_Inferencer.ValueAnalysis.LessThanTest.spec
     Value_Inferencer.BugDetection.SortTest.spec
-    Value_Inferencer.BugDetection.Edwards2MontgomeryWrongTest.spec
-    Value_Inferencer.BugDetection.Edwards2MontgomeryFixedTest.spec
-    Value_Inferencer.BugDetection.Montgomery2EdwardsWrongTest.spec
-    Value_Inferencer.BugDetection.Montgomery2EdwardsFixedTest.spec
-    Value_Inferencer.BugDetection.MontgomeryAddWrongTest.spec
-    Value_Inferencer.BugDetection.MontgomeryAddFixedTest.spec
-    Value_Inferencer.BugDetection.MontgomeryDoubleWrongTest.spec
-    Value_Inferencer.BugDetection.MontgomeryDoubleFixedTest.spec
+    Value_Inferencer.BugDetection.Veridise.Edwards2MontgomeryWrongTest.spec
+    Value_Inferencer.BugDetection.Veridise.Edwards2MontgomeryFixedTest.spec
+    Value_Inferencer.BugDetection.Veridise.Montgomery2EdwardsWrongTest.spec
+    Value_Inferencer.BugDetection.Veridise.Montgomery2EdwardsFixedTest.spec
+    Value_Inferencer.BugDetection.Veridise.MontgomeryAddWrongTest.spec
+    Value_Inferencer.BugDetection.Veridise.MontgomeryAddFixedTest.spec
+    Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleWrongTest.spec
+    Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleFixedTest.spec
+    Value_Inferencer.BugDetection.TrailOfBits.ToBinaryTest.spec

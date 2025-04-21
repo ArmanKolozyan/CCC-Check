@@ -68,11 +68,12 @@ tests:
       - Value_Inferencer.ValueAnalysis.NonZeroTemplateTest
       - Value_Inferencer.ValueAnalysis.LessThanTest
       - Value_Inferencer.BugDetection.SortTest
-      - Value_Inferencer.BugDetection.Edwards2MontgomeryWrongTest
-      - Value_Inferencer.BugDetection.Edwards2MontgomeryFixedTest
-      - Value_Inferencer.BugDetection.Montgomery2EdwardsWrongTest
-      - Value_Inferencer.BugDetection.Montgomery2EdwardsFixedTest
-      - Value_Inferencer.BugDetection.MontgomeryAddWrongTest
-      - Value_Inferencer.BugDetection.MontgomeryAddFixedTest
-      - Value_Inferencer.BugDetection.MontgomeryDoubleWrongTest
-      - Value_Inferencer.BugDetection.MontgomeryDoubleFixedTest
+      - Value_Inferencer.BugDetection.Veridise.Edwards2MontgomeryWrongTest
+      - Value_Inferencer.BugDetection.Veridise.Edwards2MontgomeryFixedTest
+      - Value_Inferencer.BugDetection.Veridise.Montgomery2EdwardsWrongTest
+      - Value_Inferencer.BugDetection.Veridise.Montgomery2EdwardsFixedTest
+      - Value_Inferencer.BugDetection.Veridise.MontgomeryAddWrongTest
+      - Value_Inferencer.BugDetection.Veridise.MontgomeryAddFixedTest
+      - Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleWrongTest
+      - Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleFixedTest
+      - Value_Inferencer.BugDetection.TrailOfBits.ToBinaryTest
