@@ -9,6 +9,31 @@ import BugDetection.BugDetection
 import Data.Either (isRight)
 
 -- Test case for the flattened EnforceAuth template from https://blog.trailofbits.com/2024/01/02/tag-youre-it-signal-tagging-in-circom/
+-- NOTE: Initial analysis of this circuit without specific boolean logic rules
+-- resulted in a false positive:
+-- Left ["Boolean variable `authRequired` has values outside {0,1}: [2,21888242871839275222246405745257275088548364400416034343698204186575808495616]"]
+--
+-- This occurred because the analysis engine, using standard interval arithmetic,
+-- evaluated the expression for `authRequired`:
+--   authRequired = (spendsA + spendsB) - (spendsA * spendsB)
+--
+-- Given the constraints that `spendsA` and `spendsB` are in {0, 1}:
+-- 1. `spendsA + spendsB` was inferred to be in the interval [0, 2].
+-- 2. `spendsA * spendsB` was inferred to be in the interval [0, 1].
+-- 3. The subtraction `[0, 2] - [0, 1]` using modular interval arithmetic yields
+--    `[0 - 1, 2 - 0] mod p = [-1, 2] mod p = [p-1, 2]`.
+--
+-- This interval `[p-1, 2]` includes values outside {0, 1}, causing the violation
+-- for the `authRequired` variable declared as Binary. The analysis lost the
+-- correlation between the terms `(spendsA + spendsB)` and `(spendsA * spendsB)`,
+-- considering combinations like `(a+b)=0` and `(a*b)=1` which cannot happen
+-- simultaneously. While this result is a correct over-approximation based on
+-- interval analysis, it is imprecise for this circuit.
+--
+-- This test now passes because specific inference rules were added to the
+-- analysis engine to recognize common boolean patterns like the OR operation
+-- represented here. Those rules allow the engine to correctly deduce that
+-- `authRequired` must remain within {0, 1}.
 spec :: Spec
 spec = describe "Flattened EnforceAuth template analysis test" $ do
   it "correctly infers all signals are binary and finds no errors" $ do
