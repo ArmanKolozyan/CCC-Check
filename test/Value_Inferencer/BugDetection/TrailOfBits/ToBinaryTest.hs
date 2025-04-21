@@ -6,11 +6,25 @@ module Value_Inferencer.BugDetection.TrailOfBits.ToBinaryTest (spec) where
 import Test.Hspec
 import Syntax.AST
 import BugDetection.BugDetection
-import qualified Data.Map as Map
 import Data.Either (isLeft, fromLeft)
-import Data.List (isInfixOf, any)
+import Data.List (isInfixOf)
 
 -- Test case for the ToBinary template from https://blog.trailofbits.com/2024/01/02/tag-youre-it-signal-tagging-in-circom/
+-- The constraint `in*(1 - out) === 0` mathematically implies that either `in == 0` or `out == 1`.
+-- The constraint `out === in*inv` implies that if `in == 0`, then `out == 0`.
+-- Together, these correctly force `out` to be binary (0 or 1).
+--
+-- However, the value analysis used by `detectBugs` is non-relational. It tracks the possible values for each variable independently.
+-- 1. The analysis cannot deduce the implication "either `in` is 0 OR `1 - out` is 0" from `in*(1 - out) === 0`.
+-- 2. Consequently, the analysis fails to refine the domain of `out` from its initial default (e.g., `[0, p-1]`) to `{0, 1}`.
+-- 3. Since `out` is tagged with `sort = Bool`, `detectBugs` performs a check comparing the inferred domain (`[0, p-1]`)
+--    against the expected domain for `Bool` (`{0, 1}`).
+-- 4. Because the inferred domain is larger than `{0, 1}`, `detectBugs` reports a sort violation error for `out`.
+
+-- To correctly infer that out is binary, the analysis must support relational reasoning between variables. This would allow it to deduce that in*(1 - out) === 0 
+-- implies either in == 0 or out == 1, and that out === in*inv ensures out == 0 when in == 0. 
+-- Current non-relational analysis tracks variables independently and cannot capture these interdependencies. 
+-- A more advanced abstract domain or path-sensitive analysis is thus required.
 spec :: Spec
 spec = describe "ToBinary template analysis test" $ do
   it "does not deduce that 'out' is binary due to non-relational analysis" $ do
@@ -72,20 +86,3 @@ spec = describe "ToBinary template analysis test" $ do
     -- 3. Checking that the errors contain the expected message about 'out'
     let expectedErrorSubstring = "Boolean variable `out` has upper bound > 1"
     errors `shouldSatisfy` any (expectedErrorSubstring `isInfixOf`)
-
-    -- Explanation:
-    -- The constraint `in*(1 - out) === 0` mathematically implies that either `in == 0` or `out == 1`.
-    -- The constraint `out === in*inv` implies that if `in == 0`, then `out == 0`.
-    -- Together, these correctly force `out` to be binary (0 or 1).
-    --
-    -- However, the value analysis used by `detectBugs` is non-relational. It tracks the possible values for each variable independently.
-    -- 1. The analysis cannot deduce the implication "either `in` is 0 OR `1 - out` is 0" from `in*(1 - out) === 0`.
-    -- 2. Consequently, the analysis fails to refine the domain of `out` from its initial default (e.g., `[0, p-1]`) to `{0, 1}`.
-    -- 3. Since `out` is tagged with `sort = Bool`, `detectBugs` performs a check comparing the inferred domain (`[0, p-1]`)
-    --    against the expected domain for `Bool` (`{0, 1}`).
-    -- 4. Because the inferred domain is larger than `{0, 1}`, `detectBugs` reports a sort violation error for `out`.
-
-    -- To correctly infer that out is binary, the analysis must support relational reasoning between variables. This would allow it to deduce that in*(1 - out) === 0 
-    -- implies either in == 0 or out == 1, and that out === in*inv ensures out == 0 when in == 0. 
-    -- Current non-relational analysis tracks variables independently and cannot capture these interdependencies. 
-    -- A more advanced abstract domain or path-sensitive analysis is thus required.
