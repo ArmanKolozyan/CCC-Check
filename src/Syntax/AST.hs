@@ -27,6 +27,7 @@ data Binding = Binding
 data Tag 
   = SimpleTag String     -- e.g., "binary"
   | MaxBitsTag Integer   -- e.g., (maxbits 5)
+  | MaxValTag Integer
   -- TODO: other tags
   deriving (Show, Eq)
 

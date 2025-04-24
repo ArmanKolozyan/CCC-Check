@@ -50,8 +50,20 @@ checkVariable store binding =
   case Map.lookup (name binding) store of
     Nothing -> ["No final state for var `" ++ name binding ++ "`!"]
     Just vState ->
-      let errs = checkSort (sort binding) vState (name binding)
-      in errs
+      -- prioritizing checking the tag if it exists
+      case tag binding of
+        Just t  -> checkTag t vState (name binding)
+        -- otherwise we check the sort (i.e., the type)
+        Nothing -> checkSort (sort binding) vState (name binding)
+
+
+-- | Checks that the final VariableState is consistent with the Tag.
+--   Returns list of errors if any.
+checkTag :: Tag -> VariableState -> String -> [String]
+checkTag (SimpleTag "binary") vs varName = checkBoolean vs varName
+checkTag (MaxBitsTag n) vs varName       = checkMaxVal ((2 ^ n) - 1) vs varName
+checkTag (MaxValTag n) vs varName       = checkMaxVal n vs varName
+checkTag otherTag _ varName              = ["Warning: No check implemented for tag `" ++ show otherTag ++ "` on variable `" ++ varName ++ "`"]  
 
 -- | Checks that the final VariableState is consistent with the Sort.
 --   Returns list of errors if any.
