@@ -19,9 +19,12 @@ data Program = Program
 data Binding = Binding
   { vid :: Int,
     name :: String,
-    sort :: Sort
+    sort :: Sort,
+    tag :: Maybe Tag
   }
   deriving (Show, Eq)
+
+type Tag = String
 
 -- | The sorts we are interested in. Currently, only field elements are included,
 --   as they are the primary type supported by Circom.

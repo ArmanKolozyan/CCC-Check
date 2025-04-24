@@ -69,7 +69,7 @@ topCirC = injectCPInt Top
 initEnv :: Program -> Env
 initEnv prog = 
     let allBinds = inputs prog ++ computationVars prog ++ constraintVars prog
-        initBinding (Binding _ n _) = (n, topCirC)
+        initBinding (Binding _ n _ _) = (n, topCirC)
     in Map.fromList (Prelude.map initBinding allBinds)   
 
 ----------------------------------

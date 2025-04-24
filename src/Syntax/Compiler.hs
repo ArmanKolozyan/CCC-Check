@@ -161,11 +161,20 @@ compileMetaForm acc form = case form of
 compileInput :: MonadCompile m => [Binding] -> SExp -> m [Binding]
 compileInput acc form = case form of
     (Atom "return" _ ::: _) -> pure acc  -- ignoring "return" var
-    (Atom varName _ ::: sortExp ::: _ ::: SNil _) -> do -- TODO: make party info optional
-        sort <- compileSort sortExp
+    -- TODO: make party info optional
+    -- case with tag
+    (Atom varName _ ::: sortExp ::: tagExp ::: SNil _) -> do
         id <- genVarID
-        pure (acc ++ [Binding id varName sort]) 
-    _ -> pure acc 
+        sort <- compileSort sortExp
+        let tagStr = Just (show tagExp) -- converting tag to String for now TODO: update
+        pure (acc ++ [Binding id varName sort tagStr])
+    -- case without tag
+    (Atom varName _ ::: sortExp ::: SNil _) -> do
+        id <- genVarID
+        sort <- compileSort sortExp
+        pure (acc ++ [Binding id varName sort Nothing]) -- no tag
+    _ -> throwError $ "Invalid input declaration: " ++ show form
+      
 
 --------------------------
 -- 4) Precompute
@@ -185,7 +194,7 @@ compilePrecompute e = throwError $ "Invalid (precompute ...): " ++ show e
 compilePreForm :: MonadCompile m => ([Binding], [Expression], [Binding]) -> SExp -> m ([Binding], [Expression], [Binding])
 compilePreForm (vars, exps, rets) preForm = case preForm of
     (Atom "declare" _ ::: (varDefs ::: compForms ::: SNil _)) -> do
-        bds <- sfoldlM compileVariableDefinitions [] varDefs
+        bds <- sfoldlM compileSinglePrecomputeVar [] varDefs
         exps <- compileExp compForms -- TODO: check if folding is needed
         pure (vars ++ bds, [exps], rets)
     -- return variables
@@ -193,15 +202,44 @@ compilePreForm (vars, exps, rets) preForm = case preForm of
         newRets <- compileReturnBindings returns
         pure (vars, exps, rets ++ newRets)
 
+-- | Helper to compile a single variable declaration within precompute's declare.
+compileSinglePrecomputeVar :: MonadCompile m => [Binding] -> SExp -> m [Binding]
+compileSinglePrecomputeVar acc varDef = case varDef of
+  -- case with tag
+  (Atom varName _ ::: sortExp ::: tagExp ::: SNil _) -> do
+      id <- genVarID
+      sort <- compileSort sortExp
+      let tagStr = Just (show tagExp)
+      pure (acc ++ [Binding id varName sort tagStr])
+  -- case without tag
+  (Atom varName _ ::: sortExp ::: SNil _) -> do
+      id <- genVarID
+      sort <- compileSort sortExp
+      pure (acc ++ [Binding id varName sort Nothing])
+  _ -> throwError $ "Invalid variable declaration in precompute: " ++ show varDef
+
 -- | Compiles a list of return bindings, e.g., ((return.0 ...) (return.1 ...) ...).
 compileReturnBindings :: MonadCompile m => SExp -> m [Binding]
 compileReturnBindings (SNil _) = pure []
+-- case with tag
+compileReturnBindings ((Atom retName _ ::: sortExp ::: tagExp ::: SNil _) ::: rest) = do
+    if "return" `isPrefixOf` retName -- could be a single "return", or multiple "return.x" bindings
+    then do
+      sortVal <- compileSort sortExp
+      newID <- genVarID
+      let tagStr = Just (show tagExp)
+      let newBind = Binding newID retName sortVal tagStr
+      moreRets <- compileReturnBindings rest
+      pure (newBind : moreRets)
+    else
+      error $ "Invalid return name: " ++ retName
+-- case without tag
 compileReturnBindings ((Atom retName _ ::: sortExp ::: SNil _) ::: rest) =
   if "return" `isPrefixOf` retName -- could be a single "return", or multiple "return.x" bindings
     then do
       sortVal <- compileSort sortExp
       newID <- genVarID
-      let newBind = Binding newID retName sortVal
+      let newBind = Binding newID retName sortVal Nothing
       moreRets <- compileReturnBindings rest
       pure (newBind : moreRets)
     else
@@ -217,11 +255,18 @@ compileReturnBindings bad = throwError $ "Invalid return bindings: " ++ show bad
 
 -- | Extracts only the variable bindings from a declare block.
 compileVariableDefinitions :: MonadCompile m => [Binding] -> SExp -> m [Binding]
-compileVariableDefinitions acc (Atom varName _ ::: sortExp ::: SNil _) = do
-    sort <- compileSort sortExp
+-- case with tag
+compileVariableDefinitions acc (Atom varName _ ::: sortExp ::: tagExp ::: SNil _) = do
     id <- genVarID
-    pure (acc ++ [Binding id varName sort])
-compileVariableDefinitions acc _ = pure acc
+    sort <- compileSort sortExp
+    let tagStr = Just (show tagExp)
+    pure (acc ++ [Binding id varName sort tagStr])
+-- case without tag
+compileVariableDefinitions acc (Atom varName _ ::: sortExp ::: SNil _) = do
+    id <- genVarID
+    sort <- compileSort sortExp
+    pure (acc ++ [Binding id varName sort Nothing])
+compileVariableDefinitions acc _ = throwError "Invalid variable definition in declare block"
 
 -- | Extracts only the constraints from a declare block.
 compileConstraint :: MonadCompile m => SExp -> m Constraint
