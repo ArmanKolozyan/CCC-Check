@@ -4,8 +4,8 @@
 (metadata
   (parties  prover verifier)
   (inputs
-    (in (mod 1) (party 0))
-    (o (mod 1) (party 0)))
+    (in (mod 1))
+    (o (mod 1)))
   (commitments))
 
 (precompute

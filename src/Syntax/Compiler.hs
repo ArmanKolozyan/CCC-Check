@@ -166,8 +166,8 @@ compileInput acc form = case form of
     (Atom varName _ ::: sortExp ::: tagExp ::: SNil _) -> do
         id <- genVarID
         sort <- compileSort sortExp
-        let tagStr = Just (show tagExp) -- converting tag to String for now TODO: update
-        pure (acc ++ [Binding id varName sort tagStr])
+        tagValue <- compileTag tagExp
+        pure (acc ++ [Binding id varName sort (Just tagValue)])
     -- case without tag
     (Atom varName _ ::: sortExp ::: SNil _) -> do
         id <- genVarID
@@ -209,8 +209,8 @@ compileSinglePrecomputeVar acc varDef = case varDef of
   (Atom varName _ ::: sortExp ::: tagExp ::: SNil _) -> do
       id <- genVarID
       sort <- compileSort sortExp
-      let tagStr = Just (show tagExp)
-      pure (acc ++ [Binding id varName sort tagStr])
+      tagValue <- compileTag tagExp
+      pure (acc ++ [Binding id varName sort (Just tagValue)])
   -- case without tag
   (Atom varName _ ::: sortExp ::: SNil _) -> do
       id <- genVarID
@@ -227,8 +227,8 @@ compileReturnBindings ((Atom retName _ ::: sortExp ::: tagExp ::: SNil _) ::: re
     then do
       sortVal <- compileSort sortExp
       newID <- genVarID
-      let tagStr = Just (show tagExp)
-      let newBind = Binding newID retName sortVal tagStr
+      tagValue <- compileTag tagExp
+      let newBind = Binding newID retName sortVal (Just tagValue)
       moreRets <- compileReturnBindings rest
       pure (newBind : moreRets)
     else
@@ -259,8 +259,8 @@ compileVariableDefinitions :: MonadCompile m => [Binding] -> SExp -> m [Binding]
 compileVariableDefinitions acc (Atom varName _ ::: sortExp ::: tagExp ::: SNil _) = do
     id <- genVarID
     sort <- compileSort sortExp
-    let tagStr = Just (show tagExp)
-    pure (acc ++ [Binding id varName sort tagStr])
+    tagValue <- compileTag tagExp
+    pure (acc ++ [Binding id varName sort (Just tagValue)])
 -- case without tag
 compileVariableDefinitions acc (Atom varName _ ::: sortExp ::: SNil _) = do
     id <- genVarID
@@ -403,6 +403,8 @@ compileExp (Atom "concat" _ ::: e1 ::: e2 ::: SNil _) = do
     e2' <- compileExp e2
     pure (BvConcat e1' e2')
 
+-- TODO: analysis van Lets handelen!!
+-- TODO: bv2pf!
 compileExp (Atom "let" _ ::: bindingList ::: bodyExp ::: SNil _) = do
   binds <- compileLetBindings bindingList
   bodyC <- compileExp bodyExp
@@ -475,10 +477,20 @@ compileSparseArray bad =
     throwError $ "Invalid sparse array entry: " ++ show bad
 
 --------------------------
--- 7) Sort
+-- 7) Sort & Tags
 
--- Currently only fieldMods (mod ...) are supported.
 --------------------------   
+
+
+-- | Compiles a tag S-expression into the structured Tag type.
+-- TODO: let op, (party 0) wordt nu als tag gezien! dus party info best gwn zelf weghalen
+--          of andere fix zoeken
+compileTag :: MonadCompile m => SExp -> m Tag
+-- tag without value (i.e., a simple string)
+compileTag (Atom tagName _) = pure (SimpleTag tagName)
+-- tag with a value
+compileTag (Atom "maxbits" _ ::: Num val _ ::: SNil _) = pure (MaxBitsTag val)
+compileTag sexp = throwError $ "Unsupported tag format: " ++ show sexp
 
 -- | Compiles a single sort.
 compileSort :: MonadCompile m => SExp -> m Sort

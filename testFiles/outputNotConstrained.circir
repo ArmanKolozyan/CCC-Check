@@ -6,7 +6,7 @@
       (metadata 
         (parties prover verifier) 
         (inputs 
-          (in (mod 1) (party 0)) (o (mod 1) (party 0))) (commitments)) 
+          (in (mod 1)) (o (mod 1))) (commitments)) 
       (precompute ((return (mod 1))) (declare ( ) (+ x y))) 
       (declare ( ) 
         (and (= in 0) (= (* o in) 0))))))

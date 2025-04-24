@@ -1,5 +1,5 @@
 
-module Syntax.AST (Program (..), Binding (..), Sort (..), Expression (..), Constraint (..)) where
+module Syntax.AST (Program (..), Binding (..), Sort (..), Expression (..), Constraint (..), Tag (..)) where
 
 -- | An AST representation of a CirC-IR program. It only contains the
 --   components relevant for bug detection. Information about parties,
@@ -24,7 +24,11 @@ data Binding = Binding
   }
   deriving (Show, Eq)
 
-type Tag = String
+data Tag 
+  = SimpleTag String     -- e.g., "binary"
+  | MaxBitsTag Integer   -- e.g., (maxbits 5)
+  -- TODO: other tags
+  deriving (Show, Eq)
 
 -- | The sorts we are interested in. Currently, only field elements are included,
 --   as they are the primary type supported by Circom.
