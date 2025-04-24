@@ -502,11 +502,10 @@ analyzeConstraint (EqC _ (Var outName) (Sub (Add (Var aName1) (Var bName1)) (Mul
 
 -- | Boolean NOT Rule: out = 1 - in (equivalent to 1 + in - 2*in for binary in)
 --   If in is binary, then out must be binary.
-analyzeConstraint (EqC _ (Var outName) (Sub (Int 1) (Var inName))) nameToID varStates =
-  if isBinaryVar nameToID varStates inName then
-    constrainVarToBinary outName nameToID varStates
-  else
-    Right (False, varStates)
+analyzeConstraint (EqC _ (Var outName) (Sub (Int 1) (Var inName))) nameToID varStates
+  -- necessary check: if the guard fails, this clause does not match, and pattern matching continues.
+  | isBinaryVar nameToID varStates inName
+  = constrainVarToBinary outName nameToID varStates
 
 -- | Boolean NOR Rule: out = a*b + 1 - a - b (equivalent to 1 - OR(a,b))
 --   If a and b are binary, then out must be binary.
