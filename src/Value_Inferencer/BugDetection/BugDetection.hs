@@ -61,6 +61,7 @@ checkVariable store binding =
 --   Returns list of errors if any.
 checkTag :: Tag -> VariableState -> String -> [String]
 checkTag (SimpleTag "binary") vs varName = checkBoolean vs varName
+checkTag (SimpleTag "nonzero") vs varName = checkNonZero vs varName
 checkTag (MaxBitsTag n) vs varName       = checkMaxVal ((2 ^ n) - 1) vs varName
 checkTag (MaxValTag n) vs varName       = checkMaxVal n vs varName
 checkTag otherTag _ varName              = ["Warning: No check implemented for tag `" ++ show otherTag ++ "` on variable `" ++ varName ++ "`"]  
@@ -71,6 +72,14 @@ checkSort :: Sort -> VariableState -> String -> [String]
 checkSort Bool vs varName         = checkBoolean vs varName
 checkSort (BitVector n) vs varName= checkMaxVal ((2 ^ n) - 1) vs varName
 checkSort (FieldMod p) vs varName = checkMaxVal (p - 1) vs varName
+
+-- | Checks that a variable tagged "nonzero" cannot be zero.
+checkNonZero :: VariableState -> String -> [String]
+checkNonZero st varName =
+  let d = domain st
+  in if couldBeZero d
+     then ["Variable `" ++ varName ++ "` tagged 'nonzero' might be zero."]
+     else []
 
 -- Checking Booleans
 
