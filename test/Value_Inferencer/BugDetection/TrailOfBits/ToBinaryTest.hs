@@ -33,9 +33,9 @@ spec = describe "ToBinary template analysis test" $ do
     let p = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
     -- variables
-    let var_in  = Binding { name = "in",  vid = 0, sort = FieldMod p }
-    let var_out = Binding { name = "out", vid = 1, sort = Bool }
-    let var_inv = Binding { name = "inv", vid = 2, sort = FieldMod p }
+    let var_in  = Binding { name = "in",  vid = 0, sort = FieldMod p, tag = Nothing }
+    let var_out = Binding { name = "out", vid = 1, sort = Bool, tag = Just $ SimpleTag "binary" }
+    let var_inv = Binding { name = "inv", vid = 2, sort = FieldMod p, tag = Nothing }
 
     -- computations
 

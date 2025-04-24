@@ -18,10 +18,10 @@ spec = describe "Montgomery2Edwards template test (Wrong)" $ do
     let p = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
     -- variables
-    let in0  = Binding { name = "in0",  vid = 0, sort = FieldMod p }
-    let in1  = Binding { name = "in1",  vid = 1, sort = FieldMod p }
-    let out0 = Binding { name = "out0", vid = 2, sort = FieldMod p }
-    let out1 = Binding { name = "out1", vid = 3, sort = FieldMod p }
+    let in0  = Binding { name = "in0",  vid = 0, sort = FieldMod p, tag = Nothing }
+    let in1  = Binding { name = "in1",  vid = 1, sort = FieldMod p, tag = Nothing }
+    let out0 = Binding { name = "out0", vid = 2, sort = FieldMod p, tag = Nothing }
+    let out1 = Binding { name = "out1", vid = 3, sort = FieldMod p, tag = Nothing }
 
     -- computations
 

@@ -26,12 +26,12 @@ spec = describe "MontgomeryDouble template test (Wrong)" $ do
     let constB = 1      -- 4 `div` (a - d_)
 
     -- variables
-    let in_0  = Binding { name = "in_0",  vid = 0, sort = FieldMod p }
-    let in_1  = Binding { name = "in_1",  vid = 1, sort = FieldMod p }
-    let out_0 = Binding { name = "out_0", vid = 2, sort = FieldMod p }
-    let out_1 = Binding { name = "out_1", vid = 3, sort = FieldMod p }
-    let lamda = Binding { name = "lamda", vid = 4, sort = FieldMod p }
-    let x1_2  = Binding { name = "x1_2",  vid = 5, sort = FieldMod p }
+    let in_0  = Binding { name = "in_0",  vid = 0, sort = FieldMod p, tag = Nothing }
+    let in_1  = Binding { name = "in_1",  vid = 1, sort = FieldMod p, tag = Nothing }
+    let out_0 = Binding { name = "out_0", vid = 2, sort = FieldMod p, tag = Nothing }
+    let out_1 = Binding { name = "out_1", vid = 3, sort = FieldMod p, tag = Nothing }
+    let lamda = Binding { name = "lamda", vid = 4, sort = FieldMod p, tag = Nothing }
+    let x1_2  = Binding { name = "x1_2",  vid = 5, sort = FieldMod p, tag = Nothing }
 
     -- computations
 

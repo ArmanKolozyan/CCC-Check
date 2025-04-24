@@ -12,8 +12,8 @@ spec = describe "NonZero Rule Tests" $ do
     -- we use a prime field of size 17 for demonstration
 
     -- variables a and b
-    let a = Binding { name = "a", vid = 10, sort = FieldMod 17 }
-    let b = Binding { name = "b", vid = 11, sort = FieldMod 17 }
+    let a = Binding { name = "a", vid = 10, sort = FieldMod p, tag = Just $ MaxValTag 16 }
+    let b = Binding { name = "b", vid = 11, sort = FieldMod p, tag = Just $ MaxValTag 16 }
 
     -- 'a * b = 2' and 2 /= 0 (in mod 17)
     let constraintID = 100

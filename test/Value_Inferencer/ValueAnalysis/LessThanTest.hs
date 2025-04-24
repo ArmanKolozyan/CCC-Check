@@ -15,25 +15,28 @@ spec :: Spec
 spec = describe "Value Inferencer Detects" $ do
   it "correct values when using LessThan" $ do
 
+    -- using BN254 as prime field for demonstration
+    let p = 21888242871839275222246405745257275088548364400416034343698204186575808495617
+
     -- 1) the bindings
 
     -- inputs a and b (up to 2 bits => FieldMod 3)
-    let a = Binding {name = "a", vid = 0, sort = FieldMod 3}
-    let b = Binding {name = "b", vid = 1, sort = FieldMod 3}
+    let a = Binding {name = "a", vid = 0, sort = FieldMod p, tag = Just $ MaxValTag 2}
+    let b = Binding {name = "b", vid = 1, sort = FieldMod p, tag = Just $ MaxValTag 2}
     -- bits for a
-    let a_b0 = Binding {name = "a_b0", vid = 2, sort = Bool}
-    let a_b1 = Binding {name = "a_b1", vid = 3, sort = Bool}
+    let a_b0 = Binding {name = "a_b0", vid = 2, sort = Bool, tag = Just $ SimpleTag "binary"}
+    let a_b1 = Binding {name = "a_b1", vid = 3, sort = Bool, tag = Just $ SimpleTag "binary"}
     -- bits for b
-    let b_b0 = Binding {name = "b_b0", vid = 4, sort = Bool}
-    let b_b1 = Binding {name = "b_b1", vid = 5, sort = Bool}
+    let b_b0 = Binding {name = "b_b0", vid = 4, sort = Bool, tag = Just $ SimpleTag "binary"}
+    let b_b1 = Binding {name = "b_b1", vid = 5, sort = Bool, tag = Just $ SimpleTag "binary"}
     -- diff variable inside the LessThan template (up to 3 bits => FieldMod 7)
-    let diff = Binding {name = "diff", vid = 6, sort = FieldMod 7}
+    let diff = Binding {name = "diff", vid = 6, sort = FieldMod p, tag = Just $ MaxValTag 6}
     -- bits from diff (Num2Bits(3)):
-    let diff_b0 = Binding {name = "diff_b0", vid = 7, sort = Bool}
-    let diff_b1 = Binding {name = "diff_b1", vid = 8, sort = Bool}
-    let diff_b2 = Binding {name = "diff_b2", vid = 9, sort = Bool}
+    let diff_b0 = Binding {name = "diff_b0", vid = 7, sort = Bool, tag = Just $ SimpleTag "binary"}
+    let diff_b1 = Binding {name = "diff_b1", vid = 8, sort = Bool, tag = Just $ SimpleTag "binary"}
+    let diff_b2 = Binding {name = "diff_b2", vid = 9, sort = Bool, tag = Just $ SimpleTag "binary"}
     -- the final output:
-    let out = Binding {name = "out", vid = 10, sort = Bool}
+    let out = Binding {name = "out", vid = 10, sort = Bool, tag = Just $ SimpleTag "binary"}
 
     -- 2) the constraints
 

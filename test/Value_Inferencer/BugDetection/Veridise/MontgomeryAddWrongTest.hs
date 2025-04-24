@@ -26,13 +26,13 @@ spec = describe "MontgomeryAdd template test (Wrong)" $ do
     let constB = 1      -- 4 `div` (a - d) 
 
     -- variables
-    let in1_0 = Binding { name = "in1_0", vid = 0, sort = FieldMod p }
-    let in1_1 = Binding { name = "in1_1", vid = 1, sort = FieldMod p }
-    let in2_0 = Binding { name = "in2_0", vid = 2, sort = FieldMod p }
-    let in2_1 = Binding { name = "in2_1", vid = 3, sort = FieldMod p }
-    let out_0 = Binding { name = "out_0", vid = 4, sort = FieldMod p }
-    let out_1 = Binding { name = "out_1", vid = 5, sort = FieldMod p }
-    let lamda = Binding { name = "lamda", vid = 6, sort = FieldMod p }
+    let in1_0 = Binding { name = "in1_0", vid = 0, sort = FieldMod p, tag = Nothing }
+    let in1_1 = Binding { name = "in1_1", vid = 1, sort = FieldMod p, tag = Nothing }
+    let in2_0 = Binding { name = "in2_0", vid = 2, sort = FieldMod p, tag = Nothing }
+    let in2_1 = Binding { name = "in2_1", vid = 3, sort = FieldMod p, tag = Nothing }
+    let out_0 = Binding { name = "out_0", vid = 4, sort = FieldMod p, tag = Nothing }
+    let out_1 = Binding { name = "out_1", vid = 5, sort = FieldMod p, tag = Nothing }
+    let lamda = Binding { name = "lamda", vid = 6, sort = FieldMod p, tag = Nothing }
 
     -- computations
 

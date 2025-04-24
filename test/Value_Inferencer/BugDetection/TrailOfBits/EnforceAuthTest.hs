@@ -42,12 +42,12 @@ spec = describe "Flattened EnforceAuth template analysis test" $ do
     let p = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
     -- variables (all declared Bool based on binary tags)
-    let var_valueA       = Binding { name = "valueA",       vid = 0, sort = Bool }
-    let var_valueB       = Binding { name = "valueB",       vid = 1, sort = Bool }
-    let var_authSucceeded = Binding { name = "authSucceeded", vid = 2, sort = FieldMod p }
-    let var_spendsA      = Binding { name = "spendsA",      vid = 3, sort = Bool }
-    let var_spendsB      = Binding { name = "spendsB",      vid = 4, sort = Bool }
-    let var_authRequired = Binding { name = "authRequired", vid = 5, sort = Bool }
+    let var_valueA       = Binding { name = "valueA",       vid = 0, sort = Bool, tag = Just $ SimpleTag "binary" }
+    let var_valueB       = Binding { name = "valueB",       vid = 1, sort = Bool, tag = Just $ SimpleTag "binary" }
+    let var_authSucceeded = Binding { name = "authSucceeded", vid = 2, sort = FieldMod p, tag = Nothing }
+    let var_spendsA      = Binding { name = "spendsA",      vid = 3, sort = Bool, tag = Just $ SimpleTag "binary" }
+    let var_spendsB      = Binding { name = "spendsB",      vid = 4, sort = Bool, tag = Just $ SimpleTag "binary" }
+    let var_authRequired = Binding { name = "authRequired", vid = 5, sort = Bool, tag = Just $ SimpleTag "binary" }
 
     -- computations (representing <== assignments)
 

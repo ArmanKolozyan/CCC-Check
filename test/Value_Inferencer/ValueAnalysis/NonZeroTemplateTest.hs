@@ -15,9 +15,9 @@ spec = describe "IsZero template test with out=0" $ do
     -- we use a prime field of size 13 for demonstration
 
     -- variables in, out, and inv
-    let inVar  = Binding { name = "in",  vid = 0, sort = FieldMod 13 }
-    let outVar = Binding { name = "out", vid = 1, sort = FieldMod 13 }
-    let invVar = Binding { name = "inv", vid = 2, sort = FieldMod 13 }
+    let inVar  = Binding { name = "in",  vid = 0, sort = FieldMod p, tag = Just $ MaxValTag 12 }
+    let outVar = Binding { name = "out", vid = 1, sort = FieldMod p, tag = Just $ MaxValTag 12 }
+    let invVar = Binding { name = "inv", vid = 2, sort = FieldMod p, tag = Just $ MaxValTag 12 }
 
     -- all constraints from the IsZero template of Circomlib plus "out=0"
 

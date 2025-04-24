@@ -17,20 +17,20 @@ spec = describe "Fixed Montgomery2Edwards template test" $ do
     let p = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
     -- original variables
-    let in0  = Binding { name = "in0",  vid = 0, sort = FieldMod p }
-    let in1  = Binding { name = "in1",  vid = 1, sort = FieldMod p }
-    let out0 = Binding { name = "out0", vid = 2, sort = FieldMod p }
-    let out1 = Binding { name = "out1", vid = 3, sort = FieldMod p }
+    let in0  = Binding { name = "in0",  vid = 0, sort = FieldMod p, tag = Nothing }
+    let in1  = Binding { name = "in1",  vid = 1, sort = FieldMod p, tag = Nothing }
+    let out0 = Binding { name = "out0", vid = 2, sort = FieldMod p, tag = Nothing }
+    let out1 = Binding { name = "out1", vid = 3, sort = FieldMod p, tag = Nothing }
 
     -- variables for IsZero instance checkZero0 (for denominator in1)
-    let cz0_in  = Binding { name = "cz0_in",  vid = 10, sort = FieldMod p }
-    let cz0_out = Binding { name = "cz0_out", vid = 11, sort = FieldMod p }
-    let cz0_inv = Binding { name = "cz0_inv", vid = 12, sort = FieldMod p }
+    let cz0_in  = Binding { name = "cz0_in",  vid = 10, sort = FieldMod p, tag = Nothing }
+    let cz0_out = Binding { name = "cz0_out", vid = 11, sort = FieldMod p, tag = Nothing }
+    let cz0_inv = Binding { name = "cz0_inv", vid = 12, sort = FieldMod p, tag = Nothing }
 
     -- variables for IsZero instance checkZero1 (for denominator in0 + 1)
-    let cz1_in  = Binding { name = "cz1_in",  vid = 20, sort = FieldMod p }
-    let cz1_out = Binding { name = "cz1_out", vid = 21, sort = FieldMod p }
-    let cz1_inv = Binding { name = "cz1_inv", vid = 22, sort = FieldMod p }
+    let cz1_in  = Binding { name = "cz1_in",  vid = 20, sort = FieldMod p, tag = Nothing }
+    let cz1_out = Binding { name = "cz1_out", vid = 21, sort = FieldMod p, tag = Nothing }
+    let cz1_inv = Binding { name = "cz1_inv", vid = 22, sort = FieldMod p, tag = Nothing }
 
     -- computations
 

@@ -25,17 +25,17 @@ spec = describe "Fixed MontgomeryDouble template test" $ do
     let constB = 1
 
     -- original variables
-    let in_0  = Binding { name = "in_0",  vid = 0, sort = FieldMod p }
-    let in_1  = Binding { name = "in_1",  vid = 1, sort = FieldMod p }
-    let out_0 = Binding { name = "out_0", vid = 2, sort = FieldMod p }
-    let out_1 = Binding { name = "out_1", vid = 3, sort = FieldMod p }
-    let lamda = Binding { name = "lamda", vid = 4, sort = FieldMod p }
-    let x1_2  = Binding { name = "x1_2",  vid = 5, sort = FieldMod p }
+    let in_0  = Binding { name = "in_0",  vid = 0, sort = FieldMod p, tag = Nothing }
+    let in_1  = Binding { name = "in_1",  vid = 1, sort = FieldMod p, tag = Nothing }
+    let out_0 = Binding { name = "out_0", vid = 2, sort = FieldMod p, tag = Nothing }
+    let out_1 = Binding { name = "out_1", vid = 3, sort = FieldMod p, tag = Nothing }
+    let lamda = Binding { name = "lamda", vid = 4, sort = FieldMod p, tag = Nothing }
+    let x1_2  = Binding { name = "x1_2",  vid = 5, sort = FieldMod p, tag = Nothing }
 
     -- variables for IsZero instance checkZero (for denominator 2*B*in[1])
-    let cz_in  = Binding { name = "cz_in",  vid = 10, sort = FieldMod p }
-    let cz_out = Binding { name = "cz_out", vid = 11, sort = FieldMod p }
-    let cz_inv = Binding { name = "cz_inv", vid = 12, sort = FieldMod p }
+    let cz_in  = Binding { name = "cz_in",  vid = 10, sort = FieldMod p, tag = Nothing }
+    let cz_out = Binding { name = "cz_out", vid = 11, sort = FieldMod p, tag = Nothing }
+    let cz_inv = Binding { name = "cz_inv", vid = 12, sort = FieldMod p, tag = Nothing }
 
     -- computations
     

@@ -15,10 +15,13 @@ spec = describe "Bug Detection Tests" $ do
     --   - var nz: appears as denominator, forced to {1,2}
     --   - var f: declared FieldMod 4, forced to [0..3]
 
+    -- using BN254 as prime field for demonstration
+    let p = 21888242871839275222246405745257275088548364400416034343698204186575808495617
+
     -- bindings:
-    let b = Binding {name = "b", vid = 0, sort = Bool}
-    let nz = Binding {name = "nz", vid = 1, sort = FieldMod 5}
-    let f = Binding {name = "f", vid = 2, sort = FieldMod 4}
+    let b = Binding {name = "b", vid = 0, sort = FieldMod p, tag = Just $ SimpleTag "binary"}
+    let nz = Binding {name = "nz", vid = 1, sort = FieldMod p, tag = Just $ MaxValTag 4}
+    let f = Binding {name = "f", vid = 2, sort = FieldMod p, tag = Just $ MaxValTag 3}
 
     -- nz as denominator
     let cNZ_denom =
@@ -45,8 +48,8 @@ spec = describe "Bug Detection Tests" $ do
     -- for f: (b0 + 2*b1) = f
 
     -- intermediate variables b0 and b1
-    let b0 = Binding { name = "b0", vid = 3, sort = Bool }
-    let b1 = Binding { name = "b1", vid = 4, sort = Bool }
+    let b0 = Binding { name = "b0", vid = 3, sort = Bool, tag = Just $ SimpleTag "binary" }
+    let b1 = Binding { name = "b1", vid = 4, sort = Bool, tag = Just $ SimpleTag "binary" }
 
     -- constraints:
 
@@ -85,9 +88,13 @@ spec = describe "Bug Detection Tests" $ do
     -- For nz: we skip the polynomial => so it can be 0 => fails NonZero check.
     -- For f: we make it equal to a number > 3.
 
-    let b = Binding {name = "b", vid = 0, sort = Bool}
-    let nz = Binding {name = "nz", vid = 1, sort = FieldMod 5}
-    let f = Binding {name = "f", vid = 2, sort = FieldMod 5}
+    -- using BN254 as prime field for demonstration
+    let p = 21888242871839275222246405745257275088548364400416034343698204186575808495617
+
+    -- bindings:
+    let b = Binding {name = "b", vid = 0, sort = Bool, tag = Just $ SimpleTag "binary"}
+    let nz = Binding {name = "nz", vid = 1, sort = FieldMod p, tag = Just $ MaxValTag 4}
+    let f = Binding {name = "f", vid = 2, sort = FieldMod p, tag = Just $ MaxValTag 4}
 
     let b_eq = EqC 105 (Var "b") (Int 2)
     let nz_eq = EqC 106 (Var "nz") (Int 0)
