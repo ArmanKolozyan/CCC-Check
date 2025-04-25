@@ -4,6 +4,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe (fromMaybe)
 import Data.Map
+import qualified Data.Map.Merge.Strict as Map
 
 -- TODO: we maken vaak onderscheid tussen normal interval en wrapped,
 -- maar eigenlijk kan wrapped nooit voorkomen want wordt omgezet naar
@@ -68,6 +69,16 @@ getPossibleIndices idxDom size =
 
          -- array as index? Invalid. Returning empty set.
          ArrayDomain {} -> Set.empty  
+
+-- Helper function for merging element maps during intersection
+mergeElemMaps :: Map Integer ValueDomain -> ValueDomain -> Map Integer ValueDomain -> ValueDomain -> Either String (Map Integer ValueDomain)
+mergeElemMaps elems1 def1 elems2 def2 =
+  Map.mergeA
+    (Map.traverseMissing (\_k d1_i -> intersectDomains d1_i def2)) -- key only in elems1: intersecting d1_i with def2
+    (Map.traverseMissing (\_k d2_i -> intersectDomains def1 d2_i)) -- key only in elems2: intersect def1 with d2_i
+    (Map.zipWithAMatched (\_k d1_i d2_i -> intersectDomains d1_i d2_i)) -- key in both: intersecting d1_i with d2_i
+    elems1
+    elems2
 
 -- Default modulus for the field (BN254).
 -- TODO: compile this from the program code
@@ -176,6 +187,23 @@ intersectDomains d1 d2 = case (d1, d2) of
                             ". Initial bounds: [" ++ show combinedLb ++ ", " ++ show combinedUb ++ "], Final Exclusions: " ++ show correctGaps
                  else
                      Right $ BoundedValues (Just finalLb) (Just finalUb) correctGaps
+    
+    -- Case 4: ArrayDomain intersection
+    (ArrayDomain elems1 def1 size1, ArrayDomain elems2 def2 size2) ->
+      if size1 /= size2
+      then Left "Array size mismatch during intersection" -- sizes must match
+      else do
+        -- intersecting default domains
+        intersectedDef <- intersectDomains def1 def2
+
+        -- intersecting element domains using Map.merge
+        intersectedElems <- mergeElemMaps elems1 def1 elems2 def2
+
+        Right (ArrayDomain intersectedElems intersectedDef size1)
+
+    -- intersecting Array with Scalar: contradiction
+    (ArrayDomain {}, _) -> Left "Cannot intersect ArrayDomain with non-ArrayDomain"
+    (_, ArrayDomain {}) -> Left "Cannot intersect non-ArrayDomain with ArrayDomain"
 
 -- Helper to combine Maybe bounds using a function (max for lower bounds, min for upper bounds)
 combineBounds :: (Integer -> Integer -> Integer) -> Maybe Integer -> Maybe Integer -> Maybe Integer
