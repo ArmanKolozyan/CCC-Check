@@ -433,6 +433,49 @@ inferValues (ArraySelect arrExp idxExp) nameToID varStates =
        -- selecting from something not an array => invalid
        _ -> defaultValueDomain
 
+-- Array Store: store(arr, idx, val)
+inferValues (ArrayStore arrExp idxExp valExp) nameToID varStates =
+  let arrDom = inferValues arrExp nameToID varStates
+      idxDom = inferValues idxExp nameToID varStates
+      valDom = inferValues valExp nameToID varStates
+  in case arrDom of
+       ArrayDomain elemMap defDom size ->
+         case idxDom of
+
+           -- index is a single known value
+           KnownValues idxSet | Set.size idxSet == 1 ->
+             let idx = Set.findMin idxSet
+             in if idx >= 0 && idx < size then
+                  -- creating new array domain with updated element map
+                  let newElemMap = Map.insert idx valDom elemMap
+                  in ArrayDomain newElemMap defDom size
+                else
+                  -- index out of bounds, store has no effect?
+                  -- TODO: error?
+                  arrDom
+
+           -- index is known set of multiple values or a range/unknown
+           _ ->
+             -- Storing at an unknown index. Over-approximation:
+             -- 1. joining the stored value's domain with the default domain
+             let newDefDom = joinDomains defDom valDom
+             -- 2. joining the stored value's domain with every explicitly tracked element domain
+                 newElemMap = Map.map (joinDomains valDom) elemMap
+             in ArrayDomain newElemMap newDefDom size
+
+       -- storing into something not an array => invalid
+       _ -> defaultValueDomain
+
+-- ArrayFill: fill(value, sort, size)
+inferValues (ArrayFill valExpr _sort size) nameToID varStates =
+  -- inferring domain for the fill value
+  let fillDom = inferValues valExpr nameToID varStates
+      -- all elements initially have this domain; it becomes the default!
+      -- the specific element map starts empty
+  in ArrayDomain Map.empty fillDom size
+
+inferValues _ _ _ = defaultValueDomain -- TODO: Handle other cases properly
+
 -- Helper function to map an exclusion interval through subtraction by a set of constants
 -- Input: (l1, u1) from gaps1, Set s2, modulus p
 -- Output: Set of resulting exclusion intervals {(l1-v2, u1-v2) | v2 in s2}
@@ -1342,7 +1385,7 @@ applyUserAction (ConstrainSet placeholderName enumer) plHoNameToID varStates =
   case Map.lookup placeholderName plHoNameToID of
     Nothing -> (False, varStates)
     Just realID ->
-      let oldState = Map.findWithDefault initVarState realID varStates
+      let oldState = Map.findWithDefault initVarStateDefault realID varStates
           newState = updateValues oldState (KnownValues enumer)
       in case newState of
                    Left msg         -> (False, varStates)
@@ -1352,7 +1395,7 @@ applyUserAction (ConstrainRange placeholderName lo up) plHoNameToID varStates =
   case Map.lookup placeholderName plHoNameToID of
     Nothing -> (False, varStates)
     Just realID ->
-      let oldState = Map.findWithDefault initVarState realID varStates
+      let oldState = Map.findWithDefault initVarStateDefault realID varStates
           newState = updateValues oldState (BoundedValues (Just lo) (Just up) Set.empty)
         in case newState of
                 Left msg         -> (False, varStates)
