@@ -3,6 +3,7 @@ module ValueAnalysis.ValueDomain where
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe (fromMaybe)
+import Data.Map
 
 -- TODO: we maken vaak onderscheid tussen normal interval en wrapped,
 -- maar eigenlijk kan wrapped nooit voorkomen want wordt omgezet naar
@@ -45,6 +46,28 @@ data ValueDomain
       arraySize :: Integer                     -- size of the array
     }  
   deriving (Eq, Show)
+
+-- | Determines the set of possible concrete integer indices within array bounds.
+getPossibleIndices :: ValueDomain -> Integer -> Set Integer
+getPossibleIndices idxDom size =
+  let validRange = Set.fromList [0 .. size - 1] -- set of valid indices [0, size-1]
+  in Set.intersection validRange $ -- intersecting possible indices with valid range
+       case idxDom of
+         KnownValues s -> s -- if indices are known, we use them directly
+         BoundedValues lbM ubM gaps ->
+           let -- determining the initial range based on bounds, clamped by 0 and size-1
+               minIdx = max 0 (fromMaybe 0 lbM)
+               maxIdx = min (size - 1) (fromMaybe (size - 1) ubM)
+               initialIndices = Set.fromList [minIdx .. maxIdx]
+
+               -- function to check if an index falls within any gap
+               isInGap idx = any (\(gapL, gapU) -> idx >= gapL && idx <= gapU) gaps
+
+               -- filtering out indices that are within gaps
+           in Set.filter (not . isInGap) initialIndices
+
+         -- array as index? Invalid. Returning empty set.
+         ArrayDomain {} -> Set.empty  
 
 -- Default modulus for the field (BN254).
 -- TODO: compile this from the program code

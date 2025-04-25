@@ -409,9 +409,29 @@ inferValues (ArrayConstruct exprs _sort) nameToID varStates =
       -- all elements are specified
   in ArrayDomain elemMap defaultValueDomain size
 
--- TODO: Implement joinDomains
-joinDomains :: ValueDomain -> ValueDomain -> ValueDomain
-joinDomains d1 d2 = defaultValueDomain -- placeholder
+-- Array Select: select(arr, idx)
+inferValues (ArraySelect arrExp idxExp) nameToID varStates =
+  let arrDom = inferValues arrExp nameToID varStates
+      idxDom = inferValues idxExp nameToID varStates
+  in case arrDom of
+       ArrayDomain elemMap defDom size ->
+          -- the set of possible valid indices
+         let possibleIndices = getPossibleIndices idxDom size
+         in if Set.null possibleIndices
+            then
+              -- If no valid index is possible (e.g., out of bounds, excluded by gaps),
+              -- the result is uncertain. 
+              -- Returning default domain.
+              defaultValueDomain
+            else
+              -- getting the domain for each possible index
+              let domainsToJoin = map (\idx -> Map.findWithDefault defDom idx elemMap) (Set.toList possibleIndices)
+              -- Joining the domains of all possible elements.
+              -- Foldr1 requires a non-empty list, which Set.null check guarantees.
+              in foldr1 joinDomains domainsToJoin
+
+       -- selecting from something not an array => invalid
+       _ -> defaultValueDomain
 
 -- Helper function to map an exclusion interval through subtraction by a set of constants
 -- Input: (l1, u1) from gaps1, Set s2, modulus p
