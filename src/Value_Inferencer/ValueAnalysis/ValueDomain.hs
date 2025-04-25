@@ -55,12 +55,6 @@ p = 2188824287183927522224640574525727508854836440041603434369820418657580849561
 defaultValueDomain :: ValueDomain
 defaultValueDomain = BoundedValues (Just 0) (Just (p - 1)) Set.empty
 
--- | Default value domain for a single, unknown element (used within arrays).
--- We might refine this later if needed, but for now,
--- it is the same as default scalar domain.
-defaultElementDomain :: ValueDomain
-defaultElementDomain = defaultValueDomain
-
 -- | Checks if a value domain guarantees the value is non-zero.
 -- For this to be the case, zero must be explicitly excluded via gaps 
 -- OR the bounds must strictly exclude zero.

@@ -1,7 +1,7 @@
 module ValueAnalysis.VariableState where
 
 
-import ValueAnalysis.ValueDomain (ValueDomain(..), defaultValueDomain, defaultElementDomain)
+import ValueAnalysis.ValueDomain (ValueDomain(..), defaultValueDomain)
 import Syntax.AST
 import Data.Map
 import qualified Data.Map as Map
@@ -13,13 +13,17 @@ newtype VariableState = VariableState {domain :: ValueDomain} deriving (Eq, Show
 initVarState :: Binding -> VariableState
 initVarState binding =
   let initialDomain = case sort binding of
-        ArraySort _ size -> ArrayDomain Map.empty defaultElementDomain size -- array
+        ArraySort _ size -> ArrayDomain Map.empty defaultValueDomain size -- array
         _                -> defaultValueDomain -- other types
   in VariableState { domain = initialDomain }
 
+-- | Initializes the state for a single variable to default.
+initVarStateDefault :: VariableState
+initVarStateDefault = VariableState { domain = defaultValueDomain }
+
 -- | Builds a map from variable IDs to their initial state.
 initializeVarStates :: [Binding] -> Map Int VariableState
-initializeVarStates vars = Map.fromList [(vid v, initVarState) | v <- vars]
+initializeVarStates vars = Map.fromList [(vid v, initVarState v) | v <- vars]
 
 -- | Builds a map from variable names to their IDs for lookup.
 -- TODO: just replace all vars in constraints by their ID during compilation!
