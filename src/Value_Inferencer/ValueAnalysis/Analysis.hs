@@ -382,7 +382,32 @@ inferValues (Ite cond eThen eElse) nameToID varStates =
       -- TODO: Could potentially use cond to refine which branch is taken
   in joinDomains dThen dElse 
 
-inferValues _ _ _ = defaultValueDomain -- TODO: Handle other cases properly
+-- Array Literal: e.g., #l(e1, e2, ...)
+inferValues (ArrayLiteral elems sort) nameToID varStates =
+  let elemDoms = map (\e -> inferValues e nameToID varStates) elems
+      size = fromIntegral $ length elems
+      -- creating map from index to domain
+      elemMap = Map.fromList $ zip [0..] elemDoms
+      -- all elements are specified
+  in ArrayDomain elemMap defaultValueDomain size
+
+-- ArraySparseLiteral: #a[(idx1, val1), (idx2, val2)...] default size sort
+inferValues (ArraySparseLiteral indexedExprs defaultExpr size _sort) nameToID varStates =
+  -- inferring domain for the default value
+  let defDom = inferValues defaultExpr nameToID varStates
+      -- inferring domains for explicitly indexed values
+      elemMap = Map.fromList $ map (\(idx, expr) -> (idx, inferValues expr nameToID varStates)) indexedExprs
+  in ArrayDomain elemMap defDom size
+
+-- ArrayConstruct: (array val1 val2 ...) sort
+inferValues (ArrayConstruct exprs _sort) nameToID varStates =
+  -- inferring domains for each element
+  let elemDoms = map (\e -> inferValues e nameToID varStates) exprs
+      size = fromIntegral $ length exprs
+      -- creating map from index to domain
+      elemMap = Map.fromList $ zip [0..] elemDoms
+      -- all elements are specified
+  in ArrayDomain elemMap defaultValueDomain size
 
 -- TODO: Implement joinDomains
 joinDomains :: ValueDomain -> ValueDomain -> ValueDomain
