@@ -119,6 +119,47 @@ updateValues oldState newDomainInfo =
        -- 3b. if intersection succeeds, we create a new VariableState with the updated domain
        Right updatedDomain -> Right (oldState { domain = updatedDomain })
 
+-- | Computes the union (least upper bound) of two value domains.
+joinDomains :: ValueDomain -> ValueDomain -> ValueDomain
+joinDomains d1 d2 = case (d1, d2) of
+  -- KnownValues: taking the union of sets
+  (KnownValues s1, KnownValues s2) -> KnownValues (Set.union s1 s2)
+
+  -- BoundedValues: taking the min of lower bounds, max of upper bounds,
+  -- and empty gaps (over-approximation).
+  (BoundedValues lb1M ub1M _, BoundedValues lb2M ub2M _) ->
+    let joinedLb = combineBounds min lb1M lb2M -- min of lower bounds
+        joinedUb = combineBounds max ub1M ub2M -- max of upper bounds
+    in BoundedValues joinedLb joinedUb Set.empty -- empty gaps
+
+  -- KnownValues and BoundedValues:
+  -- converting KnownValues to an equivalent (potentially imprecise) BoundedValues
+  -- and then joining the two BoundedValues
+  (KnownValues s, b@(BoundedValues {})) ->
+    if Set.null s
+    then b -- joining with empty set changes nothing
+    else let minVal = Set.findMin s
+             maxVal = Set.findMax s
+             -- representing as BoundedValues [minVal, maxVal] (imprecise if non-contiguous)
+             kvAsBv = BoundedValues (Just minVal) (Just maxVal) Set.empty
+         in joinDomains kvAsBv b
+  -- symmetric case       
+  (b@(BoundedValues {}), KnownValues s) -> joinDomains (KnownValues s) b
+
+  -- ArrayDomains:
+  -- requires sizes to match, and joins element domains element-wise
+  (ArrayDomain elems1 def1 size1, ArrayDomain elems2 def2 size2) ->
+    if size1 /= size2
+    then defaultValueDomain -- TODO: or error?
+    else
+      let joinedDef = joinDomains def1 def2
+          -- joining element domains for common keys, keep others
+          joinedElems = Map.unionWith joinDomains elems1 elems2
+      in ArrayDomain joinedElems joinedDef size1
+
+  -- joining incompatible types (e.g., Array and Scalar)
+  _ -> defaultValueDomain
+
 -- | Recursively infers possible values of an expression
 inferValues :: Expression -> Map String Int -> Map Int VariableState -> ValueDomain
 inferValues (Int c) _ _ = KnownValues (Set.singleton c)
@@ -338,7 +379,8 @@ inferValues (PfRecip e) nameToID varStates =
 inferValues (Ite cond eThen eElse) nameToID varStates =
   let dThen = inferValues eThen nameToID varStates
       dElse = inferValues eElse nameToID varStates
-  in joinDomains dThen dElse
+      -- TODO: Could potentially use cond to refine which branch is taken
+  in joinDomains dThen dElse 
 
 inferValues _ _ _ = defaultValueDomain -- TODO: Handle other cases properly
 
