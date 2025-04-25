@@ -1,7 +1,7 @@
 module ValueAnalysis.VariableState where
 
 
-import ValueAnalysis.ValueDomain (ValueDomain, defaultValueDomain)
+import ValueAnalysis.ValueDomain (ValueDomain(..), defaultValueDomain, defaultElementDomain)
 import Syntax.AST
 import Data.Map
 import qualified Data.Map as Map
@@ -9,9 +9,13 @@ import qualified Data.Map as Map
 -- | Tracks the state of each variable.
 newtype VariableState = VariableState {domain :: ValueDomain} deriving (Eq, Show)
 
--- | Initial VariableState (no restrictions at the beginning).
-initVarState :: VariableState
-initVarState = VariableState { domain = defaultValueDomain }
+-- | Initializes the state for a single variable based on its binding.
+initVarState :: Binding -> VariableState
+initVarState binding =
+  let initialDomain = case sort binding of
+        ArraySort _ size -> ArrayDomain Map.empty defaultElementDomain size -- array
+        _                -> defaultValueDomain -- other types
+  in VariableState { domain = initialDomain }
 
 -- | Builds a map from variable IDs to their initial state.
 initializeVarStates :: [Binding] -> Map Int VariableState

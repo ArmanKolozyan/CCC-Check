@@ -27,6 +27,23 @@ data ValueDomain
     -- For a wrap-around [a, p-1] U [0, b], the gap is [(b+1, a-1)].
     gaps :: Set (Integer, Integer)
     }
+  | ArrayDomain
+    { -- Domains for specific indices.
+      elementDomains :: Map Integer ValueDomain, 
+      -- The inferred domain for any array element whose index 
+      -- isn't explicitly tracked in the elementDomains map. 
+      -- While it starts as the most general domain, future analysis 
+      -- steps or specific constraints (e.g., a constraint applying 
+      -- to all elements) could potentially refine this defaultElementDomain 
+      -- to something more specific than defaultValueDomain. 
+      -- Keeping it separate allows for this possibility.
+      defaultElementDomain :: ValueDomain,      -- domain for unspecified indices
+      -- Having arraySize directly within ArrayDomain is for convenience
+      -- during the analysis phase. Functions operating on ArrayDomain
+      -- can access the size directly from the domain object without 
+      -- needing to refer back to the original variable's Binding and Sort.
+      arraySize :: Integer                     -- size of the array
+    }  
   deriving (Eq, Show)
 
 -- Default modulus for the field (BN254).
@@ -37,6 +54,12 @@ p = 2188824287183927522224640574525727508854836440041603434369820418657580849561
 -- | Default value domain (can be every possible value).
 defaultValueDomain :: ValueDomain
 defaultValueDomain = BoundedValues (Just 0) (Just (p - 1)) Set.empty
+
+-- | Default value domain for a single, unknown element (used within arrays).
+-- We might refine this later if needed, but for now,
+-- it is the same as default scalar domain.
+defaultElementDomain :: ValueDomain
+defaultElementDomain = defaultValueDomain
 
 -- | Checks if a value domain guarantees the value is non-zero.
 -- For this to be the case, zero must be explicitly excluded via gaps 
