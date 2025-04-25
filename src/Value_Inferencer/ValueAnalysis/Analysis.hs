@@ -15,6 +15,7 @@ module ValueAnalysis.Analysis (analyzeProgram, VariableState(..), updateValues, 
 import Syntax.AST
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import qualified Data.Map.Merge.Strict as MapMerge
 import qualified Data.Set as Set
 import Data.Sequence (Seq, (|>), viewl, ViewL(..))
 import qualified Data.Sequence as Seq
@@ -147,14 +148,22 @@ joinDomains d1 d2 = case (d1, d2) of
   (b@(BoundedValues {}), KnownValues s) -> joinDomains (KnownValues s) b
 
   -- ArrayDomains:
-  -- requires sizes to match, and joins element domains element-wise
+  -- Requires sizes to match. 
+  -- Joining default domains. 
+  -- Joining element domains element-wise, considering the default domain
+  -- when an element is missing from one map.
   (ArrayDomain elems1 def1 size1, ArrayDomain elems2 def2 size2) ->
     if size1 /= size2
     then defaultValueDomain -- TODO: or error?
     else
       let joinedDef = joinDomains def1 def2
-          -- joining element domains for common keys, keep others
-          joinedElems = Map.unionWith joinDomains elems1 elems2
+          -- using Map.merge for sound joining of element domains
+          joinedElems = MapMerge.merge
+            (MapMerge.mapMissing (\_k d1_i -> joinDomains d1_i def2)) -- key only in elems1: joining d1_i with def2
+            (MapMerge.mapMissing (\_k d2_i -> joinDomains def1 d2_i)) -- key only in elems2: joining def1 with d2_i
+            (MapMerge.zipWithMatched (\_k d1_i d2_i -> joinDomains d1_i d2_i)) -- key in both: joining d1_i with d2_i
+            elems1
+            elems2
       in ArrayDomain joinedElems joinedDef size1
 
   -- joining incompatible types (e.g., Array and Scalar)
