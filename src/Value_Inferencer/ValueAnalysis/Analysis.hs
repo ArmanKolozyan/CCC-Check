@@ -61,9 +61,11 @@ collectVarsFromExpr nameToID (Var name) = case Map.lookup name nameToID of
     Just vID -> [vID]
     Nothing  -> error $ "Variable name not found: " ++ name
 collectVarsFromExpr _ (Int _) = []
+collectVarsFromExpr nameToID (FieldConst _ _) = []
 collectVarsFromExpr nameToID (Add e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
 collectVarsFromExpr nameToID (Sub e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
 collectVarsFromExpr nameToID (Mul e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
+collectVarsFromExpr nameToID (Div e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
 collectVarsFromExpr nameToID (Ite e1 e2 e3) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2 ++ collectVarsFromExpr nameToID e3
 collectVarsFromExpr nameToID (Eq e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
 collectVarsFromExpr nameToID (Gt e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
@@ -74,6 +76,41 @@ collectVarsFromExpr nameToID (And es) = concatMap (collectVarsFromExpr nameToID)
 collectVarsFromExpr nameToID (Or es) = concatMap (collectVarsFromExpr nameToID) es
 collectVarsFromExpr nameToID (Not e) = collectVarsFromExpr nameToID e
 collectVarsFromExpr nameToID (PfRecip e) = collectVarsFromExpr nameToID e
+collectVarsFromExpr nameToID (BvExtract e _ _) = collectVarsFromExpr nameToID e
+collectVarsFromExpr nameToID (BvConcat e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
+collectVarsFromExpr nameToID (BvLit _ _) = []
+collectVarsFromExpr nameToID (Let bindings body) =
+    let localVars = concatMap (\(_, expr) -> collectVarsFromExpr nameToID expr) bindings
+        bodyVars = collectVarsFromExpr nameToID body
+    in localVars ++ bodyVars
+collectVarsFromExpr nameToID (ArrayLiteral es _) =
+    concatMap (collectVarsFromExpr nameToID) es
+collectVarsFromExpr nameToID (ArraySparseLiteral indexedExprs defExpr _ _) =
+  -- Note: For `Let` expressions, we only collect variables from the binding *expressions*
+  -- and the *body*. The locally bound variable names themselves (e.g., 'a' in `let ((a 1)) ...`)
+  -- are not collected here because `collectVarsFromExpr` is used to track dependencies
+  -- on *global* variables for the fixed-point analysis. Local scopes and their variables
+  -- are handled separately during the evaluation phase by `inferValues`.
+  -- Since 'a' is not global, no other constraint can directly provide new information
+  -- about 'a'. Therefore, changes propagated through other constraints do not need
+  -- to trigger a re-analysis of this `Let` constraint *due to* the local variable 'a'.
+  let indexedVars = concatMap (\(_, expr) -> collectVarsFromExpr nameToID expr) indexedExprs
+      defaultVars = collectVarsFromExpr nameToID defExpr
+  in indexedVars ++ defaultVars
+collectVarsFromExpr nameToID (Return es) =
+    concatMap (collectVarsFromExpr nameToID) es
+collectVarsFromExpr nameToID (Tuple es) =
+    concatMap (collectVarsFromExpr nameToID) es    
+collectVarsFromExpr nameToID (ArrayConstruct es _) =
+    concatMap (collectVarsFromExpr nameToID) es
+collectVarsFromExpr nameToID (ArraySelect arr idx) =
+    collectVarsFromExpr nameToID arr ++ collectVarsFromExpr nameToID idx
+collectVarsFromExpr nameToID (ArrayStore arr idx val) =
+    collectVarsFromExpr nameToID arr ++ collectVarsFromExpr nameToID idx ++ collectVarsFromExpr nameToID val
+collectVarsFromExpr nameToID (ArrayFill val _ _) =
+    collectVarsFromExpr nameToID val
+collectVarsFromExpr nameToID (Assign _ expr) =
+    collectVarsFromExpr nameToID expr                
 
 -- | Builds a variable-to-constraints mapping.
 buildVarToConstraints :: Map String Int -> [Constraint] -> Map Int [Int]
@@ -941,7 +978,7 @@ analyzeConstraint (EqC cid (Int c2) (Add (Mul expr1 expr2) (Int c1))) nameToID v
 analyzeConstraint (EqC cid (Int c) (Mul expr1 expr2)) nameToID varStates =
   analyzeConstraint (EqC cid (Mul expr1 expr2) (Int c)) nameToID varStates
 
-analyzeConstraint _ _ varStates = Right (False, varStates)  -- TODO: handle other constraints
+analyzeConstraint _ _ varStates = trace "huhh" Right (False, varStates)  -- TODO: handle other constraints
 
 
 -- Helper function to constrain a variable to binary {0, 1}
