@@ -49,6 +49,7 @@ data Expression
   | FieldConst Integer Integer
   | Add Expression Expression
   | Sub Expression Expression
+  -- exponentation (**) => multiplication in CirC, so we support exponentation
   | Mul Expression Expression
   | Div Expression Expression
   | Ite Expression Expression Expression
@@ -101,6 +102,4 @@ data Constraint
 {-
 TODO:
 - add support for set_default_modulus
-- add support for literal field values (such as #f123m456)
-- add support for other Circom types (i.e., arrays) and ZoKrates types.
 -}
