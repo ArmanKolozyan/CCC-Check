@@ -76,6 +76,9 @@ test-suite all-tests
       Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleFixedTest
       Value_Inferencer.BugDetection.TrailOfBits.ToBinaryTest
       Value_Inferencer.BugDetection.TrailOfBits.EnforceAuthTest
+      Value_Inferencer.BugDetection.Arrays.ArrayTagTest
+      Value_Inferencer.BugDetection.Arrays.ArraySelectOutOfBoundsTest
+      Value_Inferencer.BugDetection.Arrays.ArrayStoreOutOfBoundsTest
   main-is: TestRunner.hs
   hs-source-dirs:
       test

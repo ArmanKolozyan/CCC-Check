@@ -61,7 +61,14 @@ data Expression
   | And [Expression]
   | Or [Expression]
   | Not Expression
-    -- BvExtract e high low: extract bits [high : low] from expression e
+
+  -- CirC handles a shift like `a << 2` on a variable `a` by first extracting the bits that will remain after the shift. 
+  -- Then, it concatenates the extracted bits with a literal value. 
+  -- For example, `(extract 5 0) a` takes the lower 6 bits (bits 0 through 5) of `a`, so that the top 2 bits are discarded. 
+  -- Then, it concatenates these extracted 6 bits with a literal 2-bit zero (#b00) using concat. 
+  -- This places the extracted bits in the higher positions and the two zeros in the lower positions.
+  -- In order to support shifts in our AST, we add BvExtract, BvConcat, and BvLit as expression types below.
+  -- BvExtract e high low: extract bits [high : low] from expression e
   | BvExtract Expression Integer Integer
     -- BvConcat e1 e2: concatenates bit-vectors e1 and e2
   | BvConcat Expression Expression
