@@ -154,7 +154,7 @@ joinDomains d1 d2 = case (d1, d2) of
   -- when an element is missing from one map.
   (ArrayDomain elems1 def1 size1, ArrayDomain elems2 def2 size2) ->
     if size1 /= size2
-    then defaultValueDomain -- TODO: or error?
+    then error $ "Cannot join ArrayDomains of different sizes: " ++ show size1 ++ " vs " ++ show size2
     else
       let joinedDef = joinDomains def1 def2
           -- using Map.merge for sound joining of element domains
@@ -478,9 +478,8 @@ inferValues (ArrayStore arrExp idxExp valExp) nameToID varStates maybeLocalBindi
                   let newElemMap = Map.insert idx valDom elemMap
                   in ArrayDomain newElemMap defDom size
                 else
-                  -- index out of bounds, store has no effect?
-                  -- TODO: error?
-                  arrDom
+                  -- index out of bounds, throwing error
+                  error $ "ArrayStore index out of bounds: index " ++ show idx ++ " for array of size " ++ show size
 
            -- index is known set of multiple values or a range/unknown
            _ ->
