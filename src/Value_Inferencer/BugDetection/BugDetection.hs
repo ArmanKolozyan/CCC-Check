@@ -177,7 +177,7 @@ checkPfRecips denominators store nameToID =
     varStatesIntKeys = invertStates store nameToID
 
     checkSingle expr =
-      let inferredDomain = inferValues expr nameToID varStatesIntKeys
+      let inferredDomain = inferValues expr nameToID varStatesIntKeys Nothing
       -- using the functions from ValueDomain to check zero status
       in if isDefinitelyNonZero inferredDomain
          then [] -- guaranteed non-zero, OK

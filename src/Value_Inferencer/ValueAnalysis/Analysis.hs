@@ -170,22 +170,42 @@ joinDomains d1 d2 = case (d1, d2) of
   _ -> defaultValueDomain
 
 -- | Recursively infers possible values of an expression
-inferValues :: Expression -> Map String Int -> Map Int VariableState -> ValueDomain
-inferValues (Int c) _ _ = KnownValues (Set.singleton c)
-inferValues (FieldConst i p) _ _ = KnownValues $ Set.singleton (i `mod` p)
+-- Receives optional map for local (let) bindings.
+inferValues :: Expression -> Map String Int -> Map Int VariableState -> Maybe (Map String ValueDomain) -> ValueDomain
+inferValues (Int c) _ _ _ = KnownValues (Set.singleton c)
+inferValues (FieldConst i p) _ _ _ = KnownValues $ Set.singleton (i `mod` p)
 
-inferValues (Var xName) nameToID varStates =
-  case Map.lookup xName nameToID of
-    -- If we found the variable state, we return the domain from the state.
-    -- Variable known but no state? We return default domain.
-    Just varID -> maybe defaultValueDomain domain (Map.lookup varID varStates)
-    -- Variable name not found? We return default domain.
-    -- TODO: beter error geven denk ik
-    Nothing -> defaultValueDomain 
+-- Variable lookup: checking local bindings first, then global
+inferValues (Var xName) nameToID varStates maybeLocalBindings =
+  -- if we found the variable state, we return the domain from the state
+  case maybeLocalBindings >>= Map.lookup xName of
+     Just localDomain -> localDomain -- found in local let-bindings
+     Nothing -> -- not found locally, looking up globally
+      case Map.lookup xName nameToID of
+          -- variable known but no state? we return default domain
+          Just varID -> maybe defaultValueDomain domain (Map.lookup varID varStates)
+          -- variable name not found? we return default domain
+          -- TODO: beter error geven denk ik
+          Nothing -> defaultValueDomain
 
-inferValues (Add e1 e2) nameToID varStates =
-    let d1 = inferValues e1 nameToID varStates
-        d2 = inferValues e2 nameToID varStates
+-- Let expression: evaluating bindings, then body in augmented scope
+inferValues (Let bindings bodyExp) nameToID varStates maybeOuterLocalBindings =
+  -- 1. evaluating binding expressions in the *current* scope (which includes outer locals)
+  let newLocalBindings = Map.fromList $ map
+        (\(name, expr) -> (name, inferValues expr nameToID varStates maybeOuterLocalBindings))
+        bindings
+
+  -- 2. combining new local bindings with outer local bindings (new shadows outer)
+      combinedLocalBindings = case maybeOuterLocalBindings of
+                                Just outerMap -> Map.union newLocalBindings outerMap
+                                Nothing -> newLocalBindings
+
+  -- 3. evaluating the body expression in the new combined local scope
+  in inferValues bodyExp nameToID varStates (Just combinedLocalBindings)
+
+inferValues (Add e1 e2) nameToID varStates maybeLocalBindings =
+    let d1 = inferValues e1 nameToID varStates maybeLocalBindings
+        d2 = inferValues e2 nameToID varStates maybeLocalBindings
     in case (d1, d2) of
       -- we enumerate values, but should not be a problem since KnownValues are supposed to be
       -- small sets
@@ -230,9 +250,9 @@ inferValues (Add e1 e2) nameToID varStates =
 
        _ -> defaultValueDomain
 
-inferValues (Sub e1 e2) nameToID varStates =
-  let d1 = inferValues e1 nameToID varStates
-      d2 = inferValues e2 nameToID varStates
+inferValues (Sub e1 e2) nameToID varStates maybeLocalBindings =
+  let d1 = inferValues e1 nameToID varStates maybeLocalBindings
+      d2 = inferValues e2 nameToID varStates maybeLocalBindings
   in case (d1, d2) of
        (KnownValues s1, KnownValues s2) ->
          KnownValues $ Set.fromList [ (v1 - v2) `mod` p | v1 <- Set.toList s1, v2 <- Set.toList s2 ]
@@ -298,9 +318,9 @@ inferValues (Sub e1 e2) nameToID varStates =
        _ -> defaultValueDomain
 
 
-inferValues (Mul e1 e2) nameToID varStates =
-  let d1 = inferValues e1 nameToID varStates
-      d2 = inferValues e2 nameToID varStates
+inferValues (Mul e1 e2) nameToID varStates maybeLocalBindings =
+  let d1 = inferValues e1 nameToID varStates maybeLocalBindings
+      d2 = inferValues e2 nameToID varStates maybeLocalBindings
 
   in case (d1, d2) of
        -- if either is certainly zero, the result is certainly zero
@@ -382,18 +402,17 @@ inferValues (Mul e1 e2) nameToID varStates =
 
        _ -> defaultValueDomain
 
-inferValues (PfRecip e) nameToID varStates =
-  inferValues e nameToID varStates
+inferValues (PfRecip e) nameToID varStates maybeLocalBindings = inferValues e nameToID varStates maybeLocalBindings
 
-inferValues (Ite cond eThen eElse) nameToID varStates =
-  let dThen = inferValues eThen nameToID varStates
-      dElse = inferValues eElse nameToID varStates
+inferValues (Ite cond eThen eElse) nameToID varStates maybeLocalBindings =
+  let dThen = inferValues eThen nameToID varStates maybeLocalBindings
+      dElse = inferValues eElse nameToID varStates maybeLocalBindings
       -- TODO: Could potentially use cond to refine which branch is taken
   in joinDomains dThen dElse 
 
 -- Array Literal: e.g., #l(e1, e2, ...)
-inferValues (ArrayLiteral elems sort) nameToID varStates =
-  let elemDoms = map (\e -> inferValues e nameToID varStates) elems
+inferValues (ArrayLiteral elems sort) nameToID varStates maybeLocalBindings =
+  let elemDoms = map (\e -> inferValues e nameToID varStates maybeLocalBindings) elems
       size = fromIntegral $ length elems
       -- creating map from index to domain
       elemMap = Map.fromList $ zip [0..] elemDoms
@@ -401,17 +420,17 @@ inferValues (ArrayLiteral elems sort) nameToID varStates =
   in ArrayDomain elemMap defaultValueDomain size
 
 -- ArraySparseLiteral: #a[(idx1, val1), (idx2, val2)...] default size sort
-inferValues (ArraySparseLiteral indexedExprs defaultExpr size _sort) nameToID varStates =
+inferValues (ArraySparseLiteral indexedExprs defaultExpr size _sort) nameToID varStates maybeLocalBindings =
   -- inferring domain for the default value
-  let defDom = inferValues defaultExpr nameToID varStates
+  let defDom = inferValues defaultExpr nameToID varStates maybeLocalBindings
       -- inferring domains for explicitly indexed values
-      elemMap = Map.fromList $ map (\(idx, expr) -> (idx, inferValues expr nameToID varStates)) indexedExprs
+      elemMap = Map.fromList $ map (\(idx, expr) -> (idx, inferValues expr nameToID varStates maybeLocalBindings)) indexedExprs
   in ArrayDomain elemMap defDom size
 
 -- ArrayConstruct: (array val1 val2 ...) sort
-inferValues (ArrayConstruct exprs _sort) nameToID varStates =
+inferValues (ArrayConstruct exprs _sort) nameToID varStates maybeLocalBindings =
   -- inferring domains for each element
-  let elemDoms = map (\e -> inferValues e nameToID varStates) exprs
+  let elemDoms = map (\e -> inferValues e nameToID varStates maybeLocalBindings) exprs
       size = fromIntegral $ length exprs
       -- creating map from index to domain
       elemMap = Map.fromList $ zip [0..] elemDoms
@@ -419,9 +438,9 @@ inferValues (ArrayConstruct exprs _sort) nameToID varStates =
   in ArrayDomain elemMap defaultValueDomain size
 
 -- Array Select: select(arr, idx)
-inferValues (ArraySelect arrExp idxExp) nameToID varStates =
-  let arrDom = inferValues arrExp nameToID varStates
-      idxDom = inferValues idxExp nameToID varStates
+inferValues (ArraySelect arrExp idxExp) nameToID varStates maybeLocalBindings =
+  let arrDom = inferValues arrExp nameToID varStates maybeLocalBindings
+      idxDom = inferValues idxExp nameToID varStates maybeLocalBindings
   in case arrDom of
        ArrayDomain elemMap defDom size ->
           -- the set of possible valid indices
@@ -443,10 +462,10 @@ inferValues (ArraySelect arrExp idxExp) nameToID varStates =
        _ -> defaultValueDomain
 
 -- Array Store: store(arr, idx, val)
-inferValues (ArrayStore arrExp idxExp valExp) nameToID varStates =
-  let arrDom = inferValues arrExp nameToID varStates
-      idxDom = inferValues idxExp nameToID varStates
-      valDom = inferValues valExp nameToID varStates
+inferValues (ArrayStore arrExp idxExp valExp) nameToID varStates maybeLocalBindings =
+  let arrDom = inferValues arrExp nameToID varStates maybeLocalBindings
+      idxDom = inferValues idxExp nameToID varStates maybeLocalBindings
+      valDom = inferValues valExp nameToID varStates maybeLocalBindings
   in case arrDom of
        ArrayDomain elemMap defDom size ->
          case idxDom of
@@ -476,14 +495,14 @@ inferValues (ArrayStore arrExp idxExp valExp) nameToID varStates =
        _ -> defaultValueDomain
 
 -- ArrayFill: fill(value, sort, size)
-inferValues (ArrayFill valExpr _sort size) nameToID varStates =
+inferValues (ArrayFill valExpr _sort size) nameToID varStates maybeLocalBindings =
   -- inferring domain for the fill value
-  let fillDom = inferValues valExpr nameToID varStates
+  let fillDom = inferValues valExpr nameToID varStates maybeLocalBindings
       -- all elements initially have this domain; it becomes the default!
       -- the specific element map starts empty
   in ArrayDomain Map.empty fillDom size
 
-inferValues _ _ _ = defaultValueDomain -- TODO: Handle other cases properly
+inferValues _ _ _ _ = defaultValueDomain -- TODO: Handle other cases properly
 
 -- Helper function to map an exclusion interval through subtraction by a set of constants
 -- Input: (l1, u1) from gaps1, Set s2, modulus p
@@ -686,7 +705,7 @@ analyzeConstraint (EqC _ (Var xName) e) nameToID varStates =
     _ -> do
       xID <- lookupVarID xName nameToID
       xState <- lookupVarState xID varStates
-      let omega = inferValues e nameToID varStates -- inferring domain of expression e
+      let omega = inferValues e nameToID varStates Nothing-- inferring domain of expression e
       -- updating x's state by intersecting its current domain with the inferred domain of e
       case updateValues xState omega of
         Right updatedState ->
@@ -710,7 +729,7 @@ analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
   , cModP /= 0 = do -- ensuring c is not zero in the field
       xID <- lookupVarID xName nameToID
       xState <- lookupVarState xID varStates
-      let omega = inferValues e nameToID varStates -- domain of e
+      let omega = inferValues e nameToID varStates Nothing -- domain of e
       case modInverse cModP p of
         Nothing -> Left $ "Modular inverse does not exist for " ++ show cModP ++ " mod " ++ show p
         Just cInv -> do
@@ -883,7 +902,7 @@ analyzeConstraint (AndC cid subCs) nameToID varStates = do
 -- Therefore, we can conclude expr1 != 0 (mod p) and expr2 != 0 (mod p).
 analyzeConstraint (EqC cid (Add expr3 (Mul expr1 expr2)) (Int c)) nameToID varStates = do
   let cModP = c `mod` p
-  let domain3 = inferValues expr3 nameToID varStates
+  let domain3 = inferValues expr3 nameToID varStates Nothing
   if isCertainlyZeroDomain domain3 && cModP /= 0
       then markExprPairNonZero expr1 expr2 nameToID varStates
       else Right (False, varStates)
