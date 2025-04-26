@@ -26,6 +26,7 @@ spec = describe "Array Tag Check" $ do
     -- x === 5 (violates binary tag for arr[1])
     let c2 = EqC 101 (Var "x") (Int 5)
 
+    -- the test program
     let testProgram = Program
           { inputs          = [arr, x]
           , computationVars = []

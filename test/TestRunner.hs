@@ -19,6 +19,9 @@ import qualified Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleWrongTes
 import qualified Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleFixedTest
 import qualified Value_Inferencer.BugDetection.TrailOfBits.ToBinaryTest
 import qualified Value_Inferencer.BugDetection.TrailOfBits.EnforceAuthTest
+import qualified Value_Inferencer.BugDetection.Arrays.ArrayTagTest
+import qualified Value_Inferencer.BugDetection.Arrays.ArraySelectOutOfBoundsTest
+import qualified Value_Inferencer.BugDetection.Arrays.ArrayStoreOutOfBoundsTest
 
 
 main :: IO ()
@@ -41,3 +44,6 @@ main = hspec $ do
     Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleFixedTest.spec
     Value_Inferencer.BugDetection.TrailOfBits.ToBinaryTest.spec
     Value_Inferencer.BugDetection.TrailOfBits.EnforceAuthTest.spec
+    Value_Inferencer.BugDetection.Arrays.ArrayTagTest.spec
+    Value_Inferencer.BugDetection.Arrays.ArraySelectOutOfBoundsTest.spec
+    Value_Inferencer.BugDetection.Arrays.ArrayStoreOutOfBoundsTest.spec
