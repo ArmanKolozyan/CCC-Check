@@ -408,10 +408,10 @@ compileExp (Atom "bvxor" _ ::: e1 ::: e2 ::: SNil _) = do
     e1' <- compileExp e1
     e2' <- compileExp e2
     pure (BvXor e1' e2')
+compileExp (Atom "bv2pf" _ ::: Num modulus _ ::: expr ::: SNil _) = do
+    subE <- compileExp expr
+    pure (Bv2Pf modulus subE)
 
-
--- TODO: analysis van Lets handelen!!
--- TODO: bv2pf!
 compileExp (Atom "let" _ ::: bindingList ::: bodyExp ::: SNil _) = do
   binds <- compileLetBindings bindingList
   bodyC <- compileExp bodyExp
