@@ -80,6 +80,7 @@ collectVarsFromExpr nameToID (PfRecip e) = collectVarsFromExpr nameToID e
 collectVarsFromExpr nameToID (BvExtract e _ _) = collectVarsFromExpr nameToID e
 collectVarsFromExpr nameToID (BvConcat e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
 collectVarsFromExpr nameToID (BvLit _ _) = []
+collectVarsFromExpr nameToID (BoolLit _) = []
 collectVarsFromExpr nameToID (BvXor e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
 collectVarsFromExpr nameToID (Let bindings body) =
     let localVars = concatMap (\(_, expr) -> collectVarsFromExpr nameToID expr) bindings

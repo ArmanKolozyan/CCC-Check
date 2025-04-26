@@ -47,6 +47,7 @@ data Expression
   = Var String
   | Int Integer
   | FieldConst Integer Integer
+  | BoolLit Bool
   | Add Expression Expression
   | Sub Expression Expression
   -- exponentation (**) => multiplication in CirC, so we support exponentation

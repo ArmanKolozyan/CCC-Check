@@ -320,6 +320,8 @@ defaultPrime = 52435875175126190479447740508185965837690552500527637822603658699
 -- | Compiles a single expression.
 compileExp :: MonadCompile m => SExp -> m Expression
 compileExp (Num i _) = pure (Int i)
+compileExp (Atom "true" _) = pure (BoolLit True)
+compileExp (Atom "false" _) = pure (BoolLit False)
 compileExp (Atom "#b0" _) = pure (BvLit 0 1)
 compileExp (Atom "#b1" _) = pure (BvLit 1 1)
 compileExp (Atom text@(('#':'b':bits)) _) =
