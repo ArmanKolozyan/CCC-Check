@@ -74,14 +74,22 @@ data Expression
   | BvConcat Expression Expression
     -- BvLit val width: a literal bit-vector of width bits, representing val
   | BvLit Integer Integer
+
+  -- XOR operation
+  | BvXor Expression Expression
+
     -- Represents the reciprocal of an expression
-  | PfRecip Expression 
+  | PfRecip Expression
+
     -- Let expressions
   | Let [(String, Expression)] Expression 
+
     -- Return statements
   | Return [Expression]   
+
     -- Tuple
   | Tuple [Expression]  
+
     -- #l arrays
   | ArrayLiteral [Expression] Sort
     -- #a arrays
@@ -94,6 +102,7 @@ data Expression
   | ArrayStore Expression Expression Expression        
     -- fill(value, sort, size) 
   | ArrayFill Expression Sort Integer 
+
     -- assignments
   | Assign String Expression
   deriving (Show, Eq)

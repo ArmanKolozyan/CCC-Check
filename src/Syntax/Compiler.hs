@@ -402,6 +402,11 @@ compileExp (Atom "concat" _ ::: e1 ::: e2 ::: SNil _) = do
     e1' <- compileExp e1
     e2' <- compileExp e2
     pure (BvConcat e1' e2')
+compileExp (Atom "bvxor" _ ::: e1 ::: e2 ::: SNil _) = do
+    e1' <- compileExp e1
+    e2' <- compileExp e2
+    pure (BvXor e1' e2')
+
 
 -- TODO: analysis van Lets handelen!!
 -- TODO: bv2pf!
