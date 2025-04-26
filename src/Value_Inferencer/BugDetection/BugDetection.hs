@@ -56,30 +56,58 @@ checkVariable store binding =
         -- otherwise we check the sort (i.e., the type)
         Nothing -> checkSort (sort binding) vState (name binding)
 
-
 -- | Checks that the final VariableState is consistent with the Tag.
---   Returns list of errors if any.
+--   This acts as a wrapper, dispatching to the domain-specific checker.
 checkTag :: Tag -> VariableState -> String -> [String]
-checkTag (SimpleTag "binary") vs varName = checkBoolean vs varName
-checkTag (SimpleTag "nonzero") vs varName = checkNonZero vs varName
-checkTag (MaxBitsTag n) vs varName       = checkMaxVal ((2 ^ n) - 1) vs varName
-checkTag (MaxValTag n) vs varName       = checkMaxVal n vs varName
-checkTag otherTag _ varName              = ["Warning: No check implemented for tag `" ++ show otherTag ++ "` on variable `" ++ varName ++ "`"]  
+checkTag t vs = checkTagDomain t (domain vs)
+
+-- | Checks that a ValueDomain is consistent with its Tag. Handles recursion for arrays.
+checkTagDomain :: Tag -> ValueDomain -> String -> [String]
+-- array case: checking tag check recursively to elements and default
+checkTagDomain t (ArrayDomain elemMap defDom _size) varName =
+    let elemErrors = concatMap (\(idx, elemDom) ->
+                        checkTagDomain t elemDom (varName ++ "[" ++ show idx ++ "]"))
+                     (Map.toList elemMap)
+        defErrors = checkTagDomain t defDom (varName ++ "[default]")
+    in elemErrors ++ defErrors
+-- scalar cases: delegating to specific domain checkers
+checkTagDomain (SimpleTag "binary") d varName = checkBooleanDomain d varName
+checkTagDomain (SimpleTag "nonzero") d varName = checkNonZeroDomain d varName
+checkTagDomain (MaxBitsTag n) d varName       = checkMaxValDomain ((2 ^ n) - 1) d varName
+checkTagDomain (MaxValTag n) d varName       = checkMaxValDomain n d varName
+-- unhandled tags for scalar domains
+checkTagDomain otherTag _ varName              = ["Warning: No check implemented for tag `" ++ show otherTag ++ "` on variable `" ++ varName ++ "`"]  
+
 
 -- | Checks that the final VariableState is consistent with the Sort.
---   Returns list of errors if any.
+--   This acts as a wrapper, dispatching to the domain-specific checker.
 checkSort :: Sort -> VariableState -> String -> [String]
-checkSort Bool vs varName         = checkBoolean vs varName
-checkSort (BitVector n) vs varName= checkMaxVal ((2 ^ n) - 1) vs varName
-checkSort (FieldMod p) vs varName = checkMaxVal (p - 1) vs varName
+checkSort s vs = checkSortDomain s (domain vs)
 
--- | Checks that a variable tagged "nonzero" cannot be zero.
-checkNonZero :: VariableState -> String -> [String]
-checkNonZero st varName =
-  let d = domain st
-  in if couldBeZero d
-     then ["Variable `" ++ varName ++ "` tagged 'nonzero' might be zero."]
-     else []
+-- | Checks that a ValueDomain is consistent with the Sort. Handles recursion for arrays.
+checkSortDomain :: Sort -> ValueDomain -> String -> [String]
+-- Array Sort & Array Domain: checking size and recursing on elements
+checkSortDomain (ArraySort elemSort expectedSize) (ArrayDomain elemMap defDom actualSize) varName =
+    let sizeError = if expectedSize /= actualSize
+                    then ["Array `" ++ varName ++ "` size mismatch: declared " ++ show expectedSize ++ ", inferred " ++ show actualSize]
+                    else []
+        elemErrors = concatMap (\(idx, elemDom) ->
+                        checkSortDomain elemSort elemDom (varName ++ "[" ++ show idx ++ "]"))
+                     (Map.toList elemMap)
+        defErrors = checkSortDomain elemSort defDom (varName ++ "[default]")
+    in sizeError ++ elemErrors ++ defErrors    
+-- Scalar Sorts vs Scalar Domains
+checkSortDomain Bool d varName         = checkBooleanDomain d varName
+checkSortDomain (BitVector n) d varName= checkMaxValDomain ((2 ^ n) - 1) d varName
+checkSortDomain (FieldMod p') d varName = checkMaxValDomain (p' - 1) d varName
+-- Type mismatches
+checkSortDomain (ArraySort _ _) _ varName = ["Type mismatch for `" ++ varName ++ "`: expected Array, but found scalar domain."]
+
+-- | Checks that a domain cannot be zero.
+checkNonZeroDomain :: ValueDomain -> String -> [String]
+checkNonZeroDomain d varName = case d of
+    ArrayDomain {} -> ["Type mismatch for `" ++ varName ++ "`: expected NonZero scalar, found Array."]
+    _ -> ["Variable `" ++ varName ++ "` tagged 'nonzero' might be zero." | couldBeZero d]
 
 -- Checking Booleans
 
@@ -92,10 +120,8 @@ checkNonZero st varName =
    If 'values' is non-empty, we check that the set is ⊆ {0,1}.
    If 'values' is empty, but we have low_b / upp_b, we check those. 
 -}
-checkBoolean :: VariableState -> String -> [String]
-checkBoolean st varName =
-  let d = domain st
-      errs = case d of
+checkBooleanDomain :: ValueDomain -> String -> [String]
+checkBooleanDomain d varName = case d of
         -- known values: checking if subset of {0, 1}
         KnownValues s ->
           let invalidVals = Set.filter (\v -> v /= 0 && v /= 1) s
@@ -116,8 +142,8 @@ checkBoolean st varName =
           in (["Boolean variable `" ++ varName ++ "` has lower bound < 0" | not lbOk]) ++
              (["Boolean variable `" ++ varName ++ "` has upper bound > 1" | not ubOk]) ++
              (["Boolean variable `" ++ varName ++ "` has empty domain due to exclusions within [0, 1]" | isEmptyDueToExclusions])
-
-  in errs
+        -- array      
+        ArrayDomain {} -> ["Type mismatch for `" ++ varName ++ "`: expected Boolean, found Array."]
 
 -- Checking BitVectors and FieldMods
 
@@ -126,25 +152,19 @@ checkBoolean st varName =
    we want to check that all final possible values are in [0 .. 2^n - 1], 
    or if it has bounds, then the upper bound must not exceed 2^n - 1.
 -}
-checkMaxVal :: Integer -> VariableState -> String -> [String]
-checkMaxVal maxVal st varName =
-  let d = domain st
-      errs = case d of
-        -- known values: checking if all values are within [0, maxVal]
-        KnownValues s ->
-          let invalidVals = Set.filter (\v -> v < 0 || v > maxVal) s
-          in if Set.null invalidVals
-             then []
-             else ["Variable `" ++ varName ++ "` has out-of-range values: " ++ show (Set.toList invalidVals) ++ " (expected [0.." ++ show maxVal ++ "])"]
+checkMaxValDomain :: Integer -> ValueDomain -> String -> [String]
+checkMaxValDomain maxVal d varName = case d of
+    KnownValues s ->
+        let invalidVals = Set.filter (\v -> v < 0 || v > maxVal) s
+        in ["Variable `" ++ varName ++ "` has out-of-range values: " ++ show (Set.toList invalidVals) ++ " (expected [0.." ++ show maxVal ++ "])" | not (Set.null invalidVals)]
+    BoundedValues lbM ubM _ -> -- gaps don't cause out-of-range, only emptiness
+        let lbOk = maybe True (>= 0) lbM
+            ubOk = maybe True (<= maxVal) ubM
+        in (["Variable `" ++ varName ++ "` has lower bound < 0" | not lbOk]) ++
+           (["Variable `" ++ varName ++ "` has upper bound > " ++ show maxVal | not ubOk])
+    ArrayDomain {} -> ["Type mismatch for `" ++ varName ++ "`: expected scalar <= " ++ show maxVal ++ ", found Array."]
 
-        -- bounded values: checking if bounds are within [0, maxVal]
-        BoundedValues lbM ubM _ -> -- exclusions don't cause out-of-range, only emptiness
-          let lbOk = maybe True (>= 0) lbM
-              ubOk = maybe True (<= maxVal) ubM
-          in (if not lbOk then ["Variable `" ++ varName ++ "` has lower bound < 0"] else []) ++
-             (if not ubOk then ["Variable `" ++ varName ++ "` has upper bound > " ++ show maxVal] else [])
-
-  in errs
+-- Checking denominators.
 
 -- | Checks if any PfRecip expression could be zero "at runtime", more precisely :
 --   1) if the expression is constrained to be nonZero (via nonZero flag)
