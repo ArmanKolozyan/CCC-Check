@@ -20,6 +20,7 @@ import qualified Data.Set as Set
 import Data.Sequence (Seq, (|>), viewl, ViewL(..))
 import qualified Data.Sequence as Seq
 import Data.Maybe (fromMaybe)
+import Data.Either (fromRight)
 import Syntax.Compiler (parseAndCompile)
 import ValueAnalysis.UserRules
 import ValueAnalysis.VariableState
@@ -978,8 +979,89 @@ analyzeConstraint (EqC cid (Int c2) (Add (Mul expr1 expr2) (Int c1))) nameToID v
 analyzeConstraint (EqC cid (Int c) (Mul expr1 expr2)) nameToID varStates =
   analyzeConstraint (EqC cid (Mul expr1 expr2) (Int c)) nameToID varStates
 
-analyzeConstraint _ _ varStates = trace "huhh" Right (False, varStates)  -- TODO: handle other constraints
+-- EQUALITY Rule: ArraySelect arr idx = expr
+analyzeConstraint (EqC _ (ArraySelect arrExp idxExp) rhsExp) nameToID varStates = do
+  let arrDom = inferValues arrExp nameToID varStates Nothing
+      idxDom = inferValues idxExp nameToID varStates Nothing
+      rhsDom = trace "ayooo" inferValues rhsExp nameToID varStates Nothing
 
+  case arrDom of
+    ArrayDomain elemMap defDom size ->
+      case idxDom of
+        -- case 1: index is a known constant 'i'
+        KnownValues idxSet | Set.size idxSet == 1 -> do
+          let idx = Set.findMin idxSet
+          if idx < 0 || idx >= size then
+            Left $ "Contradiction: ArraySelect index " ++ show idx ++ " out of bounds [0.." ++ show (size - 1) ++ "]"
+          else do
+            -- propagating rhsDom information to arr[idx]
+            let currentElemDom = Map.findWithDefault defDom idx elemMap
+            case intersectDomains currentElemDom rhsDom of
+              Left errMsg -> Left $ "Contradiction updating arr[" ++ show idx ++ "]: " ++ errMsg
+              Right intersectedElemDom ->
+                -- updating the array domain in the variable state if arrExp is a variable
+                trace "bomba" updateArrayElement arrExp idx intersectedElemDom nameToID varStates
+
+        -- case 2: index is unknown or has multiple values
+        -- shoud normally not happen!
+        _ -> do
+          -- over-approximation: progagating rhsDom to the default domain
+          -- and potentially all known elements.
+          case intersectDomains defDom rhsDom of
+            Left errMsg -> Left $ "Contradiction updating array default domain: " ++ errMsg
+            Right intersectedDefDom ->
+              -- updating default domain and potentially intersect with all existing elements
+              updateArrayDefaultAndElements arrExp intersectedDefDom rhsDom nameToID varStates
+
+    _ -> Right (False, varStates) -- LHS is not an array domain
+
+-- Symmetric case for EQUALITY: e = x  => handling as x = e
+analyzeConstraint (EqC cid e (Var xName)) nameToID varStates =
+    analyzeConstraint (EqC cid (Var xName) e) nameToID varStates
+
+analyzeConstraint _ _ varStates = Right (False, varStates)
+
+-- Helper to update a specific element domain within an array variable's state
+updateArrayElement :: Expression -> Integer -> ValueDomain -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+updateArrayElement (Var arrName) idx newElemDom nameToID varStates = do
+  arrID <- lookupVarID arrName nameToID
+  arrState <- lookupVarState arrID varStates
+  case domain arrState of
+    ArrayDomain elemMap defDom size ->
+      let updatedElemMap = Map.insert idx newElemDom elemMap
+          newArrDom = ArrayDomain updatedElemMap defDom size
+      -- intersecting with existing array state
+      in case updateValues arrState newArrDom of 
+           Left errMsg -> Left errMsg
+           Right finalArrState ->
+             let changed = finalArrState /= arrState
+                 finalStates = Map.insert arrID finalArrState varStates
+             in Right (changed, finalStates)
+    _ -> Right (False, varStates)
+updateArrayElement _ _ _ _ varStates = Right (False, varStates)
+
+-- Helper to update the default domain and potentially all element domains of an Array.
+updateArrayDefaultAndElements :: Expression -> ValueDomain -> ValueDomain -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+updateArrayDefaultAndElements (Var arrName) newDefDom intersectDom nameToID varStates = do
+  arrID <- lookupVarID arrName nameToID
+  arrState <- lookupVarState arrID varStates
+  case domain arrState of
+    ArrayDomain elemMap _ size ->
+      -- Also intersecting existing elements with intersectDom as an over-approximation.
+      -- Keeping old if intersection fails. A Left here might indicate overall contradiction, 
+      -- but updateValues below handles that.
+      let intersectedElemMap = Map.map (\elemDom ->
+                 fromRight elemDom (intersectDomains elemDom intersectDom)
+               ) elemMap
+          newArrDom = ArrayDomain intersectedElemMap newDefDom size
+      in case updateValues arrState newArrDom of
+           Left errMsg -> Left errMsg
+           Right finalArrState ->
+             let changed = finalArrState /= arrState
+                 finalStates = Map.insert arrID finalArrState varStates
+             in Right (changed, finalStates)
+    _ -> Right (False, varStates)
+updateArrayDefaultAndElements _ _ _ _ varStates = Right (False, varStates)
 
 -- Helper function to constrain a variable to binary {0, 1}
 constrainVarToBinary :: String -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
