@@ -707,7 +707,7 @@ analyzeConstraint (EqC _ (Var outName) (Sub (Int 1) (Var inName))) nameToID varS
 --   If a and b are binary, then out must be binary.
 analyzeConstraint (EqC _ (Var outName) (Sub (Sub (Add (Mul (Var aName1) (Var bName1)) (Int 1)) (Var aName2)) (Var bName2))) nameToID varStates =
   -- checking if variables match for NOR pattern
-  trace "dddd" $ if aName1 == aName2 && bName1 == bName2 then
+  if aName1 == aName2 && bName1 == bName2 then
     if isBinaryVar nameToID varStates aName1 && isBinaryVar nameToID varStates bName1 then
       -- applying NOR rule
       constrainVarToBinary outName nameToID varStates 
@@ -983,7 +983,7 @@ analyzeConstraint (EqC cid (Int c) (Mul expr1 expr2)) nameToID varStates =
 analyzeConstraint (EqC _ (ArraySelect arrExp idxExp) rhsExp) nameToID varStates = do
   let arrDom = inferValues arrExp nameToID varStates Nothing
       idxDom = inferValues idxExp nameToID varStates Nothing
-      rhsDom = trace "ayooo" inferValues rhsExp nameToID varStates Nothing
+      rhsDom = inferValues rhsExp nameToID varStates Nothing
 
   case arrDom of
     ArrayDomain elemMap defDom size ->
@@ -1000,7 +1000,7 @@ analyzeConstraint (EqC _ (ArraySelect arrExp idxExp) rhsExp) nameToID varStates 
               Left errMsg -> Left $ "Contradiction updating arr[" ++ show idx ++ "]: " ++ errMsg
               Right intersectedElemDom ->
                 -- updating the array domain in the variable state if arrExp is a variable
-                trace "bomba" updateArrayElement arrExp idx intersectedElemDom nameToID varStates
+                updateArrayElement arrExp idx intersectedElemDom nameToID varStates
 
         -- case 2: index is unknown or has multiple values
         -- shoud normally not happen!
@@ -1133,10 +1133,107 @@ propagateExclusionsBackward expr xDomain nameToID varStates =
     go (Mul (Int c) (Var yName)) intervalsX nameToID currentStates =
       go (Mul (Var yName) (Int c)) intervalsX nameToID currentStates
 
+    -- x = ArraySelect arr idx
+    go (ArraySelect arrExp idxExp) intervalsX nameToID currentStates =
+      let idxDom = inferValues idxExp nameToID currentStates Nothing
+          arrDom = inferValues arrExp nameToID currentStates Nothing
+          -- calculating the set of all individual values excluded for x
+          -- TODO: fix to only work with bounds, otherwise inefficient!
+          excludedValuesX = concatMap (intervalToValues p) (Set.toList intervalsX)
+      in if null excludedValuesX then
+           (False, currentStates)
+         else
+           case (arrExp, idxDom, arrDom) of
+             -- case 1: array is a variable, index is a known constant 'i'
+             (Var arrName, KnownValues idxSet, ArrayDomain _ _ size) | Set.size idxSet == 1 ->
+               let idx = Set.findMin idxSet
+               in if idx < 0 || idx >= size then
+                    (False, currentStates) -- index out of bounds
+                  else
+                    -- propagating exclusions to arr[idx]
+                    applyExclusionsToArrayElement arrName idx excludedValuesX nameToID currentStates
+
+             -- case 2: array is a variable, index is unknown/multiple
+             -- should normally not happen!
+             (Var arrName, _, ArrayDomain elemMap defDom size) ->
+               -- over-approximation: applying exclusions to the default domain
+               -- and all known element domains.
+               applyExclusionsToArrayDefaultAndElements arrName excludedValuesX nameToID currentStates
+
+             _ -> (False, currentStates)      
+
     -- cannot propagate exclusions backward for other complex expressions yet
     -- TODO
     go _ _ _ currentStates = (False, currentStates)
 
+
+-- Helper: Converts an interval (l, u) mod p into a list of values.
+-- Handles wrap-around. 
+-- Inefficient, but is only used for gaps!
+intervalToValues :: Integer -> (Integer, Integer) -> [Integer]
+intervalToValues modulus (l, u)
+  | l <= u    = [l..u]
+  | otherwise = [l..(modulus-1)] ++ [0..u]
+
+-- Helper: Applies exclusions to a specific array element's domain.
+applyExclusionsToArrayElement :: String -> Integer -> [Integer] -> Map String Int -> Map Int VariableState -> (Bool, Map Int VariableState)
+applyExclusionsToArrayElement arrName idx exclusions nameToID currentStates =
+  case lookupVarID arrName nameToID of
+    Left _ -> (False, currentStates)
+    Right arrID ->
+      case lookupVarState arrID currentStates of
+        Left _ -> (False, currentStates)
+        Right oldArrState ->
+          case domain oldArrState of
+            ArrayDomain elemMap defDom size ->
+              let currentElemDom = Map.findWithDefault defDom idx elemMap
+                  -- applying exclusions one by one
+                  domainWithExclusions = foldl excludeValue currentElemDom exclusions
+                  -- intersecting the result with the original element domain
+              in case intersectDomains currentElemDom domainWithExclusions of
+                   Left _ -> (False, currentStates) -- contradiction applying exclusions
+                   Right finalElemDom ->
+                     if finalElemDom == currentElemDom then
+                       (False, currentStates) -- no change to element domain
+                     else
+                       -- updating the array state
+                       let newElemMap = Map.insert idx finalElemDom elemMap
+                           newArrDom = ArrayDomain newElemMap defDom size
+                       in case updateValues oldArrState newArrDom of
+                            Left _ -> (False, currentStates) -- contradiction updating array state
+                            Right finalArrState ->
+                              let changed = finalArrState /= oldArrState
+                              in (changed, Map.insert arrID finalArrState currentStates)
+            _ -> (False, currentStates)
+
+-- Helper: Applies exclusions to the default domain and all element domains (over-approximation).
+applyExclusionsToArrayDefaultAndElements :: String -> [Integer] -> Map String Int -> Map Int VariableState -> (Bool, Map Int VariableState)
+applyExclusionsToArrayDefaultAndElements arrName exclusions nameToID currentStates =
+  case lookupVarID arrName nameToID of
+    Left _ -> (False, currentStates)
+    Right arrID ->
+      case lookupVarState arrID currentStates of
+        Left _ -> (False, currentStates)
+        Right oldArrState ->
+          case domain oldArrState of
+            ArrayDomain elemMap defDom size ->
+              -- applying exclusions to default domain
+              let defDomWithExclusions = foldl excludeValue defDom exclusions
+              in case intersectDomains defDom defDomWithExclusions of
+                   Left _ -> (False, currentStates) -- contradiction in default domain
+                   Right finalDefDom ->
+                     -- applying exclusions to each element domain
+                     let applyExclusionsToElem dom =
+                           let domWithEx = foldl excludeValue dom exclusions
+                           in fromRight dom (intersectDomains dom domWithEx)
+                         finalElemMap = Map.map applyExclusionsToElem elemMap
+                         newArrDom = ArrayDomain finalElemMap finalDefDom size
+                     in case updateValues oldArrState newArrDom of
+                          Left _ -> (False, currentStates)
+                          Right finalArrState ->
+                            let changed = finalArrState /= oldArrState
+                            in (changed, Map.insert arrID finalArrState currentStates)
+            _ -> (False, currentStates)  
 
 -- Helper: Given an operation `op`, modulus `p`, and an interval `(l, u)`,
 -- calculates the set of values { op(v) mod p } for all v in the interval.
