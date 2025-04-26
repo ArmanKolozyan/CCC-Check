@@ -478,8 +478,9 @@ inferValues (ArrayStore arrExp idxExp valExp) nameToID varStates maybeLocalBindi
                   let newElemMap = Map.insert idx valDom elemMap
                   in ArrayDomain newElemMap defDom size
                 else
-                  -- index out of bounds, throwing error
-                  error $ "ArrayStore index out of bounds: index " ++ show idx ++ " for array of size " ++ show size
+                  -- index out of bounds: returning default domain instead of crashing.
+                  -- The bug will be caught later in BugDetection phase!
+                  defaultValueDomain
 
            -- index is known set of multiple values or a range/unknown
            _ ->

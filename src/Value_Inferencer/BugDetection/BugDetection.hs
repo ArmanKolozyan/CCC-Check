@@ -31,11 +31,19 @@ detectBugs program maybeVars =
   let varStates = analyzeProgram program
       allVars = inputs program ++ computationVars program ++ constraintVars program
       vars = fromMaybe allVars maybeVars
+      nameToIDMap = buildVarNameToIDMap allVars
+      -- converting name-keyed store to ID-keyed for inferValues
+      varStatesIntKeys = invertStates varStates nameToIDMap
+
+
       -- gathering errors for each variable based on Sort
       sortErrors = concatMap (checkVariable varStates) vars
       -- gathering division-by-zero errors
-      divByZeroErrors = checkPfRecips (pfRecipExpressions program) varStates (buildVarNameToIDMap allVars)
-      errors = sortErrors ++ divByZeroErrors
+      divByZeroErrors = checkPfRecips (pfRecipExpressions program) varStates nameToIDMap varStatesIntKeys
+      -- gathering array access out-of-bounds errors
+      arrayAccessErrors = checkArrayAccesses (constraints program) nameToIDMap varStatesIntKeys
+
+      errors = sortErrors ++ divByZeroErrors ++ arrayAccessErrors
   in if null errors
        then Right ()
        else Left errors
@@ -169,13 +177,10 @@ checkMaxValDomain maxVal d varName = case d of
 -- | Checks if any PfRecip expression could be zero "at runtime", more precisely :
 --   1) if the expression is constrained to be nonZero (via nonZero flag)
 --   2) or, 0 is not in the expression's value domain
-checkPfRecips :: [Expression] -> Map String VariableState -> Map String Int -> [String]
-checkPfRecips denominators store nameToID =
+checkPfRecips :: [Expression] -> Map String VariableState -> Map String Int -> Map Int VariableState -> [String]
+checkPfRecips denominators store nameToID varStatesIntKeys =
   concatMap checkSingle denominators
   where
-    -- converting name-keyed store to ID-keyed for inferValues
-    varStatesIntKeys = invertStates store nameToID
-
     checkSingle expr =
       let inferredDomain = inferValues expr nameToID varStatesIntKeys Nothing
       -- using the functions from ValueDomain to check zero status
@@ -192,3 +197,77 @@ invertStates st nmToID =
     | (varName, vState) <- Map.toList st
     , varName `Map.member` nmToID
     ]
+
+
+-- | Collects all ArrayStore and ArraySelect expressions from a list of constraints.
+-- TODO: kan misschien efficiënter, door tijdens value inferencing al te verzamelen?
+-- Maar dan geen separation of concerns meer I think.
+collectArrayAccesses :: [Constraint] -> [Expression]
+collectArrayAccesses = concatMap collectFromConstraint
+  where
+    collectFromConstraint :: Constraint -> [Expression]
+    collectFromConstraint (EqC _ e1 e2) = collectFromExpr e1 ++ collectFromExpr e2
+    collectFromConstraint (AndC _ cs)   = concatMap collectFromConstraint cs
+    collectFromConstraint (OrC _ cs)    = concatMap collectFromConstraint cs
+    collectFromConstraint (NotC _ c)    = collectFromConstraint c
+
+    collectFromExpr :: Expression -> [Expression]
+    -- collecting ArrayStore and recursing
+    collectFromExpr store@(ArrayStore arr idx val) =
+        [store] ++ collectFromExpr arr ++ collectFromExpr idx ++ collectFromExpr val
+    -- collecting ArraySelect and recursing
+    collectFromExpr select@(ArraySelect arr idx) =
+        [select] ++ collectFromExpr arr ++ collectFromExpr idx
+    -- standard recursion for other expression types
+    collectFromExpr (Add e1 e2)     = collectFromExpr e1 ++ collectFromExpr e2
+    collectFromExpr (Sub e1 e2)     = collectFromExpr e1 ++ collectFromExpr e2
+    collectFromExpr (Mul e1 e2)     = collectFromExpr e1 ++ collectFromExpr e2
+    collectFromExpr (Ite c t e)     = collectFromExpr c ++ collectFromExpr t ++ collectFromExpr e
+    collectFromExpr (Eq e1 e2)      = collectFromExpr e1 ++ collectFromExpr e2
+    collectFromExpr (Gt e1 e2)      = collectFromExpr e1 ++ collectFromExpr e2
+    collectFromExpr (Lt e1 e2)      = collectFromExpr e1 ++ collectFromExpr e2
+    collectFromExpr (Gte e1 e2)     = collectFromExpr e1 ++ collectFromExpr e2
+    collectFromExpr (Lte e1 e2)     = collectFromExpr e1 ++ collectFromExpr e2
+    collectFromExpr (And es)        = concatMap collectFromExpr es
+    collectFromExpr (Or es)         = concatMap collectFromExpr es
+    collectFromExpr (Not e)         = collectFromExpr e
+    collectFromExpr (PfRecip e)     = collectFromExpr e
+    collectFromExpr (Let bs body)   = concatMap (collectFromExpr . snd) bs ++ collectFromExpr body
+    collectFromExpr (ArrayLiteral elems _) = concatMap collectFromExpr elems
+    collectFromExpr (ArraySparseLiteral indexedExprs defExpr _ _) =
+        concatMap (collectFromExpr . snd) indexedExprs ++ collectFromExpr defExpr
+    collectFromExpr (ArrayConstruct exprs _) = concatMap collectFromExpr exprs
+    collectFromExpr (ArrayFill valExpr _ _) = collectFromExpr valExpr
+    collectFromExpr _               = [] -- Var, Int, FieldConst
+
+-- | Checks ArrayStore and ArraySelect expressions for potential out-of-bounds access
+--   using known indices based on the final inferred variable states.
+checkArrayAccesses :: [Constraint] -> Map String Int -> Map Int VariableState -> [String]
+checkArrayAccesses programConstraints nameToIDMap varStatesIntKeys =
+    let arrayAccessExprs = collectArrayAccesses programConstraints
+    in concatMap checkSingle arrayAccessExprs
+    where
+      checkSingle :: Expression -> [String]
+      checkSingle accessExpr =
+          -- extracting array and index expressions based on the type of access
+          let (arrExp, idxExp, accessType) = case accessExpr of
+                ArrayStore arr idx _ -> (arr, idx, "ArrayStore")
+                ArraySelect arr idx  -> (arr, idx, "ArraySelect")
+                -- should not happen, but just in case
+                _                    -> error "checkArrayAccesses called with non-array access expression"
+          in
+          -- inferring domains using the final states
+          let arrDom = inferValues arrExp nameToIDMap varStatesIntKeys Nothing
+              idxDom = inferValues idxExp nameToIDMap varStatesIntKeys Nothing
+          in
+          -- performing check only if array domain is known and index domain is a set of known values
+          case (arrDom, idxDom) of
+               (ArrayDomain _ _ size, KnownValues idxSet) ->
+                   -- foltering for indices that are out of the valid range [0, size-1]
+                   let outOfBoundsIndices = Set.filter (\idx -> idx < 0 || idx >= size) idxSet
+                   in -- generating error message if any out-of-bounds indices are found
+                      ["Potential " ++ accessType ++ " out-of-bounds: Index(es) " ++ show (Set.toList outOfBoundsIndices) ++
+                       " used with array of size " ++ show size ++ " in expression `" ++ show accessExpr ++ "`"
+                       | not (Set.null outOfBoundsIndices)]
+               -- cannot perform bounds check if array size is unknown or index is not a known set
+               _ -> []
