@@ -9,7 +9,7 @@ import Data.Either (fromLeft)
 import Data.List (isInfixOf)
 
 spec :: Spec
-spec = describe "Decoder Template Test" $ do
+spec = describe "Decoder(2) V1 Template Test" $ do
   it "completes analysis without detecting bugs" $ do
 
     -- using BN254 as prime field for demonstration

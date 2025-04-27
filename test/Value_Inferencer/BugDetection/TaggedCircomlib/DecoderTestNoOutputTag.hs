@@ -8,7 +8,7 @@ import BugDetection.BugDetection
 import Data.Either (isRight)
 
 spec :: Spec
-spec = describe "Decoder(3) Template Test" $ do
+spec = describe "Decoder(2) V3 Template Test" $ do
   it "should complete analysis without detecting bugs after removing `success` tag" $ do
 
     -- using BN254 as prime field for demonstration

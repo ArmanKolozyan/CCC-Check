@@ -9,7 +9,7 @@ import Data.Either (fromLeft)
 import Data.List (isInfixOf)
 
 spec :: Spec
-spec = describe "Decoder(2) Template Test" $ do
+spec = describe "Decoder(2) V2 Template Test" $ do
   it "should contain binary error ONLY for success" $ do
 
     -- using BN254 as prime field for demonstration
