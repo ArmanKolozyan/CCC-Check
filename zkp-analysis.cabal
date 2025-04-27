@@ -85,6 +85,7 @@ test-suite all-tests
       Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTest
       Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTestDeep
       Value_Inferencer.BugDetection.TaggedCircomlib.SumTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.SumTestDeep
   main-is: TestRunner.hs
   hs-source-dirs:
       test
