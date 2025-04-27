@@ -779,7 +779,7 @@ analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
           -- calculating the domain for x by multiplying omega by cInv
           let newDomainX = case omega of
 
-                -- knownValues: Apply inverse directly
+                -- knownValues: applying inverse directly
                 KnownValues vSet ->
                   KnownValues (Set.map (\v -> (v * cInv) `mod` p) vSet)
 

@@ -26,6 +26,8 @@ import qualified Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestRaw
 import qualified Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestBinary
 import qualified Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestNoOutputTag
 import qualified Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTest
+import qualified Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTestDeep
+
 
 main :: IO ()
 main = hspec $ do
@@ -54,3 +56,4 @@ main = hspec $ do
     Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestBinary.spec
     Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestNoOutputTag.spec
     Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTest.spec
+    Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTestDeep.spec
