@@ -1095,6 +1095,7 @@ propagateExclusionsBackward expr xDomain nameToID varStates =
     getExclusionIntervals :: ValueDomain -> Set.Set (Integer, Integer)
     getExclusionIntervals (KnownValues _) = Set.empty -- KnownValues don't have separate exclusions
     getExclusionIntervals (BoundedValues _ _ currentGaps) = currentGaps
+    getExclusionIntervals (ArrayDomain _ _ _) = Set.empty
 
     -- helper to handle different expression structures
     go :: Expression -> Set.Set (Integer, Integer) -> Map String Int -> Map Int VariableState -> (Bool, Map Int VariableState)
