@@ -28,9 +28,9 @@ spec = describe "Array Tag Check" $ do
 
     -- the test program
     let testProgram = Program
-          { inputs          = [arr, x]
+          { inputs          = []
           , computationVars = []
-          , constraintVars  = []
+          , constraintVars  = [arr, x]
           , computations    = []
           , constraints     = [c1, c2]
           , pfRecipExpressions = []

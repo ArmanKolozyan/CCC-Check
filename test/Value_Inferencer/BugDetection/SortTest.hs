@@ -20,7 +20,7 @@ spec = describe "Bug Detection Tests" $ do
 
     -- bindings:
     let b = Binding {name = "b", vid = 0, sort = FieldMod p, tag = Just $ SimpleTag "binary"}
-    let nz = Binding {name = "nz", vid = 1, sort = FieldMod p, tag = Just $ MaxValTag 4}
+    let nz = Binding {name = "nz", vid = 1, sort = FieldMod p, tag = Nothing}
     let f = Binding {name = "f", vid = 2, sort = FieldMod p, tag = Just $ MaxValTag 3}
 
     -- nz as denominator
@@ -93,7 +93,7 @@ spec = describe "Bug Detection Tests" $ do
 
     -- bindings:
     let b = Binding {name = "b", vid = 0, sort = Bool, tag = Just $ SimpleTag "binary"}
-    let nz = Binding {name = "nz", vid = 1, sort = FieldMod p, tag = Just $ MaxValTag 4}
+    let nz = Binding {name = "nz", vid = 1, sort = FieldMod p, tag = Nothing}
     let f = Binding {name = "f", vid = 2, sort = FieldMod p, tag = Just $ MaxValTag 4}
 
     let b_eq = EqC 105 (Var "b") (Int 2)
@@ -111,9 +111,9 @@ spec = describe "Bug Detection Tests" $ do
 
     let programBug =
           Program
-            { inputs = [b, nz, f],
+            { inputs = [],
               computationVars = [],
-              constraintVars = [],
+              constraintVars = [b, nz, f],
               computations = [],
               constraints = constraints,
               returnVars = [],

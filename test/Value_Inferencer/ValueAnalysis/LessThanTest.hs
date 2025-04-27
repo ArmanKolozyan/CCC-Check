@@ -21,8 +21,8 @@ spec = describe "Value Inferencer Detects" $ do
     -- 1) the bindings
 
     -- inputs a and b (up to 2 bits => FieldMod 3)
-    let a = Binding {name = "a", vid = 0, sort = FieldMod p, tag = Just $ MaxValTag 2}
-    let b = Binding {name = "b", vid = 1, sort = FieldMod p, tag = Just $ MaxValTag 2}
+    let a = Binding {name = "a", vid = 0, sort = FieldMod p, tag = Just $ MaxValTag 3}
+    let b = Binding {name = "b", vid = 1, sort = FieldMod p, tag = Just $ MaxValTag 3}
     -- bits for a
     let a_b0 = Binding {name = "a_b0", vid = 2, sort = Bool, tag = Just $ SimpleTag "binary"}
     let a_b1 = Binding {name = "a_b1", vid = 3, sort = Bool, tag = Just $ SimpleTag "binary"}
