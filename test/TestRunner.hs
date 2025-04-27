@@ -22,7 +22,9 @@ import qualified Value_Inferencer.BugDetection.TrailOfBits.EnforceAuthTest
 import qualified Value_Inferencer.BugDetection.Arrays.ArrayTagTest
 import qualified Value_Inferencer.BugDetection.Arrays.ArraySelectOutOfBoundsTest
 import qualified Value_Inferencer.BugDetection.Arrays.ArrayStoreOutOfBoundsTest
-
+import qualified Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestRaw
+import qualified Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestBinary
+import qualified Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestNoOutputTag
 
 main :: IO ()
 main = hspec $ do
@@ -47,3 +49,6 @@ main = hspec $ do
     Value_Inferencer.BugDetection.Arrays.ArrayTagTest.spec
     Value_Inferencer.BugDetection.Arrays.ArraySelectOutOfBoundsTest.spec
     Value_Inferencer.BugDetection.Arrays.ArrayStoreOutOfBoundsTest.spec
+    Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestRaw.spec
+    Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestBinary.spec
+    Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestNoOutputTag.spec

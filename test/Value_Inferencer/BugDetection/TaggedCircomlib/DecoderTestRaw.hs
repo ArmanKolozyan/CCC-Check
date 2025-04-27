@@ -80,7 +80,17 @@ spec = describe "Decoder(2) Template Test" $ do
 
     let errors = fromLeft [] bugResult
     let errorString = unlines errors
-    
+
+    -- The analysis cannot deduce cz0_out/cz1_out are binary ({0,1}) from the IsZero constraints
+    -- (out = -in*inv + 1, in*out = 0), as the analysis lacks symbolic reasoning to perform case analysis (if in=0 vs in!=0).
+    -- Moreover, the ValueDomain is non-relational; it cannot combine the implications of out = 1 - in*inv and in*out = 0 
+    -- symbolically to deduce out must be 0 or 1. Their domains remain bounded by the field modulus 'p'.
+    -- 1. cz0_out/cz1_out: Since their inferred domains are not {0,1}, they fail their 'binary' tag check.
+    -- 2. out[0]/out[1]: Because 'out' is constructed from cz0_out/cz1_out, and they are not inferred as binary,
+    --    the elements out[0] and out[1] also fail the 'binary' tag check applied to the 'out' array.
+    -- 3. success: Since cz0_out/cz1_out are not {0,1}, their sum ('success') is inferred to have a domain
+    --    larger than {0,1}, failing its 'binary' tag check.
+  
     errorString `shouldSatisfy` ("Boolean variable `cz0_out`" `isInfixOf`)
     errorString `shouldSatisfy` ("Boolean variable `cz1_out`" `isInfixOf`)
     errorString `shouldSatisfy` ("Boolean variable `out[0]`" `isInfixOf`) 

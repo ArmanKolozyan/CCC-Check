@@ -6,7 +6,6 @@ import Test.Hspec
 import Syntax.AST
 import BugDetection.BugDetection
 import Data.Either (isRight)
-import Data.List (isInfixOf)
 
 spec :: Spec
 spec = describe "Decoder(3) Template Test" $ do
@@ -82,5 +81,10 @@ spec = describe "Decoder(3) Template Test" $ do
 
     -- running the bug detection
     let bugResult = detectBugs testProgram Nothing
+
+    -- 1. cz0_out/cz1_out: Passed tag check due to explicit binary constraints.
+    -- 2. out[0]/out[1]: Passed tag check because array elements are binary.
+    -- 3. success: Inferred domain is {0,1,2}. Since the 'binary' tag was removed from its binding,
+    --    this domain is now accepted, and no error is reported.
 
     bugResult `shouldSatisfy` isRight

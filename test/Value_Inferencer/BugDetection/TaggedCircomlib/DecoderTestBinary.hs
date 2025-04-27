@@ -86,6 +86,15 @@ spec = describe "Decoder(2) Template Test" $ do
     let errors = fromLeft [] bugResult
     let errorString = unlines errors
 
+    -- 1. cz0_out/cz1_out: The explicit binary constraints force their domains to {0,1}. They pass the tag check.
+    -- 2. out[0]/out[1]: Since 'out' is constructed from the now-binary cz0_out/cz1_out, the elements
+    --    out[0] and out[1] satisfy the array's 'binary' tag.
+    -- 3. success: The analysis still calculates success = {0,1} + {0,1} = {0,1,2}. It cannot deduce
+    --    that at most one of cz0_out/cz1_out can be 1. In other words, the analysis does not perform 
+    --    cross-constraint reasoning to link cz0_out=1 (requiring inp=0) and cz1_out=1 (requiring inp=1) 
+    --    to show they are mutually exclusive because inp cannot be both 0 and 1. 
+    --    Therefore, 'success' fails its 'binary' tag check.
+    
     errorString `shouldSatisfy` ("Boolean variable `success`" `isInfixOf`)
     errorString `shouldSatisfy` (not . ("Boolean variable `cz0_out`" `isInfixOf`))
     errorString `shouldSatisfy` (not . ("Boolean variable `cz1_out`" `isInfixOf`))

@@ -79,6 +79,9 @@ test-suite all-tests
       Value_Inferencer.BugDetection.Arrays.ArrayTagTest
       Value_Inferencer.BugDetection.Arrays.ArraySelectOutOfBoundsTest
       Value_Inferencer.BugDetection.Arrays.ArrayStoreOutOfBoundsTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestRaw
+      Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestBinary
+      Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestNoOutputTag
   main-is: TestRunner.hs
   hs-source-dirs:
       test
