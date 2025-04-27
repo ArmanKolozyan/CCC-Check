@@ -27,6 +27,8 @@ import ValueAnalysis.VariableState
 import ValueAnalysis.ValueDomain
 import ValueAnalysis.Printer
 
+import Control.Monad (foldM)
+
 import Debug.Trace (trace)
 
 --------------------------
@@ -1567,14 +1569,37 @@ reQueue oldQueue varToConstraints = foldl (\accQ varID ->
 -- 6) Main Analysis
 --------------------------
 
+-- | Applies tag constraints to input variables before starting the main analysis.
+applyInputTags :: [Binding] -> Map String Int -> Map Int VariableState -> Either String (Map Int VariableState)
+applyInputTags inputs nameToID initialStates =
+  foldM applyTag initialStates inputs
+  where
+  applyTag :: Map Int VariableState -> Binding -> Either String (Map Int VariableState)
+  applyTag currentStates binding =
+    case tag binding of
+      Nothing -> Right currentStates -- no tag, no change
+      Just t -> do
+        varID <- lookupVarID (name binding) nameToID
+        currentState <- lookupVarState varID currentStates
+        -- getting domain associated with the tag
+        let constraintDomain = tagToDomain t
+        -- intersecting the current domain with the tag's constraint
+        let newState = currentState { domain = constraintDomain }
+        -- updating the state map
+        Right $ Map.insert varID newState currentStates
+
 -- given Program
 analyzeProgram :: Program -> Map String VariableState
 analyzeProgram (Program inputs compVars constrVars _ pfRecips retVars constraints) =
   let nameToID = buildVarNameToIDMap (inputs ++ compVars ++ constrVars)
-      varStates = initializeVarStates (inputs ++ compVars ++ constrVars)
+      initialVarStates = initializeVarStates (inputs ++ compVars ++ constrVars)
       varToConstraints = buildVarToConstraints nameToID constraints
       constraintMap = Map.fromList [(getConstraintID c, c) | c <- constraints]
-  in analyzeConstraints constraintMap nameToID varToConstraints Nothing varStates
+  -- applying input tags before starting the main analysis loop
+  in case applyInputTags inputs nameToID initialVarStates of
+       Left err -> error $ "Error applying input tags: " ++ err
+       Right statesWithInputTags ->
+         analyzeConstraints constraintMap nameToID varToConstraints Nothing statesWithInputTags
 
 -- given File
 analyzeFromFile :: FilePath -> IO ()

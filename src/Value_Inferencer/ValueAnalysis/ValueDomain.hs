@@ -5,6 +5,7 @@ import qualified Data.Set as Set
 import Data.Maybe (fromMaybe)
 import Data.Map
 import qualified Data.Map.Merge.Strict as Map
+import Syntax.AST
 
 -- TODO: we maken vaak onderscheid tussen normal interval en wrapped,
 -- maar eigenlijk kan wrapped nooit voorkomen want wordt omgezet naar
@@ -312,3 +313,11 @@ domainIsUnconstrained (KnownValues s) = Set.null s
 domainIsUnconstrained (BoundedValues (Just 0) (Just ul) _)
   | ul == p - 1 = True
 domainIsUnconstrained _ = False
+
+-- | Converts a Tag into its corresponding ValueDomain constraint.
+tagToDomain :: Tag -> ValueDomain
+tagToDomain (SimpleTag "binary")  = BoundedValues (Just 0) (Just 1) Set.empty
+tagToDomain (SimpleTag "nonzero") = excludeValue defaultValueDomain 0
+tagToDomain (MaxBitsTag n)        = BoundedValues (Just 0) (Just ((2 ^ n) - 1)) Set.empty
+tagToDomain (MaxValTag n)         = BoundedValues (Just 0) (Just n) Set.empty
+tagToDomain _                     = defaultValueDomain -- default for unhandled tags
