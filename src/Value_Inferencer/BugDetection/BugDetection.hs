@@ -18,6 +18,7 @@ import Data.Maybe (fromMaybe)
 import ValueAnalysis.VariableState
 import ValueAnalysis.ValueDomain
 import ValueAnalysis.Analysis (analyzeProgram, inferValues)
+import Debug.Trace (trace)
 
 {- 
   | This function:
@@ -72,11 +73,14 @@ checkTag t vs = checkTagDomain t (domain vs)
 -- | Checks that a ValueDomain is consistent with its Tag. Handles recursion for arrays.
 checkTagDomain :: Tag -> ValueDomain -> String -> [String]
 -- array case: checking tag check recursively to elements and default
-checkTagDomain t (ArrayDomain elemMap defDom _size) varName =
+checkTagDomain t (ArrayDomain elemMap defDom size) varName =
     let elemErrors = concatMap (\(idx, elemDom) ->
                         checkTagDomain t elemDom (varName ++ "[" ++ show idx ++ "]"))
                      (Map.toList elemMap)
-        defErrors = checkTagDomain t defDom (varName ++ "[default]")
+        -- only checking the default domain if the element map does not cover all indices
+        defErrors = if fromIntegral (Map.size elemMap) == size
+                    then []
+                    else checkTagDomain t defDom (varName ++ "[default]")
     in elemErrors ++ defErrors
 -- scalar cases: delegating to specific domain checkers
 checkTagDomain (SimpleTag "binary") d varName = checkBooleanDomain d varName
@@ -102,7 +106,10 @@ checkSortDomain (ArraySort elemSort expectedSize) (ArrayDomain elemMap defDom ac
         elemErrors = concatMap (\(idx, elemDom) ->
                         checkSortDomain elemSort elemDom (varName ++ "[" ++ show idx ++ "]"))
                      (Map.toList elemMap)
-        defErrors = checkSortDomain elemSort defDom (varName ++ "[default]")
+        -- only checking the default domain if the element map does not cover all indices
+        defErrors = if fromIntegral (Map.size elemMap) == actualSize
+                    then []
+                    else checkSortDomain elemSort defDom (varName ++ "[default]")
     in sizeError ++ elemErrors ++ defErrors    
 -- Scalar Sorts vs Scalar Domains
 checkSortDomain Bool d varName         = checkBooleanDomain d varName
