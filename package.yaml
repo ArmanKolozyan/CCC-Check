@@ -86,3 +86,4 @@ tests:
       - Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestNoOutputTag
       - Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTest
       - Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTestDeep
+      - Value_Inferencer.BugDetection.TaggedCircomlib.SumTest
