@@ -28,12 +28,11 @@ spec = describe "BinSub Template Test" $ do
     let out = Binding { name = "out", vid = 4, sort = ArraySort (FieldMod p) 2, tag = Just (SimpleTag "binary") }
 
     -- intermediate signals from Bits2Num(2) instances
-    -- maxbit 2 => max value 1*1 + 1*2 = 3
-    -- TODO: maxBitTag toevoegen!
-    let b2n1_out = Binding { name = "b2n1_out", vid = 5, sort = FieldMod p, tag = Just (MaxValTag 3) } 
-    let b2n2_out = Binding { name = "b2n2_out", vid = 6, sort = FieldMod p, tag = Just (MaxValTag 3) }
+    let b2n1_out = Binding { name = "b2n1_out", vid = 5, sort = FieldMod p, tag = Just (MaxBitsTag 2) } 
+    let b2n2_out = Binding { name = "b2n2_out", vid = 6, sort = FieldMod p, tag = Just (MaxBitsTag 2) }
 
     -- intermediate signals from Num2Bits(3) instance (n=2, so n+1=3)
+    -- please see decodeSumOfPowers in Analysis.hs for the inference rule
     let n2b_in = Binding { name = "n2b_in", vid = 7, sort = FieldMod p, tag = Nothing }
     let n2b_out0 = Binding { name = "n2b_out0", vid = 8, sort = FieldMod p, tag = Just (SimpleTag "binary") }
     let n2b_out1 = Binding { name = "n2b_out1", vid = 9, sort = FieldMod p, tag = Just (SimpleTag "binary") }

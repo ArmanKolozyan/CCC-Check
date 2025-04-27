@@ -898,7 +898,7 @@ analyzeConstraint (EqC cid lhs (Var zName)) nameToID varStates
            --    the known value of 'z' essentially *is* the number represented in base 'c' by the bits 'b_i'.
            --    We can extract the required value (0 or 1) for each b_i by looking at the corresponding
            --    base-c digit of the known value of 'z'. This allows us to further constrain the domains
-           --    of the 'b_i' variables, setting them to KnownValues {0} or KnownValues {1}.
+           --    of the 'b_i' variables by setting them to KnownValues {0} or KnownValues {1}.
            --    The `decodeSumOfPowers` function performs this bit extraction and state update.
            case domain updatedZState of
                  KnownValues zVals | Set.size zVals == 1 -> do
