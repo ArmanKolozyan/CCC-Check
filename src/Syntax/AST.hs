@@ -1,5 +1,11 @@
 
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
+
 module Syntax.AST (Program (..), Binding (..), Sort (..), Expression (..), Constraint (..), Tag (..)) where
+
+import GHC.Generics (Generic)
+import Control.DeepSeq (NFData)
 
 -- | An AST representation of a CirC-IR program. It only contains the
 --   components relevant for bug detection. Information about parties,
@@ -13,7 +19,7 @@ data Program = Program
     returnVars         :: [Binding],
     constraints :: [Constraint]
   }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic, NFData)
 
 -- | A binding contains the name and the sort.
 data Binding = Binding
@@ -22,14 +28,14 @@ data Binding = Binding
     sort :: Sort,
     tag :: Maybe Tag
   }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic, NFData)
 
 data Tag 
   = SimpleTag String     -- e.g., "binary"
   | MaxBitsTag Integer   -- e.g., (maxbits 5)
   | MaxValTag Integer
   -- TODO: other tags
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic, NFData)
 
 -- | The sorts we are interested in. Currently, only field elements are included,
 --   as they are the primary type supported by Circom.
@@ -38,7 +44,7 @@ data Sort
   | Bool 
   | BitVector Integer
   | ArraySort Sort Integer -- arrays have an element sort and size
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic, NFData)
 
 -- | Minimal set of expressions: variables, field elements (currently handled
 -- as integers), and arithmetic.
@@ -116,7 +122,7 @@ data Expression
 
     -- assignments
   | Assign String Expression
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic, NFData)
 
 -- | Minimal set of constraints: equality.
 data Constraint
@@ -124,7 +130,7 @@ data Constraint
   | AndC Int [Constraint]
   | OrC Int [Constraint]
   | NotC Int Constraint
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic, NFData)
 
 {-
 TODO:

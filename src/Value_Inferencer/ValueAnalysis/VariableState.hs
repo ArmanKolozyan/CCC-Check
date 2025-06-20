@@ -1,13 +1,17 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
+
 module ValueAnalysis.VariableState where
 
-
+import GHC.Generics (Generic)
+import Control.DeepSeq (NFData)
 import ValueAnalysis.ValueDomain (ValueDomain(..), defaultValueDomain)
 import Syntax.AST
 import Data.Map
 import qualified Data.Map as Map
 
 -- | Tracks the state of each variable.
-newtype VariableState = VariableState {domain :: ValueDomain} deriving (Eq, Show)
+newtype VariableState = VariableState {domain :: ValueDomain} deriving (Eq, Show, Generic, NFData)
 
 -- | Initializes the state for a single variable based on its binding.
 initVarState :: Binding -> VariableState

@@ -1,3 +1,6 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
+
 module ValueAnalysis.ValueDomain where
 
 import Data.Set (Set)
@@ -6,6 +9,8 @@ import Data.Maybe (fromMaybe)
 import Data.Map
 import qualified Data.Map.Merge.Strict as Map
 import Syntax.AST
+import GHC.Generics (Generic)
+import Control.DeepSeq (NFData)
 
 -- TODO: we maken vaak onderscheid tussen normal interval en wrapped,
 -- maar eigenlijk kan wrapped nooit voorkomen want wordt omgezet naar
@@ -47,7 +52,7 @@ data ValueDomain
       -- needing to refer back to the original variable's Binding and Sort.
       arraySize :: Integer                     -- size of the array
     }  
-  deriving (Eq, Show)
+  deriving (Show, Eq, Generic, NFData)
 
 -- | Determines the set of possible concrete integer indices within array bounds.
 getPossibleIndices :: ValueDomain -> Integer -> Set Integer
