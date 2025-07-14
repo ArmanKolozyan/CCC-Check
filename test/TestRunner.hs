@@ -29,6 +29,12 @@ import qualified Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTest
 import qualified Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTestDeep
 import qualified Value_Inferencer.BugDetection.TaggedCircomlib.SumTest
 import qualified Value_Inferencer.BugDetection.TaggedCircomlib.SumTestDeep
+import qualified Value_Inferencer.BugDetection.TaggedCircomlib.NotTest
+import qualified Value_Inferencer.BugDetection.TaggedCircomlib.XorTest
+import qualified Value_Inferencer.BugDetection.TaggedCircomlib.AndTest
+import qualified Value_Inferencer.BugDetection.TaggedCircomlib.OrTest
+import qualified Value_Inferencer.BugDetection.TaggedCircomlib.NandTest
+import qualified Value_Inferencer.BugDetection.TaggedCircomlib.NorTest
 
 
 main :: IO ()
@@ -61,3 +67,11 @@ main = hspec $ do
     Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTestDeep.spec
     Value_Inferencer.BugDetection.TaggedCircomlib.SumTest.spec
     Value_Inferencer.BugDetection.TaggedCircomlib.SumTestDeep.spec
+
+    Value_Inferencer.BugDetection.TaggedCircomlib.NotTest.spec
+    Value_Inferencer.BugDetection.TaggedCircomlib.XorTest.spec
+    Value_Inferencer.BugDetection.TaggedCircomlib.AndTest.spec
+    Value_Inferencer.BugDetection.TaggedCircomlib.OrTest.spec
+    Value_Inferencer.BugDetection.TaggedCircomlib.NandTest.spec
+    Value_Inferencer.BugDetection.TaggedCircomlib.NorTest.spec
+
