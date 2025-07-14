@@ -701,16 +701,28 @@ analyzeConstraint (EqC _ (Var outName) (Sub (Add (Var aName1) (Var bName1)) (Mul
   else
     Right (False, varStates)
 
--- | Boolean NOT Rule: out = 1 - in (equivalent to 1 + in - 2*in for binary in)
+-- | Boolean NOT Rule: out = 1 + in - 2*in (where in is binary)
 --   If in is binary, then out must be binary.
-analyzeConstraint (EqC _ (Var outName) (Sub (Int 1) (Var inName))) nameToID varStates
+analyzeConstraint (EqC _ (Var outName) (Sub (Add (Int 1) (Var inName1)) (Mul (Int 2) (Var inName2)))) nameToID varStates
   -- necessary check: if the guard fails, this clause does not match, and pattern matching continues.
-  | isBinaryVar nameToID varStates inName
+  | inName1 == inName2 && isBinaryVar nameToID varStates inName1
   = constrainVarToBinary outName nameToID varStates
 
--- | Boolean NOR Rule: out = a*b + 1 - a - b (equivalent to 1 - OR(a,b))
+-- | Boolean AND Rule: out = a * b
 --   If a and b are binary, then out must be binary.
-analyzeConstraint (EqC _ (Var outName) (Sub (Sub (Add (Mul (Var aName1) (Var bName1)) (Int 1)) (Var aName2)) (Var bName2))) nameToID varStates =
+analyzeConstraint (EqC _ (Var outName) (Mul (Var aName) (Var bName))) nameToID varStates
+  | isBinaryVar nameToID varStates aName && isBinaryVar nameToID varStates bName
+  = constrainVarToBinary outName nameToID varStates
+
+-- | Boolean NAND Rule: out = 1 - a * b
+--   If a and b are binary, then out must be binary.
+analyzeConstraint (EqC _ (Var outName) (Sub (Int 1) (Mul (Var aName) (Var bName)))) nameToID varStates
+  | isBinaryVar nameToID varStates aName && isBinaryVar nameToID varStates bName
+  = constrainVarToBinary outName nameToID varStates
+
+-- | Boolean NOR Rule: out = (a*b + 1) - (a + b) (equivalent to 1 - OR(a,b))
+--   If a and b are binary, then out must be binary.
+analyzeConstraint (EqC _ (Var outName) (Sub (Add (Mul (Var aName1) (Var bName1)) (Int 1)) (Add (Var aName2) (Var bName2)))) nameToID varStates =
   -- checking if variables match for NOR pattern
   if aName1 == aName2 && bName1 == bName2 then
     if isBinaryVar nameToID varStates aName1 && isBinaryVar nameToID varStates bName1 then
