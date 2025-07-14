@@ -29,6 +29,7 @@ library:
     - mtl
     - singletons
     - containers
+    - deepseq
 
 executables:
   zkp-analysis-exe:
@@ -88,3 +89,26 @@ tests:
       - Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTestDeep
       - Value_Inferencer.BugDetection.TaggedCircomlib.SumTest
       - Value_Inferencer.BugDetection.TaggedCircomlib.SumTestDeep
+
+      - Value_Inferencer.BugDetection.TaggedCircomlib.NotTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.XorTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.AndTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.OrTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.NandTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.NorTest
+
+benchmarks:
+  analysis-bench:
+    main: Bench.hs
+    source-dirs: bench
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+      - -O2
+    dependencies:
+      - base
+      - zkp-analysis
+      - criterion
+      - deepseq
+      - containers
