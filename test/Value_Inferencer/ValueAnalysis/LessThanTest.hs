@@ -30,7 +30,7 @@ spec = describe "Value Inferencer Detects" $ do
     let b_b0 = Binding {name = "b_b0", vid = 4, sort = Bool, tag = Just $ SimpleTag "binary"}
     let b_b1 = Binding {name = "b_b1", vid = 5, sort = Bool, tag = Just $ SimpleTag "binary"}
     -- diff variable inside the LessThan template (up to 3 bits => FieldMod 7)
-    let diff = Binding {name = "diff", vid = 6, sort = FieldMod p, tag = Just $ MaxValTag 6}
+    let diff = Binding {name = "diff", vid = 6, sort = FieldMod p, tag = Just $ MaxValTag 7}
     -- bits from diff (Num2Bits(3)):
     let diff_b0 = Binding {name = "diff_b0", vid = 7, sort = Bool, tag = Just $ SimpleTag "binary"}
     let diff_b1 = Binding {name = "diff_b1", vid = 8, sort = Bool, tag = Just $ SimpleTag "binary"}
