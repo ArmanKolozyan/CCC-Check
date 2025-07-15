@@ -1,0 +1,42 @@
+Checking template BinaryCheck()
+Number of signals (i,int,o): 2
+Number of tagged signals to check: 1
+Number of constraints in template: 2
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.003138625
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+
+Checking template MultiMux1(4)
+Number of signals (i,int,o): 13
+Number of tagged signals to check: 0
+Number of constraints in template: 4
+### NOTHING TO VERIFY: THE TEMPLATE DOES NOT CONTAIN TAGGED OUTPUTS
+Verification time per template: 0.00001825
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: NOTHING TO VERIFY
+
+
+
+
+Checking template Main()
+Number of signals (i,int,o): 13
+Number of tagged signals to check: 0
+Number of constraints in template: 14
+### NOTHING TO VERIFY: THE TEMPLATE DOES NOT CONTAIN TAGGED OUTPUTS
+Verification time per template: 0.000072375
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: NOTHING TO VERIFY
+
+
+
+

@@ -1,0 +1,134 @@
+Checking template Num2Bits(5)
+Number of signals (i,int,o): 6
+Number of tagged signals to check: 0
+Number of constraints in template: 6
+### NOTHING TO VERIFY: THE TEMPLATE DOES NOT CONTAIN TAGGED OUTPUTS
+Verification time per template: 0.000024375
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: NOTHING TO VERIFY
+
+
+
+
+Checking template LessThan(4)
+- Input signal in with tag maxbit with value 4
+Number of signals (i,int,o): 3
+Number of tagged signals to check: 1
+Number of constraints in template: 2
+### THE VERIFICATION OF THE TAGS OF THE TEMPLATE FAILED. FOUND COUNTEREXAMPLE USING SMT:
+Signal 7: 2
+Signal 8: 0
+Signal 9: 0
+Signal 10: 0
+Signal 11: 0
+Signal 12: 0
+Signal 13: 0
+Signal 14: 21888242871839275222246405745257275088548364400416034343698204186575808495616
+Signal 15: 16
+### Trying to verify adding constraints of the children
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.006780333
+     NUMBER OF ROUNDS: 1
+
+ ******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+
+Checking template NOT()
+Number of signals (i,int,o): 2
+Number of tagged signals to check: 1
+Number of constraints in template: 1
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.00212625
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+
+Checking template GreaterEqThan(4)
+- Input signal in with tag maxbit with value 4
+Number of signals (i,int,o): 3
+Number of tagged signals to check: 1
+Number of constraints in template: 4
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.002547875
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+
+Checking template Num2Bits(4)
+Number of signals (i,int,o): 5
+Number of tagged signals to check: 0
+Number of constraints in template: 5
+### NOTHING TO VERIFY: THE TEMPLATE DOES NOT CONTAIN TAGGED OUTPUTS
+Verification time per template: 0.000016791
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: NOTHING TO VERIFY
+
+
+
+
+Checking template MaxbitCheck(4)
+Number of signals (i,int,o): 2
+Number of tagged signals to check: 1
+Number of constraints in template: 2
+### THE VERIFICATION OF THE TAGS OF THE TEMPLATE FAILED. FOUND COUNTEREXAMPLE USING SMT:
+Signal 22: 16
+Signal 23: 16
+Signal 24: 0
+Signal 25: 0
+Signal 26: 0
+Signal 27: 0
+Signal 28: 16
+### Trying to verify adding constraints of the children
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.004921
+     NUMBER OF ROUNDS: 1
+
+ ******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+
+Checking template MaxbitCheckArray(4,2)
+Number of signals (i,int,o): 4
+Number of tagged signals to check: 2
+Number of constraints in template: 4
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.002537375
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+
+Checking template Main()
+Number of signals (i,int,o): 3
+Number of tagged signals to check: 1
+Number of constraints in template: 5
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.010256083
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+

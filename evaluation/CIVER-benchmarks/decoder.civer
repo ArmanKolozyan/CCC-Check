@@ -1,0 +1,52 @@
+Checking template IsZero()
+Number of signals (i,int,o): 3
+Number of tagged signals to check: 1
+Number of constraints in template: 2
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.003463708
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+
+Checking template Decoder(2)
+Number of signals (i,int,o): 4
+Number of tagged signals to check: 3
+Number of constraints in template: 5
+### THE VERIFICATION OF THE TAGS OF THE TEMPLATE FAILED. FOUND COUNTEREXAMPLE USING SMT:
+Signal 5: 1
+Signal 6: 1
+Signal 7: 2
+Signal 8: 1
+Signal 9: 1
+Signal 10: 1
+Signal 12: 1
+Signal 13: 0
+### Trying to verify adding constraints of the children
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.007381625
+     NUMBER OF ROUNDS: 1
+
+ ******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+
+Checking template Main()
+Number of signals (i,int,o): 4
+Number of tagged signals to check: 1
+Number of constraints in template: 4
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.002388166
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+

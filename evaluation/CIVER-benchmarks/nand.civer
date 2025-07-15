@@ -1,0 +1,42 @@
+Checking template BinaryCheck()
+Number of signals (i,int,o): 2
+Number of tagged signals to check: 1
+Number of constraints in template: 2
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.003116833
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+
+Checking template NAND()
+Number of signals (i,int,o): 3
+Number of tagged signals to check: 1
+Number of constraints in template: 1
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.001980333
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+
+Checking template Main()
+Number of signals (i,int,o): 3
+Number of tagged signals to check: 1
+Number of constraints in template: 5
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.00287575
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+

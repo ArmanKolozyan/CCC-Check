@@ -1,0 +1,28 @@
+Checking template Num2Bits(4)
+Number of signals (i,int,o): 5
+Number of tagged signals to check: 4
+Number of constraints in template: 5
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.00330175
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+
+Checking template Main()
+Number of signals (i,int,o): 5
+Number of tagged signals to check: 4
+Number of constraints in template: 5
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.002999167
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+

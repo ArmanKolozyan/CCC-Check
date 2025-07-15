@@ -1,0 +1,42 @@
+Checking template IsZero()
+Number of signals (i,int,o): 3
+Number of tagged signals to check: 1
+Number of constraints in template: 2
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.003426916
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+
+Checking template IsEqual()
+Number of signals (i,int,o): 3
+Number of tagged signals to check: 1
+Number of constraints in template: 2
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.002536458
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+
+Checking template Main()
+Number of signals (i,int,o): 3
+Number of tagged signals to check: 1
+Number of constraints in template: 3
+### SUCCESS: THE TAGS OF THE TEMPLATE ARE VERIFIED
+Verification time per template: 0.00226275
+     NUMBER OF ROUNDS: 0
+
+******** VERIFICATION RESULTS ********
+-----> TAGS CHECKING: VERIFIED
+
+
+
+
