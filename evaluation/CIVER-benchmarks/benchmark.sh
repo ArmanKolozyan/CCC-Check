@@ -67,9 +67,8 @@ done
 mkdir -p data
 
 # exporting timing data to CSV file
-timestamp=$(date +"%Y%m%d_%H%M%S")
 circuit_name=$(basename "$CIRCUIT_FILE" .circom)
-output_file="data/benchmark_results_${circuit_name}_${timestamp}.csv"
+output_file="data/benchmark_results_${circuit_name}.csv"
 
 echo "circuit,run,time_ms,is_warmup" > "$output_file"
 for ((i=0; i<${#all_times[@]}; i++)); do
@@ -84,5 +83,8 @@ done
 echo
 echo "📊 Data exported to: $output_file"
 echo "🐍 Running Python analysis..."
+
+# running Python analysis
+python3 analyze_benchmark.py "$output_file" --warmup "$WARMUP_CUTOFF"
 
 echo "✅ Done!"
