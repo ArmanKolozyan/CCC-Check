@@ -7,11 +7,11 @@ import Syntax.AST
 import BugDetection.BugDetection
 import Data.Either (isRight)
 
--- | Decoder(2) V3 Template test program without `success` tag
+-- | Decoder V3 Template test program without `success` tag
 decoderTestNoOutputTagProgram :: Program
 decoderTestNoOutputTagProgram = 
   let
-    
+
     -- using BN254 as prime field for demonstration
     p = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 

@@ -9,9 +9,10 @@ import Data.Either (fromLeft)
 import Data.List (isInfixOf)
 
 
--- | Decoder template test program
+-- | Decoder V2 Template test program (explicit binary constraints for IsZero outputs)
 decoderTestProgram :: Program
 decoderTestProgram = 
+
   let 
 
    -- using BN254 as prime field for demonstration  

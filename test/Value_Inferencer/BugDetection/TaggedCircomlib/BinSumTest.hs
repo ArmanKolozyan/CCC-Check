@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Value_Inferencer.BugDetection.TaggedCircomlib.SumTest (spec, sumTestProgram) where
+module Value_Inferencer.BugDetection.TaggedCircomlib.BinSumTest (spec, sumTestProgram) where
 
 import Test.Hspec
 import Syntax.AST

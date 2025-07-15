@@ -8,7 +8,7 @@ import BugDetection.BugDetection
 import Data.Either (fromLeft)
 import Data.List (isInfixOf)
 
--- | Decoder(2) V1 Template test program
+-- | Decoder V1 Template test program
 decoderTestRawProgram :: Program
 decoderTestRawProgram =
   let
@@ -64,7 +64,7 @@ decoderTestRawProgram =
                      , c_success
                      , c_out_def
                      ]
-                     
+
   in Program
        { inputs          = [inp]
        , computationVars = []
