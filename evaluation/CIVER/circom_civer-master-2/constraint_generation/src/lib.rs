@@ -126,6 +126,10 @@ fn check_tags(tree_constraints: TreeConstraints, prime: &String,
     )
     {
     use program_structure::constants::UsefulConstants;
+    use std::time::Instant;
+
+    // starting the timer for the verification process
+    let verification_start = Instant::now();
 
     let mut studied_nodes: HashMap<String, ((usize, usize), (PossibleResult, PossibleResult, PossibleResult))> = HashMap::new();
         
@@ -244,6 +248,15 @@ fn check_tags(tree_constraints: TreeConstraints, prime: &String,
         println!("  * Number of timeout components (tags): {}", tags_timeout.len());
         println!("\n");
     } 
+
+    // calculating and displaying total verification time
+    let verification_duration = verification_start.elapsed();
+    if check_tags || check_postconditions || check_safety {
+        println!("  * Total verification time: {:.2}ms", verification_duration.as_secs_f64() * 1000.0);
+        println!("  * Average time per component: {:.2}ms", 
+            verification_duration.as_secs_f64() * 1000.0 / studied_nodes.len() as f64);
+    }
+
     if check_postconditions{
         if post_failed.is_empty() && post_timeout.is_empty(){
         	println!("-> All postconditions were verified :)");
