@@ -85,10 +85,7 @@ tests:
       - Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestRaw
       - Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestBinary
       - Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestNoOutputTag
-      - Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTest
-      - Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTestDeep
-      - Value_Inferencer.BugDetection.TaggedCircomlib.SumTest
-      - Value_Inferencer.BugDetection.TaggedCircomlib.SumTestDeep
+      - Value_Inferencer.BugDetection.TaggedCircomlib.ModSumTest
 
       - Value_Inferencer.BugDetection.TaggedCircomlib.NotTest
       - Value_Inferencer.BugDetection.TaggedCircomlib.XorTest
@@ -96,11 +93,52 @@ tests:
       - Value_Inferencer.BugDetection.TaggedCircomlib.OrTest
       - Value_Inferencer.BugDetection.TaggedCircomlib.NandTest
       - Value_Inferencer.BugDetection.TaggedCircomlib.NorTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.IsZeroTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.IsZeroForcedTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.IsEqualTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.IsEqualForcedTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.Num2BitsTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.Bits2NumTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.MultiMux1Test
+      - Value_Inferencer.BugDetection.TaggedCircomlib.Mux1Test
+      - Value_Inferencer.BugDetection.TaggedCircomlib.LessThanTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.GreaterThanTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.GreaterEqThanTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.LessEqThanTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.BigLessThanTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTestDeep
+      - Value_Inferencer.BugDetection.TaggedCircomlib.BinSumTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.SumTestDeep
 
 benchmarks:
-  analysis-bench:
-    main: Bench.hs
-    source-dirs: bench
+      
+  taggedcircomlib-bench:
+    main: TaggedCircomlibBench.hs
+    source-dirs: 
+      - evaluation/benchmarking
+      - test
+    other-modules:
+      - Value_Inferencer.BugDetection.TaggedCircomlib.NotTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.XorTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.AndTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.OrTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.NandTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.NorTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.IsZeroTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestRaw
+      - Value_Inferencer.BugDetection.TaggedCircomlib.IsEqualTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.Num2BitsTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.Bits2NumTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.MultiMux1Test
+      - Value_Inferencer.BugDetection.TaggedCircomlib.Mux1Test
+      - Value_Inferencer.BugDetection.TaggedCircomlib.LessThanTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.GreaterThanTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.GreaterEqThanTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.LessEqThanTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.BigLessThanTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTest
+      - Value_Inferencer.BugDetection.TaggedCircomlib.BinSumTest
     ghc-options:
       - -threaded
       - -rtsopts
@@ -112,3 +150,8 @@ benchmarks:
       - criterion
       - deepseq
       - containers
+      - rio
+      - maf2-analysis
+      - maf2-domains
+      - maf2-syntax
+      - hspec
