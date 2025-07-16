@@ -1,0 +1,124 @@
+benchmarking TaggedCircomlib ValueAnalysis/NotTest
+time                 1.917 μs   (1.903 μs .. 1.926 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 1.901 μs   (1.892 μs .. 1.910 μs)
+std dev              26.99 ns   (22.38 ns .. 34.24 ns)
+variance introduced by outliers: 13% (moderately inflated)
+
+benchmarking TaggedCircomlib ValueAnalysis/XorTest
+time                 3.544 μs   (3.533 μs .. 3.555 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 3.548 μs   (3.544 μs .. 3.552 μs)
+std dev              13.21 ns   (9.076 ns .. 19.12 ns)
+
+benchmarking TaggedCircomlib ValueAnalysis/AndTest
+time                 1.771 μs   (1.769 μs .. 1.773 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 1.767 μs   (1.762 μs .. 1.770 μs)
+std dev              11.62 ns   (9.237 ns .. 16.11 ns)
+
+benchmarking TaggedCircomlib ValueAnalysis/OrTest
+time                 3.512 μs   (3.494 μs .. 3.524 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 3.512 μs   (3.502 μs .. 3.518 μs)
+std dev              28.31 ns   (20.03 ns .. 41.80 ns)
+
+benchmarking TaggedCircomlib ValueAnalysis/NandTest
+time                 1.763 μs   (1.757 μs .. 1.767 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 1.763 μs   (1.755 μs .. 1.770 μs)
+std dev              25.32 ns   (20.46 ns .. 30.67 ns)
+variance introduced by outliers: 13% (moderately inflated)
+
+benchmarking TaggedCircomlib ValueAnalysis/NorTest
+time                 3.533 μs   (3.525 μs .. 3.539 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 3.525 μs   (3.521 μs .. 3.528 μs)
+std dev              12.36 ns   (9.891 ns .. 14.94 ns)
+
+benchmarking TaggedCircomlib ValueAnalysis/IsZeroTest
+time                 3.801 μs   (3.795 μs .. 3.808 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 3.807 μs   (3.801 μs .. 3.814 μs)
+std dev              21.31 ns   (16.79 ns .. 24.51 ns)
+
+benchmarking TaggedCircomlib ValueAnalysis/DecoderTestRaw
+time                 29.72 μs   (29.59 μs .. 29.80 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 29.63 μs   (29.56 μs .. 29.68 μs)
+std dev              183.1 ns   (133.8 ns .. 292.9 ns)
+
+benchmarking TaggedCircomlib ValueAnalysis/IsEqualTest
+time                 9.091 μs   (9.078 μs .. 9.113 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 9.115 μs   (9.102 μs .. 9.131 μs)
+std dev              52.46 ns   (45.88 ns .. 70.73 ns)
+
+benchmarking TaggedCircomlib ValueAnalysis/Num2BitsTest
+time                 9.532 μs   (9.523 μs .. 9.540 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 9.524 μs   (9.513 μs .. 9.532 μs)
+std dev              29.53 ns   (25.09 ns .. 35.18 ns)
+
+benchmarking TaggedCircomlib ValueAnalysis/Bits2NumTest
+time                 4.644 μs   (4.638 μs .. 4.649 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 4.637 μs   (4.632 μs .. 4.644 μs)
+std dev              19.67 ns   (15.46 ns .. 26.85 ns)
+
+benchmarking TaggedCircomlib ValueAnalysis/MultiMux1Test
+time                 20.44 μs   (20.43 μs .. 20.47 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 20.45 μs   (20.43 μs .. 20.47 μs)
+std dev              79.81 ns   (65.47 ns .. 99.38 ns)
+
+benchmarking TaggedCircomlib ValueAnalysis/Mux1Test
+time                 12.10 μs   (12.09 μs .. 12.11 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 12.08 μs   (12.07 μs .. 12.09 μs)
+std dev              43.94 ns   (27.38 ns .. 71.75 ns)
+
+benchmarking TaggedCircomlib ValueAnalysis/LessThanTest
+time                 20.67 μs   (20.65 μs .. 20.70 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 20.65 μs   (20.64 μs .. 20.66 μs)
+std dev              47.99 ns   (39.06 ns .. 59.61 ns)
+
+benchmarking TaggedCircomlib ValueAnalysis/GreaterThanTest
+time                 22.73 μs   (22.68 μs .. 22.77 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 22.75 μs   (22.72 μs .. 22.76 μs)
+std dev              75.10 ns   (52.87 ns .. 122.5 ns)
+
+benchmarking TaggedCircomlib ValueAnalysis/GreaterEqThanTest
+time                 27.31 μs   (27.25 μs .. 27.36 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 27.36 μs   (27.33 μs .. 27.39 μs)
+std dev              91.91 ns   (70.01 ns .. 125.7 ns)
+
+benchmarking TaggedCircomlib ValueAnalysis/LessEqThanTest
+time                 27.60 μs   (27.55 μs .. 27.64 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 27.54 μs   (27.50 μs .. 27.58 μs)
+std dev              135.7 ns   (98.40 ns .. 180.1 ns)
+
+benchmarking TaggedCircomlib ValueAnalysis/BigLessThanTest
+time                 100.4 μs   (100.3 μs .. 100.5 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 100.3 μs   (100.2 μs .. 100.4 μs)
+std dev              290.8 ns   (189.4 ns .. 417.9 ns)
+
+benchmarking TaggedCircomlib ValueAnalysis/BinSubTest
+time                 64.34 μs   (64.23 μs .. 64.53 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 65.26 μs   (64.97 μs .. 65.52 μs)
+std dev              1.020 μs   (946.1 ns .. 1.083 μs)
+variance introduced by outliers: 10% (moderately inflated)
+
+benchmarking TaggedCircomlib ValueAnalysis/BinSumTest
+time                 63.11 μs   (63.03 μs .. 63.19 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 63.00 μs   (62.93 μs .. 63.07 μs)
+std dev              250.4 ns   (200.5 ns .. 308.7 ns)
+
+Report saved to: taggedcircomlib_report_20250716_150417.html
