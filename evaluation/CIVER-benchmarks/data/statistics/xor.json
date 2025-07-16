@@ -1,0 +1,17 @@
+{
+  "circuit": "xor",
+  "total_runs": 30,
+  "warmup_runs": 5,
+  "analysis_samples": 25,
+  "statistics": {
+    "mean_ms": 7.773,
+    "std_dev_ms": 0.152,
+    "median_ms": 7.73,
+    "min_ms": 7.59,
+    "max_ms": 8.26,
+    "q25_ms": 7.68,
+    "q75_ms": 7.78,
+    "coefficient_of_variation_percent": 1.96,
+    "range_ms": 0.67
+  }
+}

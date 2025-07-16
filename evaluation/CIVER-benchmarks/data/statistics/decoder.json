@@ -1,0 +1,17 @@
+{
+  "circuit": "decoder",
+  "total_runs": 30,
+  "warmup_runs": 5,
+  "analysis_samples": 25,
+  "statistics": {
+    "mean_ms": 11.469,
+    "std_dev_ms": 0.132,
+    "median_ms": 11.46,
+    "min_ms": 11.28,
+    "max_ms": 11.78,
+    "q25_ms": 11.38,
+    "q75_ms": 11.55,
+    "coefficient_of_variation_percent": 1.15,
+    "range_ms": 0.5
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "circuit": "binsub",
+  "total_runs": 30,
+  "warmup_runs": 5,
+  "analysis_samples": 25,
+  "statistics": {
+    "mean_ms": 9.176,
+    "std_dev_ms": 0.109,
+    "median_ms": 9.17,
+    "min_ms": 9.0,
+    "max_ms": 9.52,
+    "q25_ms": 9.11,
+    "q75_ms": 9.23,
+    "coefficient_of_variation_percent": 1.19,
+    "range_ms": 0.52
+  }
+}

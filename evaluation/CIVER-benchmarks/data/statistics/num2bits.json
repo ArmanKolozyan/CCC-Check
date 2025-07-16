@@ -1,0 +1,17 @@
+{
+  "circuit": "num2bits",
+  "total_runs": 30,
+  "warmup_runs": 5,
+  "analysis_samples": 25,
+  "statistics": {
+    "mean_ms": 5.606,
+    "std_dev_ms": 0.141,
+    "median_ms": 5.59,
+    "min_ms": 5.42,
+    "max_ms": 5.92,
+    "q25_ms": 5.49,
+    "q75_ms": 5.72,
+    "coefficient_of_variation_percent": 2.51,
+    "range_ms": 0.5
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "circuit": "and",
+  "total_runs": 30,
+  "warmup_runs": 5,
+  "analysis_samples": 25,
+  "statistics": {
+    "mean_ms": 7.078,
+    "std_dev_ms": 0.11,
+    "median_ms": 7.06,
+    "min_ms": 6.91,
+    "max_ms": 7.3,
+    "q25_ms": 6.99,
+    "q75_ms": 7.16,
+    "coefficient_of_variation_percent": 1.55,
+    "range_ms": 0.39
+  }
+}
