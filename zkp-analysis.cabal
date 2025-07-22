@@ -55,6 +55,43 @@ executable zkp-analysis-exe
     , zkp-analysis
   default-language: Haskell2010
 
+executable taggedcircomlib-ranges
+  main-is: TaggedCircomlibRanges.hs
+  other-modules:
+      Value_Inferencer.BugDetection.TaggedCircomlib.NotTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.XorTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.AndTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.OrTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.NandTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.NorTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.IsZeroTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestRaw
+      Value_Inferencer.BugDetection.TaggedCircomlib.IsEqualTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.Num2BitsTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.Bits2NumTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.MultiMux1Test
+      Value_Inferencer.BugDetection.TaggedCircomlib.Mux1Test
+      Value_Inferencer.BugDetection.TaggedCircomlib.LessThanTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.GreaterThanTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.GreaterEqThanTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.LessEqThanTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.BigLessThanTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTest
+      Value_Inferencer.BugDetection.TaggedCircomlib.BinSumTest
+  hs-source-dirs:
+      evaluation/benchmarking
+      test
+  build-depends:
+      base >4.7 && <5
+    , containers
+    , hspec
+    , maf2-analysis
+    , maf2-domains
+    , maf2-syntax
+    , rio
+    , zkp-analysis
+  default-language: Haskell2010
+
 test-suite all-tests
   type: exitcode-stdio-1.0
   other-modules:

@@ -29,3 +29,5 @@ cabal.project.local~
 # End of https://www.toptal.com/developers/gitignore/api/haskell
 
 .DS_Store
+/test/web-prover-circuits
+*.civer
