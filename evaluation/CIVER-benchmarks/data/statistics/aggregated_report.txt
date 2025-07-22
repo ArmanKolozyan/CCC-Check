@@ -1,0 +1,400 @@
+================================================================================
+CIVER BENCHMARK AGGREGATED STATISTICS REPORT
+================================================================================
+Generated: 2025-07-16 20:18:13
+Total circuits analyzed: 20
+================================================================================
+
+Circuit: and
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       7.078 ms
+  Std Dev:    0.110 ms
+  Median:     7.060 ms
+  Min:        6.910 ms
+  Max:        7.300 ms
+  Q25:        6.990 ms
+  Q75:        7.160 ms
+  CV:         1.55%
+  Range:      0.390 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: biglessthan
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       29.949 ms
+  Std Dev:    0.168 ms
+  Median:     29.930 ms
+  Min:        29.710 ms
+  Max:        30.340 ms
+  Q25:        29.830 ms
+  Q75:        30.060 ms
+  CV:         0.56%
+  Range:      0.630 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: binsub
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       9.176 ms
+  Std Dev:    0.109 ms
+  Median:     9.170 ms
+  Min:        9.000 ms
+  Max:        9.520 ms
+  Q25:        9.110 ms
+  Q75:        9.230 ms
+  CV:         1.19%
+  Range:      0.520 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: binsum
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       10.103 ms
+  Std Dev:    0.126 ms
+  Median:     10.090 ms
+  Min:        9.880 ms
+  Max:        10.470 ms
+  Q25:        10.000 ms
+  Q75:        10.150 ms
+  CV:         1.25%
+  Range:      0.590 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: bits2num
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       8.159 ms
+  Std Dev:    0.094 ms
+  Median:     8.160 ms
+  Min:        7.970 ms
+  Max:        8.330 ms
+  Q25:        8.090 ms
+  Q75:        8.230 ms
+  CV:         1.15%
+  Range:      0.360 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: decoder
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       11.469 ms
+  Std Dev:    0.132 ms
+  Median:     11.460 ms
+  Min:        11.280 ms
+  Max:        11.780 ms
+  Q25:        11.380 ms
+  Q75:        11.550 ms
+  CV:         1.15%
+  Range:      0.500 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: greatereqthan
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       19.741 ms
+  Std Dev:    0.137 ms
+  Median:     19.770 ms
+  Min:        19.440 ms
+  Max:        19.970 ms
+  Q25:        19.640 ms
+  Q75:        19.850 ms
+  CV:         0.69%
+  Range:      0.530 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: greaterthan
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       17.919 ms
+  Std Dev:    0.217 ms
+  Median:     17.840 ms
+  Min:        17.540 ms
+  Max:        18.290 ms
+  Q25:        17.750 ms
+  Q75:        18.090 ms
+  CV:         1.21%
+  Range:      0.750 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: isequal
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       7.409 ms
+  Std Dev:    0.105 ms
+  Median:     7.390 ms
+  Min:        7.250 ms
+  Max:        7.650 ms
+  Q25:        7.330 ms
+  Q75:        7.480 ms
+  CV:         1.42%
+  Range:      0.400 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: iszero
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       5.291 ms
+  Std Dev:    0.098 ms
+  Median:     5.270 ms
+  Min:        5.140 ms
+  Max:        5.440 ms
+  Q25:        5.200 ms
+  Q75:        5.370 ms
+  CV:         1.84%
+  Range:      0.300 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: lesseqthan
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       21.900 ms
+  Std Dev:    0.171 ms
+  Median:     21.900 ms
+  Min:        21.600 ms
+  Max:        22.300 ms
+  Q25:        21.850 ms
+  Q75:        21.980 ms
+  CV:         0.78%
+  Range:      0.700 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: lessthan
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       15.308 ms
+  Std Dev:    0.278 ms
+  Median:     15.340 ms
+  Min:        14.870 ms
+  Max:        16.100 ms
+  Q25:        15.120 ms
+  Q75:        15.450 ms
+  CV:         1.82%
+  Range:      1.230 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: multimux1
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       3.074 ms
+  Std Dev:    0.048 ms
+  Median:     3.060 ms
+  Min:        3.000 ms
+  Max:        3.180 ms
+  Q25:        3.040 ms
+  Q75:        3.110 ms
+  CV:         1.55%
+  Range:      0.180 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: mux1
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       3.036 ms
+  Std Dev:    0.061 ms
+  Median:     3.030 ms
+  Min:        2.960 ms
+  Max:        3.220 ms
+  Q25:        2.990 ms
+  Q75:        3.050 ms
+  CV:         2.01%
+  Range:      0.260 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: nand
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       7.210 ms
+  Std Dev:    0.092 ms
+  Median:     7.190 ms
+  Min:        7.100 ms
+  Max:        7.430 ms
+  Q25:        7.150 ms
+  Q75:        7.240 ms
+  CV:         1.28%
+  Range:      0.330 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: nor
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       7.852 ms
+  Std Dev:    0.113 ms
+  Median:     7.820 ms
+  Min:        7.710 ms
+  Max:        8.120 ms
+  Q25:        7.760 ms
+  Q75:        7.900 ms
+  CV:         1.44%
+  Range:      0.410 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: not
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       7.540 ms
+  Std Dev:    0.119 ms
+  Median:     7.530 ms
+  Min:        7.330 ms
+  Max:        7.840 ms
+  Q25:        7.450 ms
+  Q75:        7.610 ms
+  CV:         1.58%
+  Range:      0.510 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: num2bits
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       5.606 ms
+  Std Dev:    0.141 ms
+  Median:     5.590 ms
+  Min:        5.420 ms
+  Max:        5.920 ms
+  Q25:        5.490 ms
+  Q75:        5.720 ms
+  CV:         2.51%
+  Range:      0.500 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: or
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       7.712 ms
+  Std Dev:    0.102 ms
+  Median:     7.680 ms
+  Min:        7.590 ms
+  Max:        7.950 ms
+  Q25:        7.640 ms
+  Q75:        7.780 ms
+  CV:         1.33%
+  Range:      0.360 ms
+  Assessment: ✅ Low variability - consistent performance
+
+Circuit: xor
+----------------------------------------
+Total runs: 30
+Warmup runs: 5
+Analysis samples: 25
+
+Timing Statistics:
+  Mean:       7.773 ms
+  Std Dev:    0.152 ms
+  Median:     7.730 ms
+  Min:        7.590 ms
+  Max:        8.260 ms
+  Q25:        7.680 ms
+  Q75:        7.780 ms
+  CV:         1.96%
+  Range:      0.670 ms
+  Assessment: ✅ Low variability - consistent performance
+
+================================================================================
+SUMMARY STATISTICS ACROSS ALL CIRCUITS
+================================================================================
+Overall mean execution times:
+  Fastest circuit: 3.036 ms
+  Slowest circuit: 29.949 ms
+  Average across circuits: 10.665 ms
+
+Circuit ranking by mean execution time:
+   1. mux1                    3.036 ms
+   2. multimux1               3.074 ms
+   3. iszero                  5.291 ms
+   4. num2bits                5.606 ms
+   5. and                     7.078 ms
+   6. nand                    7.210 ms
+   7. isequal                 7.409 ms
+   8. not                     7.540 ms
+   9. or                      7.712 ms
+  10. xor                     7.773 ms
+  11. nor                     7.852 ms
+  12. bits2num                8.159 ms
+  13. binsub                  9.176 ms
+  14. binsum                 10.103 ms
+  15. decoder                11.469 ms
+  16. lessthan               15.308 ms
+  17. greaterthan            17.919 ms
+  18. greatereqthan          19.741 ms
+  19. lesseqthan             21.900 ms
+  20. biglessthan            29.949 ms
+
+================================================================================
+END OF REPORT
+================================================================================
