@@ -32,6 +32,12 @@ formatDomain (BoundedValues lbM ubM currentGaps) =
         exclusionsStr = if Set.null currentGaps then "" 
                         else " excluding " ++ formatIntervals (Set.toList currentGaps)
     in boundsStr ++ exclusionsStr
+formatDomain (ArrayDomain elems defaultDom size) =
+    let elementsStr = if Map.null elems then ""
+                      else " specific: " ++ intercalate ", " 
+                           (map (\(i, dom) -> show i ++ ":" ++ formatDomain dom) (Map.toList elems))
+        defaultStr = "default: " ++ formatDomain defaultDom
+    in "Array[" ++ show size ++ "](" ++ defaultStr ++ elementsStr ++ ")"
 
 -- Helper to format list of intervals
 formatIntervals :: [(Integer, Integer)] -> String
