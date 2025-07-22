@@ -1,5 +1,5 @@
 
-module ValueAnalysis.Printer (prettyPrintStore) where
+module ValueAnalysis.Printer (prettyPrintStore, formatDomain) where
 
 import ValueAnalysis.ValueDomain (ValueDomain(..))
 import ValueAnalysis.VariableState (VariableState(..))
