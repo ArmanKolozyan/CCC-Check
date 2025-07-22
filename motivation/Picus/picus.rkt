@@ -133,11 +133,20 @@
     source)))
 
 ;; Function to log the range vector.
-(define (log-range-vec)
+(define (log-range-vec reader)
   (picus:log-main "Variable Ranges:")
   (for ([i (in-range (vector-length dpvl::range-vec))])
-    (define var-name (format "x~a" i))
     (define range (vector-ref dpvl::range-vec i))
+
+    ;; trying to get the original variable name from the reader
+    (define var-name 
+      (with-handlers ([exn:fail? (lambda (e) (format "x~a" i))])  ; fallback on any error
+        (define mapped-vars (send reader map-to-vars (list (cons i "dummy"))))
+        (match mapped-vars
+          [(list (cons original-name _)) 
+           (if (string? original-name) original-name (format "~a" original-name))]
+          [_ (format "x~a" i)])))  ; fallback to R1CS naming if mapping fails
+    ;; logging with the best available variable name
     (picus:log-main "possible values for ~a: ~a" var-name range)))     
 
 (define (main)
@@ -241,7 +250,7 @@
   (picus:log-debug "final known set ~e" res-ks)
   (picus:log-debug "final unknown set ~e" res-us)
   (picus:log-debug "~a uniqueness: ~a" (if arg-strong "strong" "weak") res)
-  (log-range-vec) ;; logging the range vector
+  (log-range-vec r0) ;; logging the range vector with original variable names
   (picus:log-accounting #:type "known_size"
                         #:value (set-count res-ks)
                         #:msg "Number of inferred known signals")
