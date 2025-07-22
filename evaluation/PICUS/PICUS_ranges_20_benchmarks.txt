@@ -1,0 +1,710 @@
+Picus Variable Ranges Analysis for 20 Benchmark Programs
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/iszero.circom
+x0: #<set: 1>
+main.out: bottom
+main.a: bottom
+main.isZero.out: bottom
+main.isZero.in: bottom
+main.isZero.inv: bottom
+Restricted variables: 1/6
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/bits2num.circom
+x0: #<set: 1>
+main.out: bottom
+main.in[0]: bottom
+main.in[1]: bottom
+main.in[2]: bottom
+main.in[3]: bottom
+main.addTag.out[0]: bottom
+main.addTag.out[1]: bottom
+main.addTag.out[2]: bottom
+main.addTag.out[3]: bottom
+main.addTag.in[0]: #<set: 0 1>
+main.addTag.in[1]: #<set: 0 1>
+main.addTag.in[2]: #<set: 0 1>
+main.addTag.in[3]: #<set: 0 1>
+main.b2n.out: bottom
+main.b2n.in[0]: bottom
+main.b2n.in[1]: bottom
+main.b2n.in[2]: bottom
+main.b2n.in[3]: bottom
+Restricted variables: 5/19
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/mux1.circom
+x0: #<set: 1>
+main.out: bottom
+main.c[0]: bottom
+main.c[1]: bottom
+main.s: bottom
+main.binS.out: bottom
+main.binS.in: #<set: 0 1>
+main.mux.out: bottom
+main.mux.c[0]: bottom
+main.mux.c[1]: bottom
+main.mux.s: bottom
+main.mux.mux.out[0]: bottom
+main.mux.mux.c[0][0]: bottom
+main.mux.mux.c[0][1]: bottom
+main.mux.mux.s: bottom
+Restricted variables: 2/15
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/and.circom
+x0: #<set: 1>
+main.out: bottom
+main.a: bottom
+main.b: bottom
+main.and.out: bottom
+main.and.a: bottom
+main.and.b: bottom
+main.binA.out: bottom
+main.binA.in: #<set: 0 1>
+main.binB.out: bottom
+main.binB.in: #<set: 0 1>
+Restricted variables: 3/11
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/greatereqthan.circom
+x0: #<set: 1>
+main.out: bottom
+main.in[0]: bottom
+main.in[1]: bottom
+main.geq.out: bottom
+main.geq.in[0]: bottom
+main.geq.in[1]: bottom
+main.geq.gt.out: bottom
+main.geq.gt.in[0]: bottom
+main.geq.gt.in[1]: bottom
+main.geq.gt.n2b.out[0]: #<set: 0 1>
+main.geq.gt.n2b.out[1]: #<set: 0 1>
+main.geq.gt.n2b.out[2]: #<set: 0 1>
+main.geq.gt.n2b.out[3]: #<set: 0 1>
+main.geq.gt.n2b.out[4]: #<set: 0 1>
+main.geq.gt.n2b.in: bottom
+main.geq.nt.out: bottom
+main.geq.nt.in: bottom
+main.maxbitArray.out[0]: bottom
+main.maxbitArray.out[1]: bottom
+main.maxbitArray.in[0]: bottom
+main.maxbitArray.in[1]: bottom
+main.maxbitArray.MaxbitCheck_71_1227[0].out: bottom
+main.maxbitArray.MaxbitCheck_71_1227[0].in: bottom
+main.maxbitArray.MaxbitCheck_71_1227[0].Num2Bits_58_1000.out[0]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_71_1227[0].Num2Bits_58_1000.out[1]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_71_1227[0].Num2Bits_58_1000.out[2]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_71_1227[0].Num2Bits_58_1000.out[3]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_71_1227[0].Num2Bits_58_1000.in: bottom
+main.maxbitArray.MaxbitCheck_71_1227[1].out: bottom
+main.maxbitArray.MaxbitCheck_71_1227[1].in: bottom
+main.maxbitArray.MaxbitCheck_71_1227[1].Num2Bits_58_1000.out[0]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_71_1227[1].Num2Bits_58_1000.out[1]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_71_1227[1].Num2Bits_58_1000.out[2]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_71_1227[1].Num2Bits_58_1000.out[3]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_71_1227[1].Num2Bits_58_1000.in: bottom
+Restricted variables: 14/36
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/binsum.circom
+x0: #<set: 1>
+main.out[0]: bottom
+main.out[1]: bottom
+main.out[2]: bottom
+main.out[3]: bottom
+main.out[4]: bottom
+main.out[5]: bottom
+main.in[0][0]: bottom
+main.in[0][1]: bottom
+main.in[0][2]: bottom
+main.in[0][3]: bottom
+main.in[1][0]: bottom
+main.in[1][1]: bottom
+main.in[1][2]: bottom
+main.in[1][3]: bottom
+main.in[2][0]: bottom
+main.in[2][1]: bottom
+main.in[2][2]: bottom
+main.in[2][3]: bottom
+main.binArray.out[0][0]: bottom
+main.binArray.out[0][1]: bottom
+main.binArray.out[0][2]: bottom
+main.binArray.out[0][3]: bottom
+main.binArray.out[1][0]: bottom
+main.binArray.out[1][1]: bottom
+main.binArray.out[1][2]: bottom
+main.binArray.out[1][3]: bottom
+main.binArray.out[2][0]: bottom
+main.binArray.out[2][1]: bottom
+main.binArray.out[2][2]: bottom
+main.binArray.out[2][3]: bottom
+main.binArray.in[0][0]: #<set: 0 1>
+main.binArray.in[0][1]: #<set: 0 1>
+main.binArray.in[0][2]: #<set: 0 1>
+main.binArray.in[0][3]: #<set: 0 1>
+main.binArray.in[1][0]: #<set: 0 1>
+main.binArray.in[1][1]: #<set: 0 1>
+main.binArray.in[1][2]: #<set: 0 1>
+main.binArray.in[1][3]: #<set: 0 1>
+main.binArray.in[2][0]: #<set: 0 1>
+main.binArray.in[2][1]: #<set: 0 1>
+main.binArray.in[2][2]: #<set: 0 1>
+main.binArray.in[2][3]: #<set: 0 1>
+main.binSum.out[0]: #<set: 0 1>
+main.binSum.out[1]: #<set: 0 1>
+main.binSum.out[2]: #<set: 0 1>
+main.binSum.out[3]: #<set: 0 1>
+main.binSum.out[4]: #<set: 0 1>
+main.binSum.out[5]: #<set: 0 1>
+main.binSum.in[0][0]: bottom
+main.binSum.in[0][1]: bottom
+main.binSum.in[0][2]: bottom
+main.binSum.in[0][3]: bottom
+main.binSum.in[1][0]: bottom
+main.binSum.in[1][1]: bottom
+main.binSum.in[1][2]: bottom
+main.binSum.in[1][3]: bottom
+main.binSum.in[2][0]: bottom
+main.binSum.in[2][1]: bottom
+main.binSum.in[2][2]: bottom
+main.binSum.in[2][3]: bottom
+Restricted variables: 19/61
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/xor.circom
+x0: #<set: 1>
+main.out: bottom
+main.a: bottom
+main.b: bottom
+main.binA.out: bottom
+main.binA.in: #<set: 0 1>
+main.binB.out: bottom
+main.binB.in: #<set: 0 1>
+main.xor.out: bottom
+main.xor.a: bottom
+main.xor.b: bottom
+Restricted variables: 3/11
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/decoder.circom
+x0: #<set: 1>
+main.out[0]: bottom
+main.out[1]: bottom
+main.success: bottom
+main.inp: bottom
+main.decoder.out[0]: bottom
+main.decoder.out[1]: bottom
+main.decoder.success: bottom
+main.decoder.inp: bottom
+main.decoder.checkZero[0].out: bottom
+main.decoder.checkZero[0].in: bottom
+main.decoder.checkZero[0].inv: bottom
+main.decoder.checkZero[1].out: bottom
+main.decoder.checkZero[1].in: bottom
+main.decoder.checkZero[1].inv: bottom
+Restricted variables: 1/15
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/multimux1.circom
+x0: #<set: 1>
+main.out[0]: bottom
+main.out[1]: bottom
+main.out[2]: bottom
+main.out[3]: bottom
+main.c[0][0]: bottom
+main.c[0][1]: bottom
+main.c[1][0]: bottom
+main.c[1][1]: bottom
+main.c[2][0]: bottom
+main.c[2][1]: bottom
+main.c[3][0]: bottom
+main.c[3][1]: bottom
+main.s: bottom
+main.binS.out: bottom
+main.binS.in: #<set: 0 1>
+main.mux.out[0]: bottom
+main.mux.out[1]: bottom
+main.mux.out[2]: bottom
+main.mux.out[3]: bottom
+main.mux.c[0][0]: bottom
+main.mux.c[0][1]: bottom
+main.mux.c[1][0]: bottom
+main.mux.c[1][1]: bottom
+main.mux.c[2][0]: bottom
+main.mux.c[2][1]: bottom
+main.mux.c[3][0]: bottom
+main.mux.c[3][1]: bottom
+main.mux.s: bottom
+Restricted variables: 2/29
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/nand.circom
+x0: #<set: 1>
+main.out: bottom
+main.a: bottom
+main.b: bottom
+main.binA.out: bottom
+main.binA.in: #<set: 0 1>
+main.binB.out: bottom
+main.binB.in: #<set: 0 1>
+main.nand.out: bottom
+main.nand.a: bottom
+main.nand.b: bottom
+Restricted variables: 3/11
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/binsubsmall.circom
+x0: #<set: 1>
+main.out[0]: bottom
+main.out[1]: bottom
+main.in00: bottom
+main.in01: bottom
+main.in10: bottom
+main.in11: bottom
+main.b2n1_out: bottom
+main.b2n2_out: bottom
+main.n2b_in: bottom
+main.n2b_out0: bottom
+main.n2b_out1: bottom
+main.n2b_out2: bottom
+main.aux_carry: bottom
+main.n2bits.out[0]: #<set: 0 1>
+main.n2bits.out[1]: #<set: 0 1>
+main.n2bits.out[2]: #<set: 0 1>
+main.n2bits.in: bottom
+Restricted variables: 4/18
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/not.circom
+x0: #<set: 1>
+main.out: bottom
+main.a: bottom
+main.binA.out: bottom
+main.binA.in: #<set: 0 1>
+main.not.out: bottom
+main.not.in: bottom
+Restricted variables: 2/7
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/greaterthan.circom
+x0: #<set: 1>
+main.out: bottom
+main.in[0]: bottom
+main.in[1]: bottom
+main.gt.out: bottom
+main.gt.in[0]: bottom
+main.gt.in[1]: bottom
+main.gt.lt.out: bottom
+main.gt.lt.in[0]: bottom
+main.gt.lt.in[1]: bottom
+main.gt.lt.n2b.out[0]: #<set: 0 1>
+main.gt.lt.n2b.out[1]: #<set: 0 1>
+main.gt.lt.n2b.out[2]: #<set: 0 1>
+main.gt.lt.n2b.out[3]: #<set: 0 1>
+main.gt.lt.n2b.out[4]: #<set: 0 1>
+main.gt.lt.n2b.in: bottom
+main.maxbitArray.out[0]: bottom
+main.maxbitArray.out[1]: bottom
+main.maxbitArray.in[0]: bottom
+main.maxbitArray.in[1]: bottom
+main.maxbitArray.MaxbitCheck_63_1093[0].out: bottom
+main.maxbitArray.MaxbitCheck_63_1093[0].in: bottom
+main.maxbitArray.MaxbitCheck_63_1093[0].Num2Bits_50_866.out[0]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_63_1093[0].Num2Bits_50_866.out[1]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_63_1093[0].Num2Bits_50_866.out[2]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_63_1093[0].Num2Bits_50_866.out[3]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_63_1093[0].Num2Bits_50_866.in: bottom
+main.maxbitArray.MaxbitCheck_63_1093[1].out: bottom
+main.maxbitArray.MaxbitCheck_63_1093[1].in: bottom
+main.maxbitArray.MaxbitCheck_63_1093[1].Num2Bits_50_866.out[0]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_63_1093[1].Num2Bits_50_866.out[1]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_63_1093[1].Num2Bits_50_866.out[2]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_63_1093[1].Num2Bits_50_866.out[3]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_63_1093[1].Num2Bits_50_866.in: bottom
+Restricted variables: 14/34
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/binsub.circom
+x0: #<set: 1>
+main.out[0]: bottom
+main.out[1]: bottom
+main.out[2]: bottom
+main.out[3]: bottom
+main.in[0][0]: bottom
+main.in[0][1]: bottom
+main.in[0][2]: bottom
+main.in[0][3]: bottom
+main.in[1][0]: bottom
+main.in[1][1]: bottom
+main.in[1][2]: bottom
+main.in[1][3]: bottom
+main.binArray.out[0][0]: bottom
+main.binArray.out[0][1]: bottom
+main.binArray.out[0][2]: bottom
+main.binArray.out[0][3]: bottom
+main.binArray.out[1][0]: bottom
+main.binArray.out[1][1]: bottom
+main.binArray.out[1][2]: bottom
+main.binArray.out[1][3]: bottom
+main.binArray.in[0][0]: #<set: 0 1>
+main.binArray.in[0][1]: #<set: 0 1>
+main.binArray.in[0][2]: #<set: 0 1>
+main.binArray.in[0][3]: #<set: 0 1>
+main.binArray.in[1][0]: #<set: 0 1>
+main.binArray.in[1][1]: #<set: 0 1>
+main.binArray.in[1][2]: #<set: 0 1>
+main.binArray.in[1][3]: #<set: 0 1>
+main.binSub.out[0]: #<set: 0 1>
+main.binSub.out[1]: #<set: 0 1>
+main.binSub.out[2]: #<set: 0 1>
+main.binSub.out[3]: #<set: 0 1>
+main.binSub.in[0][0]: bottom
+main.binSub.in[0][1]: bottom
+main.binSub.in[0][2]: bottom
+main.binSub.in[0][3]: bottom
+main.binSub.in[1][0]: bottom
+main.binSub.in[1][1]: bottom
+main.binSub.in[1][2]: bottom
+main.binSub.in[1][3]: bottom
+main.binSub.aux: #<set: 0 1>
+Restricted variables: 14/42
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/or.circom
+x0: #<set: 1>
+main.out: bottom
+main.a: bottom
+main.b: bottom
+main.binA.out: bottom
+main.binA.in: #<set: 0 1>
+main.binB.out: bottom
+main.binB.in: #<set: 0 1>
+main.or.out: bottom
+main.or.a: bottom
+main.or.b: bottom
+Restricted variables: 3/11
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/biglessthan.circom
+x0: #<set: 1>
+main.out: bottom
+main.a[0]: bottom
+main.a[1]: bottom
+main.a[2]: bottom
+main.b[0]: bottom
+main.b[1]: bottom
+main.b[2]: bottom
+main.bigLt.out: bottom
+main.bigLt.a[0]: bottom
+main.bigLt.a[1]: bottom
+main.bigLt.a[2]: bottom
+main.bigLt.b[0]: bottom
+main.bigLt.b[1]: bottom
+main.bigLt.b[2]: bottom
+main.bigLt.UpdateMaxbitTag_94_1615[0].out: bottom
+main.bigLt.UpdateMaxbitTag_94_1615[0].in: bottom
+main.bigLt.UpdateMaxbitTag_94_1615[1].out: bottom
+main.bigLt.UpdateMaxbitTag_94_1615[1].in: bottom
+main.bigLt.UpdateMaxbitTag_94_1615[2].out: bottom
+main.bigLt.UpdateMaxbitTag_94_1615[2].in: bottom
+main.bigLt.UpdateMaxbitTag_95_1666[0].out: bottom
+main.bigLt.UpdateMaxbitTag_95_1666[0].in: bottom
+main.bigLt.UpdateMaxbitTag_95_1666[1].out: bottom
+main.bigLt.UpdateMaxbitTag_95_1666[1].in: bottom
+main.bigLt.UpdateMaxbitTag_95_1666[2].out: bottom
+main.bigLt.UpdateMaxbitTag_95_1666[2].in: bottom
+main.bigLt.ands[0].out: bottom
+main.bigLt.ands[0].a: bottom
+main.bigLt.ands[0].b: bottom
+main.bigLt.ands[1].out: bottom
+main.bigLt.ands[1].a: bottom
+main.bigLt.ands[1].b: bottom
+main.bigLt.eq[0].out: bottom
+main.bigLt.eq[0].in[0]: bottom
+main.bigLt.eq[0].in[1]: bottom
+main.bigLt.eq[0].isz.out: bottom
+main.bigLt.eq[0].isz.in: bottom
+main.bigLt.eq[0].isz.inv: bottom
+main.bigLt.eq[1].out: bottom
+main.bigLt.eq[1].in[0]: bottom
+main.bigLt.eq[1].in[1]: bottom
+main.bigLt.eq[1].isz.out: bottom
+main.bigLt.eq[1].isz.in: bottom
+main.bigLt.eq[1].isz.inv: bottom
+main.bigLt.eq[2].out: bottom
+main.bigLt.eq[2].in[0]: bottom
+main.bigLt.eq[2].in[1]: bottom
+main.bigLt.eq[2].isz.out: bottom
+main.bigLt.eq[2].isz.in: bottom
+main.bigLt.eq[2].isz.inv: bottom
+main.bigLt.eq_ands[0].out: bottom
+main.bigLt.eq_ands[0].a: bottom
+main.bigLt.eq_ands[0].b: bottom
+main.bigLt.eq_ands[1].out: bottom
+main.bigLt.eq_ands[1].a: bottom
+main.bigLt.eq_ands[1].b: bottom
+main.bigLt.lt[0].out: bottom
+main.bigLt.lt[0].in[0]: bottom
+main.bigLt.lt[0].in[1]: bottom
+main.bigLt.lt[0].n2b.out[0]: #<set: 0 1>
+main.bigLt.lt[0].n2b.out[1]: #<set: 0 1>
+main.bigLt.lt[0].n2b.out[2]: #<set: 0 1>
+main.bigLt.lt[0].n2b.out[3]: #<set: 0 1>
+main.bigLt.lt[0].n2b.out[4]: #<set: 0 1>
+main.bigLt.lt[0].n2b.in: bottom
+main.bigLt.lt[1].out: bottom
+main.bigLt.lt[1].in[0]: bottom
+main.bigLt.lt[1].in[1]: bottom
+main.bigLt.lt[1].n2b.out[0]: #<set: 0 1>
+main.bigLt.lt[1].n2b.out[1]: #<set: 0 1>
+main.bigLt.lt[1].n2b.out[2]: #<set: 0 1>
+main.bigLt.lt[1].n2b.out[3]: #<set: 0 1>
+main.bigLt.lt[1].n2b.out[4]: #<set: 0 1>
+main.bigLt.lt[1].n2b.in: bottom
+main.bigLt.lt[2].out: bottom
+main.bigLt.lt[2].in[0]: bottom
+main.bigLt.lt[2].in[1]: bottom
+main.bigLt.lt[2].n2b.out[0]: #<set: 0 1>
+main.bigLt.lt[2].n2b.out[1]: #<set: 0 1>
+main.bigLt.lt[2].n2b.out[2]: #<set: 0 1>
+main.bigLt.lt[2].n2b.out[3]: #<set: 0 1>
+main.bigLt.lt[2].n2b.out[4]: #<set: 0 1>
+main.bigLt.lt[2].n2b.in: bottom
+main.bigLt.ors[0].out: bottom
+main.bigLt.ors[0].a: bottom
+main.bigLt.ors[0].b: bottom
+main.bigLt.ors[1].out: bottom
+main.bigLt.ors[1].a: bottom
+main.bigLt.ors[1].b: bottom
+main.maxbitA.out[0]: bottom
+main.maxbitA.out[1]: bottom
+main.maxbitA.out[2]: bottom
+main.maxbitA.in[0]: bottom
+main.maxbitA.in[1]: bottom
+main.maxbitA.in[2]: bottom
+main.maxbitA.MaxbitCheck_148_3069[0].out: bottom
+main.maxbitA.MaxbitCheck_148_3069[0].in: bottom
+main.maxbitA.MaxbitCheck_148_3069[0].Num2Bits_135_2842.out[0]: #<set: 0 1>
+main.maxbitA.MaxbitCheck_148_3069[0].Num2Bits_135_2842.out[1]: #<set: 0 1>
+main.maxbitA.MaxbitCheck_148_3069[0].Num2Bits_135_2842.out[2]: #<set: 0 1>
+main.maxbitA.MaxbitCheck_148_3069[0].Num2Bits_135_2842.out[3]: #<set: 0 1>
+main.maxbitA.MaxbitCheck_148_3069[0].Num2Bits_135_2842.in: bottom
+main.maxbitA.MaxbitCheck_148_3069[1].out: bottom
+main.maxbitA.MaxbitCheck_148_3069[1].in: bottom
+main.maxbitA.MaxbitCheck_148_3069[1].Num2Bits_135_2842.out[0]: #<set: 0 1>
+main.maxbitA.MaxbitCheck_148_3069[1].Num2Bits_135_2842.out[1]: #<set: 0 1>
+main.maxbitA.MaxbitCheck_148_3069[1].Num2Bits_135_2842.out[2]: #<set: 0 1>
+main.maxbitA.MaxbitCheck_148_3069[1].Num2Bits_135_2842.out[3]: #<set: 0 1>
+main.maxbitA.MaxbitCheck_148_3069[1].Num2Bits_135_2842.in: bottom
+main.maxbitA.MaxbitCheck_148_3069[2].out: bottom
+main.maxbitA.MaxbitCheck_148_3069[2].in: bottom
+main.maxbitA.MaxbitCheck_148_3069[2].Num2Bits_135_2842.out[0]: #<set: 0 1>
+main.maxbitA.MaxbitCheck_148_3069[2].Num2Bits_135_2842.out[1]: #<set: 0 1>
+main.maxbitA.MaxbitCheck_148_3069[2].Num2Bits_135_2842.out[2]: #<set: 0 1>
+main.maxbitA.MaxbitCheck_148_3069[2].Num2Bits_135_2842.out[3]: #<set: 0 1>
+main.maxbitA.MaxbitCheck_148_3069[2].Num2Bits_135_2842.in: bottom
+main.maxbitB.out[0]: bottom
+main.maxbitB.out[1]: bottom
+main.maxbitB.out[2]: bottom
+main.maxbitB.in[0]: bottom
+main.maxbitB.in[1]: bottom
+main.maxbitB.in[2]: bottom
+main.maxbitB.MaxbitCheck_148_3069[0].out: bottom
+main.maxbitB.MaxbitCheck_148_3069[0].in: bottom
+main.maxbitB.MaxbitCheck_148_3069[0].Num2Bits_135_2842.out[0]: #<set: 0 1>
+main.maxbitB.MaxbitCheck_148_3069[0].Num2Bits_135_2842.out[1]: #<set: 0 1>
+main.maxbitB.MaxbitCheck_148_3069[0].Num2Bits_135_2842.out[2]: #<set: 0 1>
+main.maxbitB.MaxbitCheck_148_3069[0].Num2Bits_135_2842.out[3]: #<set: 0 1>
+main.maxbitB.MaxbitCheck_148_3069[0].Num2Bits_135_2842.in: bottom
+main.maxbitB.MaxbitCheck_148_3069[1].out: bottom
+main.maxbitB.MaxbitCheck_148_3069[1].in: bottom
+main.maxbitB.MaxbitCheck_148_3069[1].Num2Bits_135_2842.out[0]: #<set: 0 1>
+main.maxbitB.MaxbitCheck_148_3069[1].Num2Bits_135_2842.out[1]: #<set: 0 1>
+main.maxbitB.MaxbitCheck_148_3069[1].Num2Bits_135_2842.out[2]: #<set: 0 1>
+main.maxbitB.MaxbitCheck_148_3069[1].Num2Bits_135_2842.out[3]: #<set: 0 1>
+main.maxbitB.MaxbitCheck_148_3069[1].Num2Bits_135_2842.in: bottom
+main.maxbitB.MaxbitCheck_148_3069[2].out: bottom
+main.maxbitB.MaxbitCheck_148_3069[2].in: bottom
+main.maxbitB.MaxbitCheck_148_3069[2].Num2Bits_135_2842.out[0]: #<set: 0 1>
+main.maxbitB.MaxbitCheck_148_3069[2].Num2Bits_135_2842.out[1]: #<set: 0 1>
+main.maxbitB.MaxbitCheck_148_3069[2].Num2Bits_135_2842.out[2]: #<set: 0 1>
+main.maxbitB.MaxbitCheck_148_3069[2].Num2Bits_135_2842.out[3]: #<set: 0 1>
+main.maxbitB.MaxbitCheck_148_3069[2].Num2Bits_135_2842.in: bottom
+Restricted variables: 40/144
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/tags_specifications.circom
+Restricted variables: 0/0
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/lessthan.circom
+x0: #<set: 1>
+main.out: bottom
+main.in[0]: bottom
+main.in[1]: bottom
+main.LessThan_56_961.out: bottom
+main.LessThan_56_961.in[0]: bottom
+main.LessThan_56_961.in[1]: bottom
+main.LessThan_56_961.n2b.out[0]: #<set: 0 1>
+main.LessThan_56_961.n2b.out[1]: #<set: 0 1>
+main.LessThan_56_961.n2b.out[2]: #<set: 0 1>
+main.LessThan_56_961.n2b.in: bottom
+main.MaxbitCheckArray_56_973.out[0]: bottom
+main.MaxbitCheckArray_56_973.out[1]: bottom
+main.MaxbitCheckArray_56_973.in[0]: bottom
+main.MaxbitCheckArray_56_973.in[1]: bottom
+main.MaxbitCheckArray_56_973.MaxbitCheck_50_864[0].out: bottom
+main.MaxbitCheckArray_56_973.MaxbitCheck_50_864[0].in: bottom
+main.MaxbitCheckArray_56_973.MaxbitCheck_50_864[0].Num2Bits_37_637.out[0]: #<set: 0 1>
+main.MaxbitCheckArray_56_973.MaxbitCheck_50_864[0].Num2Bits_37_637.out[1]: #<set: 0 1>
+main.MaxbitCheckArray_56_973.MaxbitCheck_50_864[0].Num2Bits_37_637.in: bottom
+main.MaxbitCheckArray_56_973.MaxbitCheck_50_864[1].out: bottom
+main.MaxbitCheckArray_56_973.MaxbitCheck_50_864[1].in: bottom
+main.MaxbitCheckArray_56_973.MaxbitCheck_50_864[1].Num2Bits_37_637.out[0]: #<set: 0 1>
+main.MaxbitCheckArray_56_973.MaxbitCheck_50_864[1].Num2Bits_37_637.out[1]: #<set: 0 1>
+main.MaxbitCheckArray_56_973.MaxbitCheck_50_864[1].Num2Bits_37_637.in: bottom
+Restricted variables: 8/25
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/isequal.circom
+x0: #<set: 1>
+main.out: bottom
+main.a: bottom
+main.b: bottom
+main.isEqual.out: bottom
+main.isEqual.in[0]: bottom
+main.isEqual.in[1]: bottom
+main.isEqual.isz.out: bottom
+main.isEqual.isz.in: bottom
+main.isEqual.isz.inv: bottom
+Restricted variables: 1/10
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/lesseqthan.circom
+x0: #<set: 1>
+main.out: bottom
+main.in[0]: bottom
+main.in[1]: bottom
+main.leq.out: bottom
+main.leq.in[0]: bottom
+main.leq.in[1]: bottom
+main.leq.gt.out: bottom
+main.leq.gt.in[0]: bottom
+main.leq.gt.in[1]: bottom
+main.leq.gt.lt.out: bottom
+main.leq.gt.lt.in[0]: bottom
+main.leq.gt.lt.in[1]: bottom
+main.leq.gt.lt.n2b.out[0]: #<set: 0 1>
+main.leq.gt.lt.n2b.out[1]: #<set: 0 1>
+main.leq.gt.lt.n2b.out[2]: #<set: 0 1>
+main.leq.gt.lt.n2b.out[3]: #<set: 0 1>
+main.leq.gt.lt.n2b.out[4]: #<set: 0 1>
+main.leq.gt.lt.n2b.in: bottom
+main.leq.nt.out: bottom
+main.leq.nt.in: bottom
+main.maxbitArray.out[0]: bottom
+main.maxbitArray.out[1]: bottom
+main.maxbitArray.in[0]: bottom
+main.maxbitArray.in[1]: bottom
+main.maxbitArray.MaxbitCheck_83_1450[0].out: bottom
+main.maxbitArray.MaxbitCheck_83_1450[0].in: bottom
+main.maxbitArray.MaxbitCheck_83_1450[0].Num2Bits_70_1223.out[0]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_83_1450[0].Num2Bits_70_1223.out[1]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_83_1450[0].Num2Bits_70_1223.out[2]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_83_1450[0].Num2Bits_70_1223.out[3]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_83_1450[0].Num2Bits_70_1223.in: bottom
+main.maxbitArray.MaxbitCheck_83_1450[1].out: bottom
+main.maxbitArray.MaxbitCheck_83_1450[1].in: bottom
+main.maxbitArray.MaxbitCheck_83_1450[1].Num2Bits_70_1223.out[0]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_83_1450[1].Num2Bits_70_1223.out[1]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_83_1450[1].Num2Bits_70_1223.out[2]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_83_1450[1].Num2Bits_70_1223.out[3]: #<set: 0 1>
+main.maxbitArray.MaxbitCheck_83_1450[1].Num2Bits_70_1223.in: bottom
+Restricted variables: 14/39
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/num2bits.circom
+x0: #<set: 1>
+main.out[0]: bottom
+main.out[1]: bottom
+main.out[2]: bottom
+main.out[3]: bottom
+main.in: bottom
+main.n2b.out[0]: #<set: 0 1>
+main.n2b.out[1]: #<set: 0 1>
+main.n2b.out[2]: #<set: 0 1>
+main.n2b.out[3]: #<set: 0 1>
+main.n2b.in: bottom
+Restricted variables: 5/11
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/nor.circom
+x0: #<set: 1>
+main.out: bottom
+main.a: bottom
+main.b: bottom
+main.binA.out: bottom
+main.binA.in: #<set: 0 1>
+main.binB.out: bottom
+main.binB.in: #<set: 0 1>
+main.nor.out: bottom
+main.nor.a: bottom
+main.nor.b: bottom
+Restricted variables: 3/11
+
+================================================================================
+
+### Benchmark: ../../evaluation/CIVER-benchmarks/binsumsmall.circom
+x0: #<set: 1>
+main.out[0]: bottom
+main.out[1]: bottom
+main.out[2]: bottom
+main.in00: bottom
+main.in01: bottom
+main.in10: bottom
+main.in11: bottom
+main.aux0: bottom
+main.aux1: bottom
+main.n2b_in: bottom
+main.n2b_out0: bottom
+main.n2b_out1: bottom
+main.n2b_out2: bottom
+main.n2bits.out[0]: #<set: 0 1>
+main.n2bits.out[1]: #<set: 0 1>
+main.n2bits.out[2]: #<set: 0 1>
+main.n2bits.in: bottom
+Restricted variables: 4/18
+
+================================================================================
+
+
+================================================================================
+SUMMARY
+================================================================================
+Total files processed: 23
+Total variables: 584
+Total restricted variables: 165
+Percentage of variables with restricted ranges: 28.25%
