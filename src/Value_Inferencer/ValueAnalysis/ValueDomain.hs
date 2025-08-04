@@ -311,14 +311,6 @@ isExcluded v intervals p = any checkInterval (Set.toList intervals)
 excludeZero :: ValueDomain -> ValueDomain
 excludeZero domain = excludeValue domain 0
 
--- Checks if a domain is unconstrained.
--- TODO: check nog eens of de definitie klopt in geval van sets
-domainIsUnconstrained :: ValueDomain -> Bool
-domainIsUnconstrained (KnownValues s) = Set.null s
-domainIsUnconstrained (BoundedValues (Just 0) (Just ul) _)
-  | ul == p - 1 = True
-domainIsUnconstrained _ = False
-
 -- | Converts a Tag into its corresponding ValueDomain constraint.
 tagToDomain :: Tag -> ValueDomain
 tagToDomain (SimpleTag "binary")  = BoundedValues (Just 0) (Just 1) Set.empty
