@@ -14,7 +14,7 @@ import Test.Hspec
 spec :: Spec
 spec = describe "Fully Constrained Test" $ do
     it "checks if all variables are fully constrained to a constant" $ do
-        content <- readFile "testFiles/eq.circir"
+        content <- readFile "test/circir-testFiles/eq.circir"
         case parseAndCompile content of
             Left err -> expectationFailure $ "Parsing failed: " ++ err
             Right program -> do
@@ -24,7 +24,7 @@ spec = describe "Fully Constrained Test" $ do
                 isFullyConstrained env `shouldBe` True
 
     it "checks if output is constrained to a constant given the appropriate input" $ do
-        content <- readFile "testFiles/outputConstrained.circir"
+        content <- readFile "test/circir-testFiles/outputConstrained.circir"
         case parseAndCompile content of
             Left err -> expectationFailure $ "Parsing failed: " ++ err
             Right program -> do
@@ -33,7 +33,7 @@ spec = describe "Fully Constrained Test" $ do
                 Map.lookup "o" env `shouldBe` Just expectedOutput
 
     it "checks if output is not constrained to a constant given the appropriate input" $ do
-        content <- readFile "testFiles/outputNotConstrained.circir"
+        content <- readFile "test/circir-testFiles/outputNotConstrained.circir"
         case parseAndCompile content of
             Left err -> expectationFailure $ "Parsing failed: " ++ err
             Right program -> do

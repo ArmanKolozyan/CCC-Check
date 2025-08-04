@@ -10,7 +10,7 @@ import Test.Hspec
 spec :: Spec
 spec = describe "Expression Parsing" $ do
     it "parses and compiles correctly" $ do
-        content <- readFile "testFiles/expressions.circir"
+        content <- readFile "test/circir-testFiles/expressions.circir"
         case parseAndCompile content of
             Left err -> expectationFailure $ "Parsing or compilation failed: " ++ err
             Right program -> computations program `shouldContain` [expectedExpr]

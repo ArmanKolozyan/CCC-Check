@@ -7,7 +7,7 @@ import Test.Hspec
 spec :: Spec
 spec = describe "ITE Parsing Test" $ do
     it "parses ITE expressions correctly" $ do
-        content <- readFile "testFiles/ite.circir"
+        content <- readFile "test/circir-testFiles/ite.circir"
         case parseAndCompile content of
             Left err -> expectationFailure $ "Parsing failed: " ++ err
             Right program -> computations program `shouldContain` [Ite (Var "sel") (Var "a") (Var "b")]
