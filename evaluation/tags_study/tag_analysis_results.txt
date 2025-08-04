@@ -1,0 +1,69 @@
+SIGNAL TAGS ANALYSIS RESULTS
+================================================================================
+Analysis Date: 2025-08-04 18:34:50
+Total files analyzed: 147 .circom files
+
+
+================================================================================
+OVERALL STATISTICS
+================================================================================
+Total tag instances: 128
+Unique tag types: 6
+
+MOST COMMON TAGS (OVERALL):
+----------------------------------------
+binary               :   47 ( 36.7%)
+maxbit               :   44 ( 34.4%)
+maxvalue             :   16 ( 12.5%)
+max_abs              :   12 (  9.4%)
+powerof2             :    8 (  6.2%)
+maxbit_abs           :    1 (  0.8%)
+
+================================================================================
+ANALYSIS BY PROJECT
+================================================================================
+
+Circomlib (circomlib-only_adding_tags)
+--------------------------------------
+Tag instances: 39 (30.5% of all tags)
+Unique tag types: 3
+
+Most Common Tags:
+  binary             :  32 ( 82.1% of project, 25.0% of total)
+  maxbit             :   6 ( 15.4% of project,  4.7% of total)
+  maxvalue           :   1 (  2.6% of project,  0.8% of total)
+
+ECDSA (circom-ecdsa-master)
+---------------------------
+Tag instances: 40 (31.2% of all tags)
+Unique tag types: 3
+
+Most Common Tags:
+  maxbit             :  38 ( 95.0% of project, 29.7% of total)
+  binary             :   1 (  2.5% of project,  0.8% of total)
+  maxbit_abs         :   1 (  2.5% of project,  0.8% of total)
+
+Dark Forest (darkforest-with-tags-main)
+---------------------------------------
+Tag instances: 49 (38.3% of all tags)
+Unique tag types: 4
+
+Most Common Tags:
+  maxvalue           :  15 ( 30.6% of project, 11.7% of total)
+  binary             :  14 ( 28.6% of project, 10.9% of total)
+  max_abs            :  12 ( 24.5% of project,  9.4% of total)
+  powerof2           :   8 ( 16.3% of project,  6.2% of total)
+
+================================================================================
+PROJECT COMPARISON TABLE
+================================================================================
+Tag             | Circomlib        | ECDSA      | DarkForest     | Total
+---------------------------------------------------------------------------
+binary          | 32 (82.1%)       |  1 ( 2.5%) | 14 (28.6%)     |    47
+max_abs         |  0 ( 0.0%)       |  0 ( 0.0%) | 12 (24.5%)     |    12
+maxbit          |  6 (15.4%)       | 38 (95.0%) |  0 ( 0.0%)     |    44
+maxbit_abs      |  0 ( 0.0%)       |  1 ( 2.5%) |  0 ( 0.0%)     |     1
+maxvalue        |  1 ( 2.6%)       |  0 ( 0.0%) | 15 (30.6%)     |    16
+powerof2        |  0 ( 0.0%)       |  0 ( 0.0%) |  8 (16.3%)     |     8
+---------------------------------------------------------------------------
+TOTAL           |               39 |         40 |             49 |   128
