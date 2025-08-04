@@ -15,10 +15,10 @@ import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Data.Maybe (fromMaybe)
+import Data.Bits ((.&.))
 import ValueAnalysis.VariableState
 import ValueAnalysis.ValueDomain
 import ValueAnalysis.Analysis (analyzeProgram, inferValues)
-import Debug.Trace (trace)
 
 {- 
   | This function:
@@ -85,10 +85,14 @@ checkTagDomain t (ArrayDomain elemMap defDom size) varName =
 -- scalar cases: delegating to specific domain checkers
 checkTagDomain (SimpleTag "binary") d varName = checkBooleanDomain d varName
 checkTagDomain (SimpleTag "nonzero") d varName = checkNonZeroDomain d varName
+checkTagDomain (SimpleTag "powerof2") d varName = checkPowerOf2Domain d varName
 checkTagDomain (MaxBitsTag n) d varName       = checkMaxValDomain ((2 ^ n) - 1) d varName
 checkTagDomain (MaxValTag n) d varName       = checkMaxValDomain n d varName
+checkTagDomain (MinValTag n) d varName        = checkMinValDomain n d varName
+checkTagDomain (MaxAbsTag n) d varName        = checkMaxAbsDomain n d varName
+checkTagDomain (MaxBitsAbsTag n) d varName    = checkMaxBitsAbsDomain n d varName
 -- unhandled tags for scalar domains
-checkTagDomain otherTag _ varName              = ["Warning: No check implemented for tag `" ++ show otherTag ++ "` on variable `" ++ varName ++ "`"]  
+checkTagDomain otherTag _ varName              = ["Warning: No check implemented for tag `" ++ show otherTag ++ "` on variable `" ++ varName ++ "`"]
 
 
 -- | Checks that the final VariableState is consistent with the Sort.
@@ -110,7 +114,7 @@ checkSortDomain (ArraySort elemSort expectedSize) (ArrayDomain elemMap defDom ac
         defErrors = if fromIntegral (Map.size elemMap) == actualSize
                     then []
                     else checkSortDomain elemSort defDom (varName ++ "[default]")
-    in sizeError ++ elemErrors ++ defErrors    
+    in sizeError ++ elemErrors ++ defErrors
 -- Scalar Sorts vs Scalar Domains
 checkSortDomain Bool d varName         = checkBooleanDomain d varName
 checkSortDomain (BitVector n) d varName= checkMaxValDomain ((2 ^ n) - 1) d varName
@@ -178,6 +182,83 @@ checkMaxValDomain maxVal d varName = case d of
         in (["Variable `" ++ varName ++ "` has lower bound < 0" | not lbOk]) ++
            (["Variable `" ++ varName ++ "` has upper bound > " ++ show maxVal | not ubOk])
     ArrayDomain {} -> ["Type mismatch for `" ++ varName ++ "`: expected scalar <= " ++ show maxVal ++ ", found Array."]
+
+-- | Checks that a domain has a minimum value.
+checkMinValDomain :: Integer -> ValueDomain -> String -> [String]
+checkMinValDomain minVal d varName = case d of
+    KnownValues s ->
+        let invalidVals = Set.filter (< minVal) s
+        in ["Variable `" ++ varName ++ "` has out-of-range values: " ++ show (Set.toList invalidVals) ++ " (expected >= " ++ show minVal ++ ")" | not (Set.null invalidVals)]
+    BoundedValues lbM ubM _ ->
+        let lbOk = maybe False (>= minVal) lbM  -- lower bound must exist and be >= minVal
+        in ["Variable `" ++ varName ++ "` has lower bound < " ++ show minVal | not lbOk]
+    ArrayDomain {} -> ["Type mismatch for `" ++ varName ++ "`: expected scalar >= " ++ show minVal ++ ", found Array."]
+
+-- | Checks that a domain has absolute values within bounds.
+checkMaxAbsDomain :: Integer -> ValueDomain -> String -> [String]
+checkMaxAbsDomain maxAbs d varName = case d of
+    KnownValues s ->
+        let invalidVals = Set.filter (\v -> abs v > maxAbs) s
+        in ["Variable `" ++ varName ++ "` has out-of-range values: " ++ show (Set.toList invalidVals) ++ " (expected |value| <= " ++ show maxAbs ++ ")" | not (Set.null invalidVals)]
+    BoundedValues lbM ubM _ ->
+        let lbOk = maybe True (>= negate maxAbs) lbM
+            ubOk = maybe True (<= maxAbs) ubM
+        in (["Variable `" ++ varName ++ "` has lower bound < " ++ show (negate maxAbs) | not lbOk]) ++
+           (["Variable `" ++ varName ++ "` has upper bound > " ++ show maxAbs | not ubOk])
+    ArrayDomain {} -> ["Type mismatch for `" ++ varName ++ "`: expected scalar with |value| <= " ++ show maxAbs ++ ", found Array."]
+
+-- | Checks that a domain has absolute values within bit bounds.
+checkMaxBitsAbsDomain :: Integer -> ValueDomain -> String -> [String]
+checkMaxBitsAbsDomain n d varName =
+    let maxAbs = 2 ^ n
+    in checkMaxAbsDomain maxAbs d varName
+
+-- | Checks that a domain contains only powers of 2.
+checkPowerOf2Domain :: ValueDomain -> String -> [String]
+checkPowerOf2Domain d varName = case d of
+    KnownValues s ->
+        let invalidVals = Set.filter (not . isPowerOf2') s
+        in ["Variable `" ++ varName ++ "` has values that are not powers of 2: " ++ show (Set.toList invalidVals) | not (Set.null invalidVals)]
+    BoundedValues lbM ubM gaps ->
+        checkBoundedPowerOf2 lbM ubM gaps varName
+    ArrayDomain {} -> ["Type mismatch for `" ++ varName ++ "`: expected scalar power of 2, found Array."]
+  where
+    isPowerOf2' :: Integer -> Bool
+    isPowerOf2' n = n > 0 && (n .&. (n - 1)) == 0
+
+    -- checking for bounded domains
+    checkBoundedPowerOf2 :: Maybe Integer -> Maybe Integer -> Set.Set (Integer, Integer) -> String -> [String]
+    checkBoundedPowerOf2 lbM ubM gaps varName =
+        let lb = fromMaybe 0 lbM
+            ub = fromMaybe (p - 1) ubM
+        in if lb < 0 then
+            -- negative values cannot be powers of 2
+            ["Variable `" ++ varName ++ "` has negative lower bound " ++ show lb ++ ", but powers of 2 must be positive"]
+           else if lb == 0 && not (isExcluded 0 gaps p) then
+            -- zero is not a power of 2
+            ["Variable `" ++ varName ++ "` may contain 0, which is not a power of 2"]
+           else
+            -- generating powers of 2 within the bounds
+            let maxExponent = ceiling (logBase 2 (fromIntegral p))
+                allPowersOfTwo = takeWhile (< p) [2^i | i <- [0..maxExponent]]
+                powersInRange = filter (\x -> x >= lb && x <= ub && not (isExcluded x gaps p)) allPowersOfTwo
+
+                -- For bounded domains, we check exhaustively if the range is small enough.
+                -- For large ranges, to maintain soundness, we report that verification is not feasible.
+                rangeSize = ub - lb + 1
+
+            in if null powersInRange then
+                ["Variable `" ++ varName ++ "` has bounds [" ++ show lb ++ ".." ++ show ub ++ "] which contain no powers of 2"]
+               else if rangeSize <= 1000 then
+                -- for small ranges, we check exhaustively
+                let nonPowersInRange = filter (\x -> not (isPowerOf2' x) && not (isExcluded x gaps p)) [lb..ub]
+                in (["Variable `" ++ varName ++ "` may contain non-power-of-2 values: " ++ show (take 10 nonPowersInRange) ++
+                          (if length nonPowersInRange > 10 then " and " ++ show (length nonPowersInRange - 10) ++ " more" else "") | not (null nonPowersInRange)])
+               else
+                -- For large ranges, we cannot exhaustively check without risking performance issues.
+                -- To be sound, we must report that the constraint may be violated.
+                ["Variable `" ++ varName ++ "` has large range [" ++ show lb ++ ".." ++ show ub ++ 
+                 "] (size " ++ show rangeSize ++ ") - cannot efficiently verify power-of-2 constraint"]
 
 -- Checking denominators.
 

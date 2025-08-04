@@ -31,10 +31,12 @@ data Binding = Binding
   deriving (Show, Eq, Generic, NFData)
 
 data Tag 
-  = SimpleTag String     -- e.g., "binary"
-  | MaxBitsTag Integer   -- e.g., (maxbits 5)
-  | MaxValTag Integer
-  -- TODO: other tags
+  = SimpleTag String       -- e.g., "binary", "powerof2"
+  | MaxBitsTag Integer     -- e.g., (maxbits 5)
+  | MaxValTag Integer      -- e.g., (maxvalue 10)
+  | MinValTag Integer      -- e.g., (minvalue 5) 
+  | MaxAbsTag Integer      -- e.g., (max_abs 10)
+  | MaxBitsAbsTag Integer  -- e.g., (maxbit_abs 5)
   deriving (Show, Eq, Generic, NFData)
 
 -- | The sorts we are interested in. Currently, only field elements are included,

@@ -497,6 +497,10 @@ compileTag :: MonadCompile m => SExp -> m Tag
 compileTag (Atom tagName _) = pure (SimpleTag tagName)
 -- tag with a value
 compileTag (Atom "maxbits" _ ::: Num val _ ::: SNil _) = pure (MaxBitsTag val)
+compileTag (Atom "maxvalue" _ ::: Num val _ ::: SNil _) = pure (MaxValTag val)
+compileTag (Atom "minvalue" _ ::: Num val _ ::: SNil _) = pure (MinValTag val)
+compileTag (Atom "max_abs" _ ::: Num val _ ::: SNil _) = pure (MaxAbsTag val)
+compileTag (Atom "maxbit_abs" _ ::: Num val _ ::: SNil _) = pure (MaxBitsAbsTag val)
 compileTag sexp = throwError $ "Unsupported tag format: " ++ show sexp
 
 -- | Compiles a single sort.

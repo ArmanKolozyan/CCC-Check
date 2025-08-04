@@ -8,6 +8,7 @@ import qualified Data.Set as Set
 import Data.Maybe (fromMaybe)
 import Data.Map
 import qualified Data.Map.Merge.Strict as Map
+import Data.Bits ((.&.))
 import Syntax.AST
 import GHC.Generics (Generic)
 import Control.DeepSeq (NFData)
@@ -311,10 +312,26 @@ isExcluded v intervals p = any checkInterval (Set.toList intervals)
 excludeZero :: ValueDomain -> ValueDomain
 excludeZero domain = excludeValue domain 0
 
+-- | Helper function to check if a number is a power of 2.
+isPowerOf2 :: Integer -> Bool
+isPowerOf2 n = n > 0 && (n .&. (n - 1)) == 0
+
+-- | Creates a domain containing only powers of 2 within the default field range.
+powerOf2Domain :: ValueDomain
+powerOf2Domain = 
+  let powersOf2 = takeWhile (< p) [2^i | i <- [0..]]
+  in KnownValues (Set.fromList powersOf2)
+
 -- | Converts a Tag into its corresponding ValueDomain constraint.
 tagToDomain :: Tag -> ValueDomain
-tagToDomain (SimpleTag "binary")  = BoundedValues (Just 0) (Just 1) Set.empty
-tagToDomain (SimpleTag "nonzero") = excludeValue defaultValueDomain 0
-tagToDomain (MaxBitsTag n)        = BoundedValues (Just 0) (Just ((2 ^ n) - 1)) Set.empty
-tagToDomain (MaxValTag n)         = BoundedValues (Just 0) (Just n) Set.empty
-tagToDomain _                     = defaultValueDomain -- default for unhandled tags
+-- Plain tags
+tagToDomain (SimpleTag "binary")   = BoundedValues (Just 0) (Just 1) Set.empty
+tagToDomain (SimpleTag "nonzero")  = excludeValue defaultValueDomain 0
+tagToDomain (SimpleTag "powerof2") = powerOf2Domain
+-- Tags with values
+tagToDomain (MaxBitsTag n)         = BoundedValues (Just 0) (Just ((2 ^ n) - 1)) Set.empty
+tagToDomain (MaxValTag n)          = BoundedValues (Just 0) (Just n) Set.empty
+tagToDomain (MinValTag n)          = BoundedValues (Just n) (Just (p - 1)) Set.empty
+tagToDomain (MaxAbsTag n)          = BoundedValues (Just (negate n)) (Just n) Set.empty
+tagToDomain (MaxBitsAbsTag n)      = BoundedValues (Just (negate (2 ^ n))) (Just (2 ^ n)) Set.empty
+tagToDomain _                      = defaultValueDomain -- default for unhandled tags
