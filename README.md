@@ -4,7 +4,7 @@ Inconsistency bug detection framework for Zero-Knowledge Proof programs. 2024-20
 
 ## What it does
 
-- **Value Inference**: Tracks possible values of variables through constraint propagation.
+- **Value Inference**: Tracks possible values of variables.
 - **Bug Detection**: Identifies vulnerabilities concerning discrepancies between computation and constraint side (e.g., tag violations), using the value information.
 
 ## Build & Test
