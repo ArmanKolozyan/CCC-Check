@@ -161,7 +161,6 @@ compileMetaForm acc form = case form of
 compileInput :: MonadCompile m => [Binding] -> SExp -> m [Binding]
 compileInput acc form = case form of
     (Atom "return" _ ::: _) -> pure acc  -- ignoring "return" var
-    -- TODO: make party info optional
     -- case with tag
     (Atom varName _ ::: sortExp ::: tagExp ::: SNil _) -> do
         id <- genVarID
@@ -195,7 +194,7 @@ compilePreForm :: MonadCompile m => ([Binding], [Expression], [Binding]) -> SExp
 compilePreForm (vars, exps, rets) preForm = case preForm of
     (Atom "declare" _ ::: (varDefs ::: compForms ::: SNil _)) -> do
         bds <- sfoldlM compileSinglePrecomputeVar [] varDefs
-        exps <- compileExp compForms -- TODO: check if folding is needed
+        exps <- compileExp compForms
         pure (vars ++ bds, [exps], rets)
     -- return variables
     returns -> do
@@ -292,9 +291,7 @@ compileDeclare :: MonadCompile m => SExp -> m ([Binding], [Constraint])
 compileDeclare (Atom "declare" _ ::: (varDefs ::: constrForms ::: SNil _)) = do
     vars <- sfoldlM compileVariableDefinitions [] varDefs
     constraint <- compileConstraint constrForms
-    pure (vars, [constraint]) 
-    -- TODO: check ^ of er meerdere constrs onder elkaar kunnen, of moet het dan altijd (AND ...) zijn?
-    -- indien laatste, dan fine.
+    pure (vars, [constraint])
 compileDeclare e =
     throwError $ "Invalid (declare ...): " ++ show e
 
@@ -330,6 +327,7 @@ compileExp (Atom text@(('#':'b':bits)) _) =
    in pure (BvLit val width)
 
 -- field constants: #f123 or #f123m5243587, ...
+-- If no modulus is specified, uses the default prime
 compileExp (Atom text@('#':'f':rest) _) = do
     let (valStr, maybeMPlusPrime) = break (== 'm') rest
         val  = read valStr
@@ -340,7 +338,6 @@ compileExp (Atom text@('#':'f':rest) _) = do
                   _ ->
                     -- no prime => default prime
                     defaultPrime
-    -- TODO: we should retrieve prime from set_default_modulus when possible
     pure (FieldConst val prime) 
 
 compileExp (Atom name _) =
@@ -490,8 +487,6 @@ compileSparseArray bad =
 
 
 -- | Compiles a tag S-expression into the structured Tag type.
--- TODO: let op, (party 0) wordt nu als tag gezien! dus party info best gwn zelf weghalen
---          of andere fix zoeken
 compileTag :: MonadCompile m => SExp -> m Tag
 -- tag without value (i.e., a simple string)
 compileTag (Atom tagName _) = pure (SimpleTag tagName)

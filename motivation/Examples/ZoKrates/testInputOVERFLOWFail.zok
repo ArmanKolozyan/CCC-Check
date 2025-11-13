@@ -1,9 +1,0 @@
-def main() {
-    u8 a = overflow(10); // not allowed: Function definition for function overflow with signature ({integer}) -> u8 not found.
-    return;
-}
-
-def overflow(u8 a) -> u8 {
-    assert (a == 10);
-    return a;
-}

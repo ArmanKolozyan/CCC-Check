@@ -288,8 +288,6 @@ invertStates st nmToID =
 
 
 -- | Collects all ArrayStore and ArraySelect expressions from a list of constraints.
--- TODO: kan misschien efficiënter, door tijdens value inferencing al te verzamelen?
--- Maar dan geen separation of concerns meer I think.
 collectArrayAccesses :: [Constraint] -> [Expression]
 collectArrayAccesses = concatMap collectFromConstraint
   where

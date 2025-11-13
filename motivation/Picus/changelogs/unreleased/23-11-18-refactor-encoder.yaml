@@ -1,4 +1,0 @@
-changed:
-  - Renamed `interpret` to `encode`.
-  - Centralized the encoder.
-  - Removed unused AST nodes.

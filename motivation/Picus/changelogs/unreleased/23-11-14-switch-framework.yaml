@@ -1,3 +1,0 @@
-changed:
-  - Refactored more code to use the logging framework functions,
-    which enables better error message.

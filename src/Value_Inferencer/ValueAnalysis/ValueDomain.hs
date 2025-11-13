@@ -13,12 +13,6 @@ import Syntax.AST
 import GHC.Generics (Generic)
 import Control.DeepSeq (NFData)
 
--- TODO: we maken vaak onderscheid tussen normal interval en wrapped,
--- maar eigenlijk kan wrapped nooit voorkomen want wordt omgezet naar
--- normal + exclusions (i.e., gaps).
-
--- TODO: terminologie "exclusions" en "gaps" consistent maken
-
 -- | Represents values of variables.
 -- `gaps` stores intervals (l, u) of values *excluded* from the domain.
 -- This allows representing non-contiguous sets.
@@ -26,7 +20,6 @@ import Control.DeepSeq (NFData)
 -- represents the set {0, 1, 2, 6, 7, 8, 9}.
 -- A wrap-around interval like [8, 1] (mod 10) is represented by its gap:
 -- BoundedValues {lb=Just 0, ub=Just 9, gaps=Set.singleton (2, 7)}.
--- TODO: check of we niet gewoon alles via BoundedValues kunnen doen (zonder veel efficiëntie te verliezen).
 data ValueDomain
   = KnownValues (Set Integer) -- explicitly known values
   | BoundedValues
@@ -88,7 +81,6 @@ mergeElemMaps elems1 def1 elems2 def2 =
     elems2
 
 -- Default modulus for the field (BN254).
--- TODO: compile this from the program code
 p :: Integer
 p = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
@@ -176,14 +168,10 @@ intersectDomains d1 d2 = case (d1, d2) of
                  -- combining gaps using Set.union
                  let combinedGaps = Set.union gaps1 gaps2
 
-                 -- removing wrong intervals covering the whole field
-                 -- TODO: beter noteren, ging om intervals waar (l, l - 1) had
+                 -- removing intervals that cover the entire field
                  let correctGaps = Set.filter (\(l, u) -> (l - 1 + p) `mod` p /= u) combinedGaps
 
                  -- finding the actual lower bound >= combinedLb, avoiding exclusions
-                 -- TODO: dit is volgens mij toch niet strictly nodig, + 
-                 -- als we de bounds aanpassen, dan mogen we denk ik correctGaps weggooien?
-                 -- HMMM JAWEL? VOOR EMPTINESS DETECTION
                  finalLb <- findNextValidLowerBoundInterval combinedLb correctGaps p
 
                  -- finding the actual upper bound <= combinedUb, avoiding exclusions
@@ -246,7 +234,6 @@ filterKnownByBounded s lbM ubM currentGaps p =
 
 -- Helper: Finds the smallest integer >= initialLb (if Just) that is not excluded.
 -- Returns Left if all values >= initialLb are excluded.
--- TODO: check, dit kan lang duren als lb groot is!    
 findNextValidLowerBoundInterval :: Maybe Integer -> Set (Integer, Integer) -> Integer -> Either String Integer
 findNextValidLowerBoundInterval Nothing _ _ = Right 0 -- if initial lower bound unknown, we start search from 0
 findNextValidLowerBoundInterval (Just lb) currentGaps p =
@@ -264,7 +251,6 @@ findNextValidLowerBoundInterval (Just lb) currentGaps p =
 
 -- Helper: Finds the largest integer <= initialUb (if Just) that is not excluded.
 -- Returns Left if all values <= initialUb are excluded.
--- TODO: check, dit kan lang duren als ub klein is!    
 findPrevValidUpperBoundInterval :: Maybe Integer -> Set (Integer, Integer) -> Integer -> Either String Integer
 findPrevValidUpperBoundInterval Nothing _ p = Right (p - 1) -- if initial upper bound unknown, we start search from p-1
 findPrevValidUpperBoundInterval (Just ub) currentGaps p =

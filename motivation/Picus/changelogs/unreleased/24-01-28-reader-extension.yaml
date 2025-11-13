@@ -1,5 +1,0 @@
-changed:
-  - Made the reader more modular, in preparation for the gnark support
-
-removed:
-  - Removed the Circom patching mode, since Alp suggested that doing so is unsound.

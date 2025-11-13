@@ -1,4 +1,0 @@
-def main(private bool a, field b) {
-    u16 b = 256; // 256 < 2^16, all good
-    return;
-}

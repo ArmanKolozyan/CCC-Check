@@ -1,0 +1,110 @@
+Picus Variable Ranges Analysis for motivating
+================================================================================
+
+### Benchmark: ./benchmarks/motivating/VDFixed.circom
+x0: #<set: 1>
+x1: bottom
+x2: bottom
+x3: bottom
+x4: bottom
+x5: bottom
+x6: bottom
+x7: bottom
+x8: bottom
+x9: bottom
+x10: bottom
+x11: bottom
+x12: bottom
+x13: bottom
+x14: bottom
+x15: bottom
+x16: bottom
+x17: bottom
+x18: bottom
+x19: bottom
+x20: bottom
+x21: bottom
+x22: bottom
+x23: bottom
+x24: bottom
+x25: bottom
+x26: bottom
+x27: bottom
+x28: bottom
+x29: bottom
+x30: bottom
+x31: bottom
+x32: bottom
+Restricted variables: 1/33
+
+================================================================================
+
+### Benchmark: ./benchmarks/motivating/ValidateDecodingBuggy.circom
+x0: #<set: 1>
+x1: #<set: 0 1>
+x2: bottom
+x3: bottom
+x4: bottom
+Restricted variables: 2/5
+
+================================================================================
+
+### Benchmark: ./benchmarks/motivating/VDBuggy.circom
+x0: #<set: 1>
+x1: bottom
+x2: bottom
+x3: bottom
+x4: bottom
+x5: bottom
+x6: bottom
+x7: bottom
+x8: bottom
+x9: bottom
+x10: bottom
+x11: bottom
+x12: bottom
+x13: bottom
+x14: bottom
+x15: bottom
+x16: bottom
+x17: bottom
+x18: bottom
+x19: #<set: 0 1>
+x20: bottom
+x21: bottom
+x22: bottom
+x23: bottom
+x24: bottom
+x25: bottom
+x26: bottom
+Restricted variables: 2/27
+
+================================================================================
+
+### Benchmark: ./benchmarks/motivating/ValidateDecodingFixed.circom
+x0: #<set: 1>
+x1: bottom
+x2: bottom
+x3: bottom
+x4: bottom
+x5: bottom
+x6: bottom
+x7: bottom
+Restricted variables: 1/8
+
+================================================================================
+
+### Benchmark: ./benchmarks/motivating/adder.circom
+x0: #<set: 1>
+x1: bottom
+x2: bottom
+x3: #<set: 0 1>
+x4: #<set: 0 1>
+x5: #<set: 0 1>
+x6: #<set: 0 1>
+x7: #<set: 0 1>
+x8: bottom
+Restricted variables: 6/9
+
+================================================================================
+

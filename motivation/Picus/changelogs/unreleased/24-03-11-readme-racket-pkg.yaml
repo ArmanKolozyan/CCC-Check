@@ -1,3 +1,0 @@
-changed:
-  - Updated README for a public release.
-  - Simplify installation steps by making Picus a proper Racket package.

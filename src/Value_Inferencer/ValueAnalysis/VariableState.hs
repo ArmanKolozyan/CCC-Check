@@ -30,7 +30,6 @@ initializeVarStates :: [Binding] -> Map Int VariableState
 initializeVarStates vars = Map.fromList [(vid v, initVarState v) | v <- vars]
 
 -- | Builds a map from variable names to their IDs for lookup.
--- TODO: just replace all vars in constraints by their ID during compilation!
 buildVarNameToIDMap :: [Binding] -> Map String Int
 buildVarNameToIDMap vars = Map.fromList [(name v, vid v) | v <- vars]
 

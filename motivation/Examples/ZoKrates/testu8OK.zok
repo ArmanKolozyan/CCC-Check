@@ -1,5 +1,0 @@
-def main(private bool a, field b) {
-    u8 b = 255; // 255 < 2^8, all good
-    return;
-}
-

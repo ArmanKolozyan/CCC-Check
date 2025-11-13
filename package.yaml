@@ -1,16 +1,16 @@
-name: zkp-analysis
-version: 0.1
+name: ccc-check
+version: 1.0.0
+synopsis: Language-agnostic detection of computation-constraint inconsistencies in ZKP programs
+license: MIT
+category: Cryptography, Security, Static Analysis
 
 library:
-  source-dirs: 
+  source-dirs:
     - src
-    - src/CP_Analysis
     - src/Value_Inferencer
   exposed-modules:
     - ValueAnalysis.Analysis
     - ValueDomain.Domain
-    - CPAnalysis.Analysis
-    - CPDomain.Domain
     - Syntax.AST
     - Syntax.Compiler
     - ValueAnalysis.UserRules
@@ -19,7 +19,7 @@ library:
     - ValueAnalysis.Printer
     - BugDetection.BugDetection
   other-modules:
-    - Paths_zkp_analysis
+    - Paths_ccc_check
   dependencies:
     - base > 4.7 && < 5
     - rio
@@ -32,11 +32,11 @@ library:
     - deepseq
 
 executables:
-  zkp-analysis-exe:
+  ccc-check:
     source-dirs: app
     main: Main.hs
     dependencies:
-      - zkp-analysis
+      - ccc-check
       - rio
       - base > 4.7 && < 5
       - maf2-analysis
@@ -44,7 +44,7 @@ executables:
       - maf2-syntax
       - containers
     other-modules:
-      - Paths_zkp_analysis
+      - Paths_ccc_check
 
 tests:
   all-tests:
@@ -56,14 +56,12 @@ tests:
       - maf2-analysis
       - maf2-domains
       - maf2-syntax
-      - zkp-analysis
+      - ccc-check
       - containers
       - hspec
     other-modules:
       - Syntax.ExpressionsParseTest
       - Syntax.IteParseTest
-      - CP_Analysis.Analysis.FullyConstrainedTest
-      - CP_Analysis.Analysis.ExpressionsAnalysisTest
       - Value_Inferencer.ValueAnalysis.Num2BitsTest
       - Value_Inferencer.ValueAnalysis.NonZeroTest
       - Value_Inferencer.ValueAnalysis.NonZeroTemplateTest
@@ -146,7 +144,7 @@ benchmarks:
       - -O2
     dependencies:
       - base
-      - zkp-analysis
+      - ccc-check
       - criterion
       - deepseq
       - containers

@@ -1,3 +1,0 @@
-added:
-  - Added the ability to override the solver's executable
-    by using the environment variable `SOLVER_PATH`

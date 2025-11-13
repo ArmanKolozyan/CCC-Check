@@ -119,8 +119,7 @@ unifyConstraint (EqC _ pe1 pe2) (EqC _ re1 re2) acc = do
   acc'  <- unifyExpr pe1 re1 acc
   acc'' <- unifyExpr pe2 re2 acc'
   pure acc''
-unifyConstraint _ _ _ = Nothing 
--- TODO: other constraint types (AndC, OrC, ...)
+unifyConstraint _ _ _ = Nothing
 
 unifyExpr :: Expression -> Expression
           -> Map.Map String String
@@ -141,7 +140,6 @@ unifyExpr (Mul a1 a2) (Mul b1 b2) acc = do
   acc'  <- unifyExpr a1 b1 acc
   acc'' <- unifyExpr a2 b2 acc'
   pure acc''
--- TODO: other expression types (Sub, Gte, ...)
 unifyExpr _ _ _ = Nothing
 
 -----------------------------------------------------

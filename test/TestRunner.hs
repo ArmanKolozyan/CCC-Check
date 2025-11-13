@@ -2,7 +2,6 @@ module Main where
 
 import Test.Hspec
 import qualified Syntax.ExpressionsParseTest
-import qualified CP_Analysis.Analysis.FullyConstrainedTest
 import qualified Syntax.IteParseTest
 import qualified Value_Inferencer.ValueAnalysis.Num2BitsTest
 import qualified Value_Inferencer.ValueAnalysis.NonZeroTest
@@ -54,7 +53,6 @@ main :: IO ()
 main = hspec $ do
     Syntax.ExpressionsParseTest.spec
     Syntax.IteParseTest.spec
-    CP_Analysis.Analysis.FullyConstrainedTest.spec
     Value_Inferencer.ValueAnalysis.Num2BitsTest.spec
     Value_Inferencer.ValueAnalysis.NonZeroTest.spec
     Value_Inferencer.ValueAnalysis.NonZeroTemplateTest.spec

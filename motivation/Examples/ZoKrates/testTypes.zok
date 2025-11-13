@@ -1,4 +1,0 @@
-def main(private bool a, field b) {
-    u8 b = false; // detected: `false` of type `bool` cannot be assigned to `u8 b` of type `u8`
-    return;
-}

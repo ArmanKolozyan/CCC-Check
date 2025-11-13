@@ -29,8 +29,6 @@ import ValueAnalysis.Printer
 
 import Control.Monad (foldM)
 
-import Debug.Trace (trace)
-
 --------------------------
 -- 1) Variable State Representation
 --------------------------
@@ -228,7 +226,6 @@ inferValues (Var xName) nameToID varStates maybeLocalBindings =
           -- variable known but no state? we return default domain
           Just varID -> maybe defaultValueDomain domain (Map.lookup varID varStates)
           -- variable name not found? we return default domain
-          -- TODO: beter error geven denk ik
           Nothing -> defaultValueDomain
 
 -- Let expression: evaluating bindings, then body in augmented scope
@@ -262,7 +259,6 @@ inferValues (Add e1 e2) nameToID varStates maybeLocalBindings =
               -- no wrap-around: result is [minSum, maxSum]
               -- We drop original exclusions, which is sound as we only
               -- lose precision with this (we over-approximate).
-              -- TODO: maybe we can keep the exclusions in a smart way? Yes should be doable.
               BoundedValues (Just minSum) (Just maxSum) Set.empty
             else
               -- wrap-around: we represent as [0, p-1] excluding the gap.
@@ -385,7 +381,6 @@ inferValues (Mul e1 e2) nameToID varStates maybeLocalBindings =
            -- without significant loss of precision (e.g., becoming [0, 16]).
            -- Returning `defaultValueDomain` (unknown) is a safe over-approximation,
            -- by which we acknowledge the limitations of our analysis.
-           -- TODO: think more about this, maybe we can represent this easily?
            defaultValueDomain
          else
            -- interval does not contain 0. 
@@ -450,7 +445,6 @@ inferValues (PfRecip e) nameToID varStates maybeLocalBindings = inferValues e na
 inferValues (Ite cond eThen eElse) nameToID varStates maybeLocalBindings =
   let dThen = inferValues eThen nameToID varStates maybeLocalBindings
       dElse = inferValues eElse nameToID varStates maybeLocalBindings
-      -- TODO: Could potentially use cond to refine which branch is taken
   in joinDomains dThen dElse 
 
 -- Array Literal: e.g., #l(e1, e2, ...)
@@ -545,7 +539,7 @@ inferValues (ArrayFill valExpr _sort size) nameToID varStates maybeLocalBindings
       -- the specific element map starts empty
   in ArrayDomain Map.empty fillDom size
 
-inferValues _ _ _ _ = defaultValueDomain -- TODO: Handle other cases properly
+inferValues _ _ _ _ = defaultValueDomain
 
 -- Helper function to map an exclusion interval through subtraction by a set of constants
 -- Input: (l1, u1) from gaps1, Set s2, modulus p
@@ -590,7 +584,6 @@ mapExclusionKnownSub s1 (l2, u2) p =
 --    `gapEnd = (16 - 1 + 17) mod 17 = 15`.
 --    The excluded gap interval is `[2, 15]`.
 --    The result is stored as `BoundedValues (Just 0) (Just (p-1)) (Just [(2, 15)])`.
---    TODO: We assume here that ValueDomain uses excluded intervals. Check if we respect this everywhere.
 
 -- Helper to calculate the bounds of the gap interval during wrap-around.
 -- Returns the interval (gapStart, gapEnd) representing excluded values.
@@ -668,9 +661,8 @@ isIn01 st = case domain st of
                              _ -> True -- if bounds aren't exactly [0,0], [1,1] or [0,1], exclusions don't invalidate the [0,1] check
 
         in boundsOk && exclusionsOk
-        
+
 -- | Applies an "interesting" constraint to update variable states.
--- TODO: OrC, ... !!
 analyzeConstraint :: Constraint -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
 
 
@@ -771,13 +763,6 @@ analyzeConstraint (EqC _ (Var xName) e) nameToID varStates =
           in Right (changed || backwardChanged, finalStates)
         Left errMsg -> Left errMsg -- intersection failed, contradiction
 
--- ALREADY HANDLED BY THE ROOT RULE:
---analyzeConstraint (EqC cid (Var xName) (Int 0)) nameToID varStates =
---  markVarDefinitelyZero xName nameToID varStates
-
---analyzeConstraint (EqC cid (Int 0) (Var xName)) nameToID varStates =
---  markVarDefinitelyZero xName nameToID varStates  
-
 -- ASSIGN Rule from PICUS paper: c * x = e  => x = e / c
 analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
   | let cModP = c `mod` p
@@ -810,7 +795,6 @@ analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
                         -- to be represented by BoundedValues.
                         -- Calculating these precisely is complex, so we over-approximate
                         -- x's domain as unknown (`defaultValueDomain`) for simplicity and soundness.
-                        -- TODO: Could potentially refine this case further.
                         defaultValueDomain
                       else
                         -- omega is guaranteed non-zero, multiplying bounds
@@ -824,7 +808,6 @@ analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
                             mappedExclusionsX = Set.map (\(lE, uE) ->
                                       let lx = (lE * cInv) `mod` p
                                           ux = (uE * cInv) `mod` p
-                                      -- TODO: the resulting interval (lx, ux) might wrap around itself
                                       in (lx, ux)
                                     ) gapsSetE
 
@@ -881,7 +864,7 @@ analyzeConstraint (EqC cid (Int 0) rootExpr) nameToID varStates =
 --    If that expression is a sum of terms like c^k * b_k or b_k * c^k, with each b in [0,1],
 --    then z ∈ [0, c^(maxExponent+1)-1].
 analyzeConstraint (EqC cid lhs (Var zName)) nameToID varStates
-  | Just terms <- checkSumOfPowers 2 lhs  -- TODO: generalize
+  | Just terms <- checkSumOfPowers 2 lhs
   = do
       -- 1) we confirm each b_i is a Boolean variable
       let allBool = all (isBinaryVar nameToID varStates . fst) terms
@@ -891,7 +874,7 @@ analyzeConstraint (EqC cid lhs (Var zName)) nameToID varStates
            -- 2) we infer z's upper bound = c^(1 + maxExp) - 1
            let exps    = map snd terms
                maxExp  = maximum exps
-               cBase       = 2  -- TODO: generalize
+               cBase       = 2
                upBound = cBase^(maxExp + 1) - 1
            zID <- lookupVarID zName nameToID
            zState <- lookupVarState zID varStates
@@ -945,9 +928,6 @@ analyzeConstraint (AndC cid subCs) nameToID varStates = do
        (changedNow, newMap) <- analyzeConstraint c nmToID accMap
        let combinedChanged = accChanged || changedNow
        foldlAndM nmToID (combinedChanged, newMap) cs
-
--- TODO: handle the symmetrical case: EqC cid (Var zName) rhs
--- if checkSumOfPowers 2 rhs = ...
 
 -- | NonZero rule.
 -- Pattern 1: expr3 + expr1 * expr2 = c
@@ -1156,7 +1136,6 @@ propagateExclusionsBackward expr xDomain nameToID varStates =
       let idxDom = inferValues idxExp nameToID currentStates Nothing
           arrDom = inferValues arrExp nameToID currentStates Nothing
           -- calculating the set of all individual values excluded for x
-          -- TODO: fix to only work with bounds, otherwise inefficient!
           excludedValuesX = concatMap (intervalToValues p) (Set.toList intervalsX)
       in if null excludedValuesX then
            (False, currentStates)
@@ -1178,10 +1157,8 @@ propagateExclusionsBackward expr xDomain nameToID varStates =
                -- and all known element domains.
                applyExclusionsToArrayDefaultAndElements arrName excludedValuesX nameToID currentStates
 
-             _ -> (False, currentStates)      
+             _ -> (False, currentStates)
 
-    -- cannot propagate exclusions backward for other complex expressions yet
-    -- TODO
     go _ _ _ currentStates = (False, currentStates)
 
 
@@ -1257,7 +1234,7 @@ applyExclusionsToArrayDefaultAndElements arrName exclusions nameToID currentStat
 -- calculates the set of values { op(v) mod p } for all v in the interval.
 calculateExcludedSet :: (Integer -> Integer) -> Integer -> (Integer, Integer) -> [Integer]
 calculateExcludedSet op p (l, u) =
-    let valuesX = [l..u] -- TODO: check this, can be very inefficient if gaps are large
+    let valuesX = [l..u]
     in map (\v -> op v `mod` p) valuesX
 
 -- Helper: Applies a list of exclusions to a specific variable using excludeValue repeatedly.
@@ -1277,8 +1254,7 @@ applyExclusionsToVar varName exclusions nameToID currentStates =
                         -- creating the domain with the single value excluded
                         domainWithExclusion = excludeValue currentVarDomain valToExclude
                     in case updateValues currentVarState domainWithExclusion of
-                         -- if intersection fails (contradiction), we keep previous state 
-                         -- TODO: should maybe log error?
+                         -- if intersection fails (contradiction), we keep previous state
                          Left _ -> (changedAcc, statesAcc)
                          Right newVarState ->
                            let changedNow = newVarState /= currentVarState
@@ -1360,8 +1336,6 @@ markExprNonZero (Int c) _ varStates =
     then Left $ "Contradiction: Constant expression " ++ show c ++ " is zero, cannot mark as non-zero."
     else Right (False, varStates) -- constant is non-zero, no state change needed
 
--- TODO: Add, Mul, etc. If e.g., Add e1 e2 != 0 and e1 is known zero,
--- then markExprNonZero e2 could be called I think??
 markExprNonZero _ _ varStates = Right (False, varStates)
 
 -- Marks a pair of expressions as non-zero.
@@ -1393,7 +1367,6 @@ modInverse a m
        else Just (x `mod` m) -- x might be negative, so we take mod m
 
 -- Field modulus (e.g., BN254 prime)
--- TODO: We should obtain this from the IR and save this information in the Program structure.
 fieldModulus :: Integer
 fieldModulus = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
@@ -1623,8 +1596,6 @@ analyzeFromFile filePath = do
             let store = analyzeProgram program
             putStrLn "\n====== Inferred Value Information ======\n"
             prettyPrintStore store
-
--- USER RULES -- TODO: move to separate file!
 
 -- | Analyzer which also takes user rules into account.
 analyzeFromFileWithRules

@@ -1,5 +1,0 @@
-def main(private u32 key) -> bool[10] {
-    bool[10] mut values = [false; 10];
-    values[key] = true;
-    return values;
-}

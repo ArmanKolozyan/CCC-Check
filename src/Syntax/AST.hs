@@ -48,9 +48,7 @@ data Sort
   | ArraySort Sort Integer -- arrays have an element sort and size
   deriving (Show, Eq, Generic, NFData)
 
--- | Minimal set of expressions: variables, field elements (currently handled
--- as integers), and arithmetic.
--- TODO: support more operators from https://zokrates.github.io/language/operators.html
+-- | Expressions: variables, field elements, and arithmetic operations.
 data Expression
   = Var String
   | Int Integer
@@ -133,8 +131,3 @@ data Constraint
   | OrC Int [Constraint]
   | NotC Int Constraint
   deriving (Show, Eq, Generic, NFData)
-
-{-
-TODO:
-- add support for set_default_modulus
--}

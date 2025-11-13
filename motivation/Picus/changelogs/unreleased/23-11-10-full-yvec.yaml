@@ -1,3 +1,0 @@
-changed:
-  - Used full yvec in constraint generation,
-    which simplifies the code base.
