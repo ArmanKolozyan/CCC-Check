@@ -36,4 +36,3 @@ cabal test
   - `civer/` - Civer tool benchmarks
   - `benchmarks/` - Performance benchmarking results
   - `tagged-programs/` - ZKP programs with type annotations
-- **`paper/`** - LaTeX source for the accompanying research paper
