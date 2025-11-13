@@ -28,8 +28,12 @@ cabal test
 
 ## Project Structure
 
-- **`src/Value_Inferencer/`** - Value domain analysis and bug detection implementation
+- **`src/ValueInference/`** - Value domain analysis and bug detection implementation
 - **`src/Syntax/`** - AST definitions and CirC IR parsing
-- **`test/`** - Test suite with 51 circuit tests
+- **`test/`** - Test suite with 48 circuit tests
 - **`evaluation/`** - Benchmark programs and performance evaluation data
+  - `picus/` - PICUS tool comparison and analysis
+  - `civer/` - Civer tool benchmarks
+  - `benchmarks/` - Performance benchmarking results
+  - `tagged-programs/` - ZKP programs with type annotations
 - **`paper/`** - LaTeX source for the accompanying research paper

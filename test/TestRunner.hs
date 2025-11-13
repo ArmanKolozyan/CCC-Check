@@ -3,101 +3,100 @@ module Main where
 import Test.Hspec
 import qualified Syntax.ExpressionsParseTest
 import qualified Syntax.IteParseTest
-import qualified Value_Inferencer.ValueAnalysis.Num2BitsTest
-import qualified Value_Inferencer.ValueAnalysis.NonZeroTest
-import qualified Value_Inferencer.ValueAnalysis.NonZeroTemplateTest
-import qualified Value_Inferencer.ValueAnalysis.LessThanTest
-import qualified Value_Inferencer.BugDetection.SortTest
-import qualified Value_Inferencer.BugDetection.Veridise.Edwards2MontgomeryWrongTest
-import qualified Value_Inferencer.BugDetection.Veridise.Edwards2MontgomeryFixedTest
-import qualified Value_Inferencer.BugDetection.Veridise.Montgomery2EdwardsWrongTest
-import qualified Value_Inferencer.BugDetection.Veridise.Montgomery2EdwardsFixedTest
-import qualified Value_Inferencer.BugDetection.Veridise.MontgomeryAddWrongTest
-import qualified Value_Inferencer.BugDetection.Veridise.MontgomeryAddFixedTest
-import qualified Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleWrongTest
-import qualified Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleFixedTest
-import qualified Value_Inferencer.BugDetection.TrailOfBits.ToBinaryTest
-import qualified Value_Inferencer.BugDetection.TrailOfBits.EnforceAuthTest
-import qualified Value_Inferencer.BugDetection.Arrays.ArrayTagTest
-import qualified Value_Inferencer.BugDetection.Arrays.ArraySelectOutOfBoundsTest
-import qualified Value_Inferencer.BugDetection.Arrays.ArrayStoreOutOfBoundsTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestRaw
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestBinary
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestNoOutputTag
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTestDeep
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.BinSumTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.SumTestDeep
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.NotTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.XorTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.AndTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.OrTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.NandTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.NorTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.IsZeroTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.IsZeroForcedTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.IsEqualTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.IsEqualForcedTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.Num2BitsTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.Bits2NumTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.LessThanTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.GreaterThanTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.GreaterEqThanTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.LessEqThanTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.BigLessThanTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.ModSumTest
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.MultiMux1Test
-import qualified Value_Inferencer.BugDetection.TaggedCircomlib.Mux1Test
+import qualified ValueInference.ValueAnalysis.Num2BitsTest
+import qualified ValueInference.ValueAnalysis.NonZeroTest
+import qualified ValueInference.ValueAnalysis.NonZeroTemplateTest
+import qualified ValueInference.ValueAnalysis.LessThanTest
+import qualified ValueInference.BugDetection.SortTest
+import qualified ValueInference.BugDetection.Veridise.Edwards2MontgomeryWrongTest
+import qualified ValueInference.BugDetection.Veridise.Edwards2MontgomeryFixedTest
+import qualified ValueInference.BugDetection.Veridise.Montgomery2EdwardsWrongTest
+import qualified ValueInference.BugDetection.Veridise.Montgomery2EdwardsFixedTest
+import qualified ValueInference.BugDetection.Veridise.MontgomeryAddWrongTest
+import qualified ValueInference.BugDetection.Veridise.MontgomeryAddFixedTest
+import qualified ValueInference.BugDetection.Veridise.MontgomeryDoubleWrongTest
+import qualified ValueInference.BugDetection.Veridise.MontgomeryDoubleFixedTest
+import qualified ValueInference.BugDetection.TrailOfBits.ToBinaryTest
+import qualified ValueInference.BugDetection.TrailOfBits.EnforceAuthTest
+import qualified ValueInference.BugDetection.Arrays.ArrayTagTest
+import qualified ValueInference.BugDetection.Arrays.ArraySelectOutOfBoundsTest
+import qualified ValueInference.BugDetection.Arrays.ArrayStoreOutOfBoundsTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.DecoderTestRaw
+import qualified ValueInference.BugDetection.TaggedCircomlib.DecoderTestBinary
+import qualified ValueInference.BugDetection.TaggedCircomlib.DecoderTestNoOutputTag
+import qualified ValueInference.BugDetection.TaggedCircomlib.BinSubTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.BinSubTestDeep
+import qualified ValueInference.BugDetection.TaggedCircomlib.BinSumTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.SumTestDeep
+import qualified ValueInference.BugDetection.TaggedCircomlib.NotTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.XorTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.AndTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.OrTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.NandTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.NorTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.IsZeroTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.IsZeroForcedTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.IsEqualTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.IsEqualForcedTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.Num2BitsTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.Bits2NumTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.LessThanTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.GreaterThanTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.GreaterEqThanTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.LessEqThanTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.BigLessThanTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.ModSumTest
+import qualified ValueInference.BugDetection.TaggedCircomlib.MultiMux1Test
+import qualified ValueInference.BugDetection.TaggedCircomlib.Mux1Test
 
 main :: IO ()
 main = hspec $ do
     Syntax.ExpressionsParseTest.spec
     Syntax.IteParseTest.spec
-    Value_Inferencer.ValueAnalysis.Num2BitsTest.spec
-    Value_Inferencer.ValueAnalysis.NonZeroTest.spec
-    Value_Inferencer.ValueAnalysis.NonZeroTemplateTest.spec
-    Value_Inferencer.ValueAnalysis.LessThanTest.spec
-    Value_Inferencer.BugDetection.SortTest.spec
-    Value_Inferencer.BugDetection.Veridise.Edwards2MontgomeryWrongTest.spec
-    Value_Inferencer.BugDetection.Veridise.Edwards2MontgomeryFixedTest.spec
-    Value_Inferencer.BugDetection.Veridise.Montgomery2EdwardsWrongTest.spec
-    Value_Inferencer.BugDetection.Veridise.Montgomery2EdwardsFixedTest.spec
-    Value_Inferencer.BugDetection.Veridise.MontgomeryAddWrongTest.spec
-    Value_Inferencer.BugDetection.Veridise.MontgomeryAddFixedTest.spec
-    Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleWrongTest.spec
-    Value_Inferencer.BugDetection.Veridise.MontgomeryDoubleFixedTest.spec
-    Value_Inferencer.BugDetection.TrailOfBits.ToBinaryTest.spec
-    Value_Inferencer.BugDetection.TrailOfBits.EnforceAuthTest.spec
-    Value_Inferencer.BugDetection.Arrays.ArrayTagTest.spec
-    Value_Inferencer.BugDetection.Arrays.ArraySelectOutOfBoundsTest.spec
-    Value_Inferencer.BugDetection.Arrays.ArrayStoreOutOfBoundsTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestBinary.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestNoOutputTag.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTestDeep.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.SumTestDeep.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.ModSumTest.spec
-
-    Value_Inferencer.BugDetection.TaggedCircomlib.NotTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.XorTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.AndTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.OrTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.NandTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.NorTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.IsZeroTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.IsZeroForcedTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.DecoderTestRaw.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.IsEqualTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.IsEqualForcedTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.Num2BitsTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.Bits2NumTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.MultiMux1Test.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.Mux1Test.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.LessThanTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.GreaterThanTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.GreaterEqThanTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.LessEqThanTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.BigLessThanTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.BinSubTest.spec
-    Value_Inferencer.BugDetection.TaggedCircomlib.BinSumTest.spec
+    ValueInference.ValueAnalysis.Num2BitsTest.spec
+    ValueInference.ValueAnalysis.NonZeroTest.spec
+    ValueInference.ValueAnalysis.NonZeroTemplateTest.spec
+    ValueInference.ValueAnalysis.LessThanTest.spec
+    ValueInference.BugDetection.SortTest.spec
+    ValueInference.BugDetection.Veridise.Edwards2MontgomeryWrongTest.spec
+    ValueInference.BugDetection.Veridise.Edwards2MontgomeryFixedTest.spec
+    ValueInference.BugDetection.Veridise.Montgomery2EdwardsWrongTest.spec
+    ValueInference.BugDetection.Veridise.Montgomery2EdwardsFixedTest.spec
+    ValueInference.BugDetection.Veridise.MontgomeryAddWrongTest.spec
+    ValueInference.BugDetection.Veridise.MontgomeryAddFixedTest.spec
+    ValueInference.BugDetection.Veridise.MontgomeryDoubleWrongTest.spec
+    ValueInference.BugDetection.Veridise.MontgomeryDoubleFixedTest.spec
+    ValueInference.BugDetection.TrailOfBits.ToBinaryTest.spec
+    ValueInference.BugDetection.TrailOfBits.EnforceAuthTest.spec
+    ValueInference.BugDetection.Arrays.ArrayTagTest.spec
+    ValueInference.BugDetection.Arrays.ArraySelectOutOfBoundsTest.spec
+    ValueInference.BugDetection.Arrays.ArrayStoreOutOfBoundsTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.DecoderTestBinary.spec
+    ValueInference.BugDetection.TaggedCircomlib.DecoderTestNoOutputTag.spec
+    ValueInference.BugDetection.TaggedCircomlib.BinSubTestDeep.spec
+    ValueInference.BugDetection.TaggedCircomlib.SumTestDeep.spec
+    ValueInference.BugDetection.TaggedCircomlib.ModSumTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.NotTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.XorTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.AndTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.OrTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.NandTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.NorTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.IsZeroTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.IsZeroForcedTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.DecoderTestRaw.spec
+    ValueInference.BugDetection.TaggedCircomlib.IsEqualTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.IsEqualForcedTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.Num2BitsTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.Bits2NumTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.MultiMux1Test.spec
+    ValueInference.BugDetection.TaggedCircomlib.Mux1Test.spec
+    ValueInference.BugDetection.TaggedCircomlib.LessThanTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.GreaterThanTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.GreaterEqThanTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.LessEqThanTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.BigLessThanTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.BinSubTest.spec
+    ValueInference.BugDetection.TaggedCircomlib.BinSumTest.spec
 
 
