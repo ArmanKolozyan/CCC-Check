@@ -13,12 +13,6 @@ CCC-Check addresses limitations of existing tools by providing:
 - **Lightweight static analysis** based on abstract interpretation (100-1000× faster than SMT-based tools)
 - **Comprehensive bug detection** including division-by-zero, tag violations, array bounds errors, and novel computation-constraint mismatch classes beyond traditional underconstrainedness
 
-## Key Features
-
-- **ZKP Value Inference**: Implements novel static analysis technique based on abstract interpretation 
-- **Scalable Analysis**: Achieves significant speedup compared to state-of-the-art verification tools
-- **Comprehensive Bug Detection**: Detects novel vulnerability classes overlooked by existing models (e.g., arithmetic overflows)
-
 ## Build & Test
 
 ```bash
