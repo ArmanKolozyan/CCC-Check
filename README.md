@@ -13,13 +13,6 @@ CCC-Check addresses limitations of existing tools by providing:
 - **Lightweight static analysis** based on abstract interpretation (100-1000× faster than SMT-based tools)
 - **Comprehensive bug detection** including division-by-zero, tag violations, array bounds errors, and novel computation-constraint mismatch classes beyond traditional underconstrainedness
 
-## Build & Test
-
-```bash
-cabal build
-cabal test
-```
-
 ## Project Structure
 
 - **`src/ValueInference/`** - Value domain analysis and bug detection implementation
@@ -30,3 +23,24 @@ cabal test
   - `civer/` - Civer tool benchmarks
   - `benchmarks/` - Performance benchmarking results
   - `tagged-programs/` - ZKP programs with type annotations
+
+## Build & Test
+
+```bash
+cabal build
+cabal test
+```
+
+## Citation
+
+If you find this work useful, please consider citing the following paper:
+
+```bibtex
+@misc{cryptoeprint:2025/2120,
+      author = {Arman Kolozyan and Bram Vandenbogaerde and Janwillem Swalens and Lode Hoste and Stefanos Chaliasos and Coen De Roover},
+      title = {Language-Agnostic Detection of Computation-Constraint Inconsistencies in {ZKP} Programs via Value Inference},
+      howpublished = {Cryptology {ePrint} Archive, Paper 2025/2120},
+      year = {2025},
+      url = {https://eprint.iacr.org/2025/2120}
+}
+```
