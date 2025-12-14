@@ -10,8 +10,8 @@ This decoupling can lead to critical ZKP-specific vulnerabilities when computati
 
 CCC-Check addresses limitations of existing tools by providing:
 - **Language-agnostic analysis** via the CirC intermediate representation
-- **Lightweight static analysis** based on abstract interpretation (100-1000× faster than SMT-based tools)
-- **Comprehensive bug detection** including division-by-zero, tag violations, array bounds errors, and novel computation-constraint mismatch classes beyond traditional underconstrainedness
+- **Lightweight static analysis** based on abstract interpretation (faster than SMT-based tools)
+- **Comprehensive bug detection** including novel computation-constraint mismatch classes beyond traditional underconstrainedness
 
 ## Project Structure
 
