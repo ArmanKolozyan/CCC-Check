@@ -1,6 +1,6 @@
 (tags
-  (main.in_0 binary)
-  (main.in_1 binary)
+  (main.in_0 (maxbits 32))
+  (main.in_1 (maxbits 32))
   (main.in_2 binary)
   (main.in_3 binary)
   (main.in_4 binary)
@@ -40,7 +40,7 @@
   (main.n2b.out_7 binary)
   (main.n2b.out_8 binary)
   (main.n2b.out_9 binary)
-  (main.out (maxbits 8))
+  (main.out binary)
   (main.out_0 binary)
   (main.out_1 binary)
   (main.out_2 binary)

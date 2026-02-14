@@ -32,6 +32,7 @@ ALL_PROGRAMS=(
     sign
     bigadd bigadd15 bigadd2030
     bigsub23 bigsub15
+    bigmult21 bigmult22 bigmult23
     constants
 )
 
