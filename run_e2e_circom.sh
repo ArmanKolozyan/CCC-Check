@@ -29,6 +29,7 @@ ALL_PROGRAMS=(
     biglessthan
     compconstant
     aliascheck
+    sign
 )
 
 # Specific programs or all
