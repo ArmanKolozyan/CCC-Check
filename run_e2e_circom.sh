@@ -30,6 +30,9 @@ ALL_PROGRAMS=(
     compconstant
     aliascheck
     sign
+    bigadd
+    bigadd15
+    bigadd2030
 )
 
 # Specific programs or all
