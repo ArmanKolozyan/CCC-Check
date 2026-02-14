@@ -13,6 +13,7 @@ library:
     - ValueDomain.Domain
     - Syntax.AST
     - Syntax.Compiler
+    - Syntax.TagsParser
     - ValueAnalysis.UserRules
     - ValueAnalysis.VariableState
     - ValueAnalysis.ValueDomain
@@ -33,7 +34,7 @@ library:
 
 executables:
   ccc-check:
-    source-dirs: app
+    source-dirs: src/app
     main: Main.hs
     dependencies:
       - ccc-check
