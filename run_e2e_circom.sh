@@ -7,8 +7,10 @@
 #   2. Runs the Haskell bug detector on each IR+tags pair
 #
 # Usage:
-#   ./run_e2e_circom.sh              # run all programs
+#   ./run_e2e_circom.sh              # run all programs (compile + analyze)
 #   ./run_e2e_circom.sh and not xor  # run specific programs
+#   ./run_e2e_circom.sh --ir-only              # skip CirC compilation, use existing IR
+#   ./run_e2e_circom.sh --ir-only and not xor  # use existing IR for specific programs
 #
 set -euo pipefail
 
@@ -17,6 +19,17 @@ CIRC_DIR="$SCRIPT_DIR/src/CirC_new"
 CIRC_BIN="$CIRC_DIR/target/release/examples/circ"
 TAGGED_DIR="$CIRC_DIR/circom-benches/ccc-check-programs/tagged"
 OUTPUT_DIR="/tmp/e2e_circom_test"
+
+# Parse --ir-only flag
+IR_ONLY=false
+ARGS=()
+for arg in "$@"; do
+    if [ "$arg" = "--ir-only" ]; then
+        IR_ONLY=true
+    else
+        ARGS+=("$arg")
+    fi
+done
 
 # All available tagged programs
 ALL_PROGRAMS=(
@@ -33,12 +46,21 @@ ALL_PROGRAMS=(
     bigadd bigadd15 bigadd2030
     bigsub23 bigsub15
     bigmult21 bigmult22 bigmult23
+    bigsubmodp_32
+    bigmod_32 bigmod_22
+    pointbits_loopback
+    escalarmul_min_test
+    escalarmul_test
+    escalarmulfix_test
+    escalarmulany_test
+    pedersen_test
+    pedersen2_test
     constants
 )
 
 # Specific programs or all
-if [ $# -gt 0 ]; then
-    PROGRAMS=("$@")
+if [ ${#ARGS[@]} -gt 0 ]; then
+    PROGRAMS=("${ARGS[@]}")
 else
     PROGRAMS=("${ALL_PROGRAMS[@]}")
 fi
@@ -56,7 +78,7 @@ else
 fi
 
 # Prerequisites
-if [ ! -f "$CIRC_BIN" ]; then
+if [ "$IR_ONLY" = false ] && [ ! -f "$CIRC_BIN" ]; then
     echo -e "${RED}Error: CirC binary not found at $CIRC_BIN${NC}"
     echo "Build it first: cd circ_new && cargo build --release --features r1cs,smt,circom --example circ"
     exit 1
@@ -72,7 +94,11 @@ fi
 mkdir -p "$OUTPUT_DIR"
 
 echo -e "${BOLD}======================================================${NC}"
-echo -e "${BOLD} End-to-End Pipeline: Circom -> CirC IR -> Bug Detector${NC}"
+if [ "$IR_ONLY" = true ]; then
+    echo -e "${BOLD} Bug Detector Analysis (using existing IR)${NC}"
+else
+    echo -e "${BOLD} End-to-End Pipeline: Circom -> CirC IR -> Bug Detector${NC}"
+fi
 echo -e "${BOLD}======================================================${NC}"
 echo ""
 
@@ -85,27 +111,42 @@ for name in "${PROGRAMS[@]}"; do
     CIRCIR_FILE="$OUTPUT_DIR/${name}.circir"
     TAGS_FILE="$OUTPUT_DIR/${name}.tags"
 
-    if [ ! -f "$CIRCOM_FILE" ]; then
-        echo -e "${RED}SKIP${NC}: $name.circom not found"
-        FAIL=$((FAIL + 1))
-        continue
-    fi
-
     echo -e "${CYAN}--- $name ---${NC}"
 
-    # Step 1: compiling Circom to CirC IR
-    echo -e "  ${BOLD}[1/2]${NC} CirC: $name.circom -> IR + tags"
-    if ! "$CIRC_BIN" "$CIRCOM_FILE" \
-        --dump-ir "$CIRCIR_FILE" \
-        --dump-tags "$TAGS_FILE" \
-        r1cs --action count > /dev/null 2>&1; then
-        echo -e "  ${RED}FAIL${NC}: CirC compilation failed"
-        FAIL=$((FAIL + 1))
-        continue
+    if [ "$IR_ONLY" = true ]; then
+        # IR-only mode: skip CirC compilation, use existing IR files
+        if [ ! -f "$CIRCIR_FILE" ] || [ ! -f "$TAGS_FILE" ]; then
+            echo -e "  ${RED}SKIP${NC}: IR files not found at $OUTPUT_DIR/${name}.{circir,tags}"
+            echo -e "       Run without --ir-only first to generate them."
+            FAIL=$((FAIL + 1))
+            continue
+        fi
+    else
+        # Full pipeline: compile Circom to IR first
+        if [ ! -f "$CIRCOM_FILE" ]; then
+            echo -e "${RED}SKIP${NC}: $name.circom not found"
+            FAIL=$((FAIL + 1))
+            continue
+        fi
+
+        # Step 1: compiling Circom to CirC IR
+        echo -e "  ${BOLD}[1/2]${NC} CirC: $name.circom -> IR + tags"
+        if ! "$CIRC_BIN" "$CIRCOM_FILE" \
+            --dump-ir "$CIRCIR_FILE" \
+            --dump-tags "$TAGS_FILE" \
+            r1cs --action count > /dev/null 2>&1; then
+            echo -e "  ${RED}FAIL${NC}: CirC compilation failed"
+            FAIL=$((FAIL + 1))
+            continue
+        fi
     fi
 
-    # Step 2: running Haskell bug detector
-    echo -e "  ${BOLD}[2/2]${NC} Bug detector: analyzing IR"
+    # Run Haskell bug detector
+    if [ "$IR_ONLY" = true ]; then
+        echo -e "  ${BOLD}[1/1]${NC} Bug detector: analyzing IR"
+    else
+        echo -e "  ${BOLD}[2/2]${NC} Bug detector: analyzing IR"
+    fi
     output=$("$HASKELL_EXE" "$CIRCIR_FILE" "$TAGS_FILE" 2>&1) || true
 
     if echo "$output" | grep -q "^Error:"; then

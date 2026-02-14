@@ -1945,9 +1945,42 @@ impl<'ast, 'ret: 'ast> CircomStatementWalker<'ast, 'ret> {
                 None
             }
 
-            // Array access (e.g., arr[0]) - evaluate to scalar
-            ast::Expression::Postfix(_) => {
-                // Try to extract as scalar (array indexing)
+            // Postfix expressions: array access (e.g., arr[0], arr2d[i]) or function calls
+            ast::Expression::Postfix(postfix) => {
+                // First, try to handle array indexing that returns a sub-array
+                // e.g., PBASE[i] where PBASE is a 2D array returns a 1D array row
+                if let ast::Expression::Identifier(base_id) = postfix.base.as_ref() {
+                    let base_name = &base_id.value;
+                    if let Some(base_val) = self.var_values.get(base_name) {
+                        // Single array access on a multi-dimensional array
+                        if postfix.access.len() == 1 {
+                            if let ast::Access::ArrayAccess(array_access) = &postfix.access[0] {
+                                if let Some(idx) = self.extract_constant_value_expr_big(&array_access.expression)
+                                    .and_then(|v| v.to_usize()) {
+                                    match base_val {
+                                        CompileTimeValue::Array2D(arr2d) => {
+                                            if idx < arr2d.len() {
+                                                return Some(CompileTimeValue::Array1D(arr2d[idx].clone()));
+                                            }
+                                        }
+                                        CompileTimeValue::ArrayND(inner) => {
+                                            if idx < inner.len() {
+                                                return Some(inner[idx].clone());
+                                            }
+                                        }
+                                        CompileTimeValue::Array1D(arr) => {
+                                            if idx < arr.len() {
+                                                return Some(CompileTimeValue::scalar_big(arr[idx].clone()));
+                                            }
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                // Fall back to scalar extraction
                 self.extract_constant_value_expr_big(expr).map(CompileTimeValue::scalar_big)
             }
 
@@ -2898,8 +2931,21 @@ impl<'ast, 'ret: 'ast> CircomStatementWalker<'ast, 'ret> {
                                 Ok(selected) => result = selected,
                                 Err(e) => {
                                     let base_name_str = base_id.as_deref().unwrap_or("unknown");
-                                    panic!("Array selection failed for '{}': {}. Base type: {:?}, Index type: {:?}. This indicates that '{}' is not properly typed as an array.",
-                                           base_name_str, e, result.type_(), index.type_(), base_name_str);
+                                    // Debug: show var_values state for this variable
+                                    let var_info = base_id.as_ref().and_then(|name| {
+                                        self.var_values.get(name.as_str()).map(|v| {
+                                            match v {
+                                                CompileTimeValue::Scalar(i) => format!("Scalar({})", i),
+                                                CompileTimeValue::Array1D(arr) => format!("Array1D(len={})", arr.len()),
+                                                CompileTimeValue::Array2D(arr) => format!("Array2D({}x{})", arr.len(), arr.first().map_or(0, |r| r.len())),
+                                                CompileTimeValue::Expression(_) => "Expression".to_string(),
+                                                CompileTimeValue::ExprArray1D(arr) => format!("ExprArray1D(len={})", arr.len()),
+                                                CompileTimeValue::ArrayND(_) => "ArrayND".to_string(),
+                                            }
+                                        })
+                                    });
+                                    panic!("Array selection failed for '{}': {}. Base type: {:?}, Index type: {:?}. var_values entry: {:?}. This indicates that '{}' is not properly typed as an array.",
+                                           base_name_str, e, result.type_(), index.type_(), var_info, base_name_str);
                                 }
                             }
                         }
@@ -4070,10 +4116,12 @@ impl<'ast, 'ret: 'ast> CircomStatementWalker<'ast, 'ret> {
         let saved_var_values = std::mem::take(&mut self.var_values);
         let saved_component = self.current_component.clone();
 
-        // Start with clean variable scopes for the new component
-        // This prevents parent scope variables from interfering with child scope declarations
+        // Start with inherited variable scope for the new component
+        // Important fix: Preserve parent scope var_values (like loop variables) so they're accessible
+        // in nested component instantiations. Template parameters will shadow parent variables.
+        // This fixes the issue where loop variables are lost during deep template nesting
         self.vars = HashMap::default();
-        self.var_values = HashMap::default();
+        self.var_values = saved_var_values.clone();  // inherit parent scope variables
 
         // Set component context with hierarchical qualification for nested/recursive calls
         // This ensures unique names like "parent.child" for components in recursive templates
@@ -4084,7 +4132,7 @@ impl<'ast, 'ret: 'ast> CircomStatementWalker<'ast, 'ret> {
         };
         self.current_component = Some(new_component_name);
 
-        // Set up template parameters
+        // Set up template parameters (these will shadow parent scope variables with same names)
         self.circom_gen.enter_template();
         for (param, value) in template.params.iter().zip(param_values.iter()) {
             self.var_values.insert(param.value.clone(), value.clone());
@@ -4357,6 +4405,8 @@ impl<'ast, 'ret: 'ast> CircomStatementWalker<'ast, 'ret> {
             CircomType::Field
         };
 
+
+
         // Check if variable already exists (to distinguish declaration from indexed assignment)
         // In function scope, allow shadowing of outer variables/signals by treating only
         // names declared in the current function scope as "existing".
@@ -4446,7 +4496,15 @@ impl<'ast, 'ret: 'ast> CircomStatementWalker<'ast, 'ret> {
                             if let Some(ast::Access::CallAccess(call)) = postfix.access.first() {
                                 // Parse template arguments (can be scalars or arrays)
                                 let arg_values: Vec<CompileTimeValue> = call.args.iter()
-                                    .filter_map(|arg| self.extract_parameter_value(arg))
+                                    .map(|arg| {
+                                        self.extract_parameter_value(arg).unwrap_or_else(|| {
+                                            panic!(
+                                                "Cannot evaluate template parameter for '{}'. \
+                                                 All template parameters must be compile-time constants.",
+                                                template_name
+                                            )
+                                        })
+                                    })
                                     .collect();
 
                                 // Check if this is array indexed assignment: hashers[i] = Hash();
@@ -4483,13 +4541,21 @@ impl<'ast, 'ret: 'ast> CircomStatementWalker<'ast, 'ret> {
                 None
             };
 
-            // If we got a compile-time value for a non-array variable, store it early
+            // If we got a compile-time scalar value for a non-array variable, store it early
             // This makes it available for subsequent function calls that need compile-time parameters
-            // Skip for indexed assignments (arr[i] = value) to avoid overwriting arrays with scalars
-            // CRITICAL: Also skip for compound assignments! For `n *= 2`, we don't want to set n=2 (the RHS),
-            // we want to set n = n * 2 (the compound operation result)
+            // 
+            // Limitation: eval_function_constant only handles scalar returns (Option<Integer>),
+            // not arrays. So we must skip storing the value when:
+            // 1. Variable is or was declared as an array type
+            // 2. This is an indexed assignment (arr[i] = value)
+            // 3. This is a compound assignment (n *= 2 should compute n*2, not store 2)
             if let Some(val) = compile_time_val {
-                if !is_indexed_assignment && !is_compound && !matches!(circom_type, CircomType::Array(_, _)) {
+                let is_array_var = matches!(circom_type, CircomType::Array(_, _))
+                    || self.var_values.get(&var_name).map_or(false, |v| {
+                        matches!(v, CompileTimeValue::Array1D(_) | CompileTimeValue::Array2D(_) | CompileTimeValue::ArrayND(_))
+                    });
+                
+                if !is_indexed_assignment && !is_compound && !is_array_var {
                     self.var_values.insert(var_name.clone(), CompileTimeValue::scalar_big(val));
                 }
             }
@@ -4631,8 +4697,25 @@ impl<'ast, 'ret: 'ast> CircomStatementWalker<'ast, 'ret> {
                     panic!("Compound assignment to undeclared variable: {}", var_name);
                 }
             } else {
-                // Regular declaration/assignment - register the variable
-                self.vars.insert(var_name.clone(), circom_type.clone());
+                // Regular declaration/assignment - register the variable type
+                // 
+                // Limitation: Type inference from RHS doesn't recognize array-returning functions
+                // (because constant evaluation only handles scalars). Preserve array types across
+                // reassignments to prevent losing type information: `var dbl[2] = ...; dbl = pointAdd(...)`
+                if is_existing_var {
+                    if let Some(existing_type) = self.vars.get(&var_name) {
+                        if matches!(existing_type, CircomType::Array(_, _)) && matches!(circom_type, CircomType::Field) {
+                            // Preserve existing array type when RHS type inference returns Field
+                            // This happens with array-returning functions that can't be const-evaluated
+                        } else {
+                            self.vars.insert(var_name.clone(), circom_type.clone());
+                        }
+                    } else {
+                        self.vars.insert(var_name.clone(), circom_type.clone());
+                    }
+                } else {
+                    self.vars.insert(var_name.clone(), circom_type.clone());
+                }
 
                 // Special handling for array-to-array initialization (e.g., var arr[n] = other_arr)
                 // Check if RHS is an identifier that refers to an array
