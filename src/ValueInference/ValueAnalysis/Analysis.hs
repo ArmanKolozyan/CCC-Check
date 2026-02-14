@@ -616,6 +616,11 @@ extractRootFactors (Mul e1 e2) =
         (Just (x1, cs1), Just (x2, cs2)) | x1 == x2 -> Just (x1, cs1 ++ cs2)
         _ -> Nothing
 extractRootFactors (Sub (Var xName) (Int c)) = Just (xName, [c])
+-- CirC emits (+ x #f-1) instead of (- x 1), so we handle FieldConst variants:
+-- x + (-c) = 0 means x = c, so the root is (c mod p)
+extractRootFactors (Add (Var xName) (FieldConst c fp)) = Just (xName, [negate c `mod` fp])
+-- x - c = 0 means x = c (mod p)
+extractRootFactors (Sub (Var xName) (FieldConst c fp)) = Just (xName, [c `mod` fp])
 extractRootFactors (Var xName) = Just (xName, [0]) -- is equivalent to (x - 0)
 extractRootFactors _ = Nothing
 
@@ -865,6 +870,12 @@ analyzeConstraint (EqC _ rootExpr (Int 0)) nameToID varStates =
 
 -- Handling symmetric case: 0 = expr
 analyzeConstraint (EqC cid (Int 0) rootExpr) nameToID varStates =
+    analyzeConstraint (EqC cid rootExpr (Int 0)) nameToID varStates
+
+-- CirC emits FieldConst 0 instead of Int 0, so we handle that:
+analyzeConstraint (EqC cid rootExpr (FieldConst 0 _)) nameToID varStates =
+    analyzeConstraint (EqC cid rootExpr (Int 0)) nameToID varStates
+analyzeConstraint (EqC cid (FieldConst 0 _) rootExpr) nameToID varStates =
     analyzeConstraint (EqC cid rootExpr (Int 0)) nameToID varStates
 
 -- | Rule 3 from Ecne

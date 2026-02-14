@@ -27,6 +27,7 @@ ALL_PROGRAMS=(
     binsub binsum
     lessthan lesseqthan greaterthan greatereqthan
     biglessthan
+    compconstant
 )
 
 # Specific programs or all
