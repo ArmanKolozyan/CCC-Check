@@ -30,9 +30,8 @@ ALL_PROGRAMS=(
     compconstant
     aliascheck
     sign
-    bigadd
-    bigadd15
-    bigadd2030
+    bigadd bigadd15 bigadd2030
+    bigsub23 bigsub15
     constants
 )
 
