@@ -87,13 +87,25 @@ data Expression
 
     -- bv2pf modulus expr: converts bitvector (bv) `expr` to prime field element (pf) mod `modulus`
     -- This operation is needed in CirC for type compatibility, particularly
-    -- when using a bitvector value as an index for an array that 
-    -- expects prime field indices. The operation interprets the bitvector as an 
-    -- unsigned integer and then calculates its value modulo the specified prime modulus. 
-    -- For example, ((bv2pf 7) #b1101) takes the bitvector 1101 (unsigned integer 13), 
-    -- calculates 13 mod 7, resulting in the prime field element 6. This value can then be 
+    -- when using a bitvector value as an index for an array that
+    -- expects prime field indices. The operation interprets the bitvector as an
+    -- unsigned integer and then calculates its value modulo the specified prime modulus.
+    -- For example, ((bv2pf 7) #b1101) takes the bitvector 1101 (unsigned integer 13),
+    -- calculates 13 mod 7, resulting in the prime field element 6. This value can then be
     -- used for indexing in an array that expects prime field indices.
   | Bv2Pf Integer Expression
+
+    -- pf2bv width expr: converts prime field element to a bitvector of given width
+  | Pf2Bv Integer Expression
+
+    -- bool2bv expr: converts a boolean to a 1-bit bitvector
+  | Bool2Bv Expression
+
+    -- uext amount expr: zero-extends a bitvector by `amount` bits
+  | UExt Integer Expression
+
+    -- bit position expr: selects a single bit at `position` from a bitvector
+  | BitSelect Integer Expression
 
     -- Represents the reciprocal of an expression
   | PfRecip Expression

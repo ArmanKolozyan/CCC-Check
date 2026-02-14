@@ -18,6 +18,7 @@ library
       ValueDomain.Domain
       Syntax.AST
       Syntax.Compiler
+      Syntax.TagsParser
       ValueAnalysis.UserRules
       ValueAnalysis.VariableState
       ValueAnalysis.ValueDomain
@@ -45,7 +46,7 @@ executable ccc-check
   other-modules:
       Paths_ccc_check
   hs-source-dirs:
-      app
+      src/app
   build-depends:
       base >4.7 && <5
     , ccc-check

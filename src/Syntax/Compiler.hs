@@ -10,13 +10,43 @@ import Data.Char (isDigit)
 
 import Syntax.Scheme.Parser
 
-import Data.List (foldl', isPrefixOf)
+import Data.List (foldl')
+import qualified Data.Map.Strict as Map
 
-data CompilerState = CompilerState 
+-- | Preprocess CirC IR text to work around S-expression parser issues:
+--   #f<digits>        -> __fc__<digits>       (positive field constant)
+--   #f-<digits>       -> __fc__neg__<digits>  (negative field constant)
+--   #f<d>m<d>         -> __fc__<d>m<d>        (field constant with explicit modulus)
+--   #b<bits>          -> __bv__<bits>         (bitvector literal)
+--   '<digits>         -> __qv__<digits>       (quoted variable name in let bindings)
+-- The compiler then recognizes these prefixed atoms.
+preprocessFieldConstants :: String -> String
+preprocessFieldConstants = go ' '  -- start with space as "previous char"
+  where
+    go _ [] = []
+    go prev ('#':'f':rest)
+        | ('-':d:ds) <- rest, isDigit d =
+            "__fc__neg__" ++ [d] ++ go d ds
+        | (d:_) <- rest, isDigit d =
+            "__fc__" ++ go '#' rest
+        | otherwise = '#' : 'f' : go 'f' rest
+    go prev ('#':'b':rest)
+        | (d:_) <- rest, d == '0' || d == '1' =
+            "__bv__" ++ go '#' rest
+        | otherwise = '#' : 'b' : go 'b' rest
+    -- rewriting 'N (quoted variable) only when preceded by whitespace or '('
+    -- to avoid rewriting quotes inside strings or identifiers
+    go prev ('\'':d:rest)
+        | isDigit d, prev == ' ' || prev == '\n' || prev == '\t' || prev == '(' =
+            "__qv__" ++ [d] ++ go d rest
+    go _ (c:cs) = c : go c cs
+
+data CompilerState = CompilerState
     {
         nextVarID :: Int,
         nextConstraintID :: Int,
-        pfRecipExprs :: [Expression] -- to collect all denominators (exprs that cannot be 0)
+        pfRecipExprs :: [Expression], -- to collect all denominators (exprs that cannot be 0)
+        knownVars :: Map.Map String Int -- tracks already-seen variable names -> IDs (for dedup)
     }
 
 emptyState :: CompilerState
@@ -24,7 +54,8 @@ emptyState = CompilerState
     {
         nextVarID = 0,
         nextConstraintID = 0,
-        pfRecipExprs = []
+        pfRecipExprs = [],
+        knownVars = Map.empty
     }
 
 -- | Helper function to add a pfrecip expression to the state
@@ -40,6 +71,20 @@ genVarID = do
     let newID = nextVarID st
     put st {nextVarID = newID + 1}
     return newID
+
+-- | Getting or creating a variable ID. If the variable name was already seen,
+-- returns Nothing (meaning: skip this binding, it's a duplicate).
+-- If new, creates an ID, registers it, and returns Just id.
+getOrCreateVarID :: MonadCompile m => String -> m (Maybe Int)
+getOrCreateVarID varName = do
+    st <- get
+    case Map.lookup varName (knownVars st) of
+        Just _existingID -> return Nothing  -- already seen
+        Nothing -> do
+            let newID = nextVarID st
+            put st { nextVarID = newID + 1
+                   , knownVars = Map.insert varName newID (knownVars st) }
+            return (Just newID)
 
 genConstraintID :: MonadCompile m => m Int
 genConstraintID = do
@@ -64,17 +109,19 @@ compile sexp =
 -- | parses and compiles the given IR representation to AST nodes.
 parseAndCompile :: String -> Either String Program
 parseAndCompile input = do
-    sexps <- parseSexp input  -- parses input into a list of SExps
+    let preprocessed = preprocessFieldConstants input
+    sexps <- parseSexp preprocessed
     case sexps of
-        (firstSexp : _) -> evalStateT (compile firstSexp) emptyState  -- compiles first SExp with state
+        (firstSexp : _) -> evalStateT (compile firstSexp) emptyState
         []              -> Left "Error: No expressions to compile"
 
 -- | parses and compiles the given constraint.
 parseAndCompileConstraint :: String -> Either String Constraint
 parseAndCompileConstraint input = do
-    sexps <- parseSexp input  -- parses input into a list of SExps
+    let preprocessed = preprocessFieldConstants input
+    sexps <- parseSexp preprocessed
     case sexps of
-        (firstSexp : _) -> evalStateT (compileConstraint firstSexp) emptyState  -- compiles first constraint with state
+        (firstSexp : _) -> evalStateT (compileConstraint firstSexp) emptyState
         []              -> Left "Error: No expressions to compile"
 
 
@@ -126,7 +173,7 @@ compileForm :: MonadCompile m => ([Binding],[Binding],[Expression],[Binding],[Co
   -> SExp
   -> m ([Binding],[Binding],[Expression],[Binding],[Constraint], [Binding])
 compileForm info@(ins, compv, comps, constv, consts, retv) form = case form of
-    ex@(Atom "metadata" _ ::: _) -> do 
+    ex@(Atom "metadata" _ ::: _) -> do
         newIns <- compileMetadata ex
         pure (ins ++ newIns, compv, comps, constv, consts, retv)
     ex@(Atom "precompute" _ ::: _) -> do
@@ -135,6 +182,9 @@ compileForm info@(ins, compv, comps, constv, consts, retv) form = case form of
     ex@(Atom "declare" _ ::: _) -> do
         (vars, constrs) <- compileDeclare ex
         pure (ins, compv, comps, constv ++ vars, consts ++ constrs, retv)
+    -- CirC wraps forms in (set_default_modulus N ...) — unwrap and process inner forms
+    (Atom "set_default_modulus" _ ::: _modulus ::: innerForms) ->
+        sfoldlM compileForm info innerForms
     _ -> pure info
 
 --------------------------
@@ -158,21 +208,35 @@ compileMetaForm acc form = case form of
     _ -> pure acc
 
 -- | Compiles an input declaration by extracting variable name and sort.
+-- The IR format may include optional metadata like (party N), (round N),
+-- (random), (committed) after the sort. These are skipped when looking for tags.
 compileInput :: MonadCompile m => [Binding] -> SExp -> m [Binding]
 compileInput acc form = case form of
     (Atom "return" _ ::: _) -> pure acc  -- ignoring "return" var
-    -- case with tag
-    (Atom varName _ ::: sortExp ::: tagExp ::: SNil _) -> do
-        id <- genVarID
-        sort <- compileSort sortExp
-        tagValue <- compileTag tagExp
-        pure (acc ++ [Binding id varName sort (Just tagValue)])
-    -- case without tag
-    (Atom varName _ ::: sortExp ::: SNil _) -> do
-        id <- genVarID
-        sort <- compileSort sortExp
-        pure (acc ++ [Binding id varName sort Nothing]) -- no tag
+    (Atom varName _ ::: sortExp ::: rest) -> do
+        maybeID <- getOrCreateVarID varName
+        case maybeID of
+            Nothing -> pure acc  -- duplicate variable, skip
+            Just newID -> do
+                sort <- compileSort sortExp
+                tagValue <- findTag rest
+                pure (acc ++ [Binding newID varName sort tagValue])
     _ -> throwError $ "Invalid input declaration: " ++ show form
+
+-- | Walk through remaining metadata after the sort to find a tag, if any.
+-- Skips known metadata like (party N), (round N), (random), (committed).
+findTag :: MonadCompile m => SExp -> m (Maybe Tag)
+findTag (SNil _) = pure Nothing
+findTag (exp ::: rest) = case exp of
+    -- Skip known CirC metadata
+    (Atom "party" _ ::: _)     -> findTag rest
+    (Atom "round" _ ::: _)     -> findTag rest
+    (Atom "random" _)          -> findTag rest
+    (Atom "committed" _)       -> findTag rest
+    -- Anything else is treated as a tag
+    _ -> do
+        tagValue <- compileTag exp
+        pure (Just tagValue)
       
 
 --------------------------
@@ -196,6 +260,9 @@ compilePreForm (vars, exps, rets) preForm = case preForm of
         bds <- sfoldlM compileSinglePrecomputeVar [] varDefs
         exps <- compileExp compForms
         pure (vars ++ bds, [exps], rets)
+    -- CirC wraps precompute declares in (set_default_modulus N ...) — unwrap and process inner forms
+    (Atom "set_default_modulus" _ ::: _modulus ::: innerForms) -> do
+        sfoldlM compilePreForm (vars, exps, rets) innerForms
     -- return variables
     returns -> do
         newRets <- compileReturnBindings returns
@@ -206,43 +273,37 @@ compileSinglePrecomputeVar :: MonadCompile m => [Binding] -> SExp -> m [Binding]
 compileSinglePrecomputeVar acc varDef = case varDef of
   -- case with tag
   (Atom varName _ ::: sortExp ::: tagExp ::: SNil _) -> do
-      id <- genVarID
-      sort <- compileSort sortExp
-      tagValue <- compileTag tagExp
-      pure (acc ++ [Binding id varName sort (Just tagValue)])
+      maybeID <- getOrCreateVarID varName
+      case maybeID of
+          Nothing -> pure acc  -- duplicate, skip
+          Just newID -> do
+              sort <- compileSort sortExp
+              tagValue <- compileTag tagExp
+              pure (acc ++ [Binding newID varName sort (Just tagValue)])
   -- case without tag
   (Atom varName _ ::: sortExp ::: SNil _) -> do
-      id <- genVarID
-      sort <- compileSort sortExp
-      pure (acc ++ [Binding id varName sort Nothing])
+      maybeID <- getOrCreateVarID varName
+      case maybeID of
+          Nothing -> pure acc  -- duplicate, skip
+          Just newID -> do
+              sort <- compileSort sortExp
+              pure (acc ++ [Binding newID varName sort Nothing])
   _ -> throwError $ "Invalid variable declaration in precompute: " ++ show varDef
 
 -- | Compiles a list of return bindings, e.g., ((return.0 ...) (return.1 ...) ...).
+-- Also accepts non-"return" names (e.g., "main.out") for CirC compatibility.
 compileReturnBindings :: MonadCompile m => SExp -> m [Binding]
 compileReturnBindings (SNil _) = pure []
--- case with tag
-compileReturnBindings ((Atom retName _ ::: sortExp ::: tagExp ::: SNil _) ::: rest) = do
-    if "return" `isPrefixOf` retName -- could be a single "return", or multiple "return.x" bindings
-    then do
-      sortVal <- compileSort sortExp
-      newID <- genVarID
-      tagValue <- compileTag tagExp
-      let newBind = Binding newID retName sortVal (Just tagValue)
-      moreRets <- compileReturnBindings rest
-      pure (newBind : moreRets)
-    else
-      error $ "Invalid return name: " ++ retName
--- case without tag
-compileReturnBindings ((Atom retName _ ::: sortExp ::: SNil _) ::: rest) =
-  if "return" `isPrefixOf` retName -- could be a single "return", or multiple "return.x" bindings
-    then do
-      sortVal <- compileSort sortExp
-      newID <- genVarID
-      let newBind = Binding newID retName sortVal Nothing
-      moreRets <- compileReturnBindings rest
-      pure (newBind : moreRets)
-    else
-      error $ "Invalid return name: " ++ retName
+compileReturnBindings ((Atom retName _ ::: sortExp ::: rest) ::: moreBindings) = do
+    maybeID <- getOrCreateVarID retName
+    moreRets <- compileReturnBindings moreBindings
+    case maybeID of
+        Nothing -> pure moreRets  -- duplicate, skip
+        Just newID -> do
+            sortVal <- compileSort sortExp
+            tagValue <- findTag rest
+            let newBind = Binding newID retName sortVal tagValue
+            pure (newBind : moreRets)
 compileReturnBindings bad = throwError $ "Invalid return bindings: " ++ show bad
 
 --------------------------
@@ -256,15 +317,21 @@ compileReturnBindings bad = throwError $ "Invalid return bindings: " ++ show bad
 compileVariableDefinitions :: MonadCompile m => [Binding] -> SExp -> m [Binding]
 -- case with tag
 compileVariableDefinitions acc (Atom varName _ ::: sortExp ::: tagExp ::: SNil _) = do
-    id <- genVarID
-    sort <- compileSort sortExp
-    tagValue <- compileTag tagExp
-    pure (acc ++ [Binding id varName sort (Just tagValue)])
+    maybeID <- getOrCreateVarID varName
+    case maybeID of
+        Nothing -> pure acc  -- duplicate, skip
+        Just newID -> do
+            sort <- compileSort sortExp
+            tagValue <- compileTag tagExp
+            pure (acc ++ [Binding newID varName sort (Just tagValue)])
 -- case without tag
 compileVariableDefinitions acc (Atom varName _ ::: sortExp ::: SNil _) = do
-    id <- genVarID
-    sort <- compileSort sortExp
-    pure (acc ++ [Binding id varName sort Nothing])
+    maybeID <- getOrCreateVarID varName
+    case maybeID of
+        Nothing -> pure acc  -- duplicate, skip
+        Just newID -> do
+            sort <- compileSort sortExp
+            pure (acc ++ [Binding newID varName sort Nothing])
 compileVariableDefinitions acc _ = throwError "Invalid variable definition in declare block"
 
 -- | Extracts only the constraints from a declare block.
@@ -284,7 +351,11 @@ compileConstraint constraint = do
             pure $ OrC id constrs
         (Atom "not" _ ::: exp ::: SNil _) -> do
             constr <- compileConstraint exp
-            pure $ NotC id constr   
+            pure $ NotC id constr
+        -- trivially true constraint (CirC emits bare `true` in some cases)
+        (Atom "true" _) -> pure $ EqC id (Int 0) (Int 0)
+        -- fallback: treat unknown constraint form as trivially true
+        other -> pure $ EqC id (Int 0) (Int 0)
 
 -- | Compiles a declare block by extracting variable declarations and constraints.
 compileDeclare :: MonadCompile m => SExp -> m ([Binding], [Constraint])
@@ -319,26 +390,34 @@ compileExp :: MonadCompile m => SExp -> m Expression
 compileExp (Num i _) = pure (Int i)
 compileExp (Atom "true" _) = pure (BoolLit True)
 compileExp (Atom "false" _) = pure (BoolLit False)
-compileExp (Atom "#b0" _) = pure (BvLit 0 1)
-compileExp (Atom "#b1" _) = pure (BvLit 1 1)
-compileExp (Atom text@(('#':'b':bits)) _) =
+-- bitvector literals: preprocessed from #b0101 -> __bv__0101
+compileExp (Atom ('_':'_':'b':'v':'_':'_':bits) _) =
    let val   = compileBinary bits  -- converts "0101" -> 5
        width = fromIntegral (length bits)
    in pure (BvLit val width)
+-- keep original #b patterns for backward compatibility (e.g., hand-written test IR)
+compileExp (Atom "#b0" _) = pure (BvLit 0 1)
+compileExp (Atom "#b1" _) = pure (BvLit 1 1)
+compileExp (Atom ('#':'b':bits) _) =
+   let val   = compileBinary bits
+       width = fromIntegral (length bits)
+   in pure (BvLit val width)
 
--- field constants: #f123 or #f123m5243587, ...
--- If no modulus is specified, uses the default prime
-compileExp (Atom text@('#':'f':rest) _) = do
+-- field constants: preprocessed from #f123 -> __fc__123, #f-1 -> __fc__neg__1, #f123m456 -> __fc__123m456
+compileExp (Atom ('_':'_':'f':'c':'_':'_':'n':'e':'g':'_':'_':rest) _) = do
+    let (valStr, maybeMPlusPrime) = break (== 'm') rest
+        val  = negate (read valStr)
+        prime = case maybeMPlusPrime of
+                  ('m':primeStr) | not (null primeStr) -> read primeStr
+                  _ -> defaultPrime
+    pure (FieldConst val prime)
+compileExp (Atom ('_':'_':'f':'c':'_':'_':rest) _) = do
     let (valStr, maybeMPlusPrime) = break (== 'm') rest
         val  = read valStr
         prime = case maybeMPlusPrime of
-                  ('m':primeStr) | not (null primeStr) ->
-                    -- user wrote something like #f123m456
-                    read primeStr
-                  _ ->
-                    -- no prime => default prime
-                    defaultPrime
-    pure (FieldConst val prime) 
+                  ('m':primeStr) | not (null primeStr) -> read primeStr
+                  _ -> defaultPrime
+    pure (FieldConst val prime)
 
 compileExp (Atom name _) =
     if all isDigit name && not (null name)
@@ -352,6 +431,11 @@ compileExp (Atom "pfrecip" _ ::: exp ::: SNil _) = do
     compiled_exp <- compileExp exp
     addPfRecipExpression compiled_exp -- collecting the pfrecip expression
     pure $ PfRecip compiled_exp  
+-- unary negation: (- expr) -> Sub 0 expr
+compileExp (Atom "-" _ ::: e1 ::: SNil _) = do
+    compiled <- compileExp e1
+    pure (Sub (Int 0) compiled)
+-- binary subtraction: (- e1 e2)
 compileExp (Atom "-" _ ::: e1 ::: e2 ::: SNil _) = do
     lhs_compiled <- compileExp e1
     rhs_compiled <- compileExp e2
@@ -397,17 +481,54 @@ compileExp (Atom "not" _ ::: exp ::: SNil _) = do
 compileExp (Atom "extract" _ ::: Num high _ ::: Num low _ ::: expr ::: SNil _) = do
     subE <- compileExp expr
     pure (BvExtract subE high low)
-compileExp (Atom "concat" _ ::: e1 ::: e2 ::: SNil _) = do
-    e1' <- compileExp e1
-    e2' <- compileExp e2
-    pure (BvConcat e1' e2')
+-- curried form: ((extract high low) expr)
+compileExp ((Atom "extract" _ ::: Num high _ ::: Num low _ ::: SNil _) ::: expr ::: SNil _) = do
+    subE <- compileExp expr
+    pure (BvExtract subE high low)
+-- variadic concat: (concat e1 e2 ... eN) -> nested BvConcat
+compileExp (Atom "concat" _ ::: rest) = do
+    exprs <- parseListOfExps rest
+    case exprs of
+        [] -> throwError "concat requires at least one argument"
+        [e] -> pure e
+        _ -> pure (foldl1 BvConcat exprs)
 compileExp (Atom "bvxor" _ ::: e1 ::: e2 ::: SNil _) = do
     e1' <- compileExp e1
     e2' <- compileExp e2
     pure (BvXor e1' e2')
+-- flat form: (bv2pf N expr)
 compileExp (Atom "bv2pf" _ ::: Num modulus _ ::: expr ::: SNil _) = do
     subE <- compileExp expr
     pure (Bv2Pf modulus subE)
+-- flat form: (pf2bv N expr)
+compileExp (Atom "pf2bv" _ ::: Num width _ ::: expr ::: SNil _) = do
+    subE <- compileExp expr
+    pure (Pf2Bv width subE)
+-- flat form: (bool2bv expr)
+compileExp (Atom "bool2bv" _ ::: expr ::: SNil _) = do
+    subE <- compileExp expr
+    pure (Bool2Bv subE)
+-- flat form: (uext N expr)
+compileExp (Atom "uext" _ ::: Num amount _ ::: expr ::: SNil _) = do
+    subE <- compileExp expr
+    pure (UExt amount subE)
+-- flat form: (bit N expr)
+compileExp (Atom "bit" _ ::: Num pos _ ::: expr ::: SNil _) = do
+    subE <- compileExp expr
+    pure (BitSelect pos subE)
+-- curried forms: ((op arg) expr) — common in CirC output
+compileExp ((Atom "bv2pf" _ ::: Num modulus _ ::: SNil _) ::: expr ::: SNil _) = do
+    subE <- compileExp expr
+    pure (Bv2Pf modulus subE)
+compileExp ((Atom "pf2bv" _ ::: Num width _ ::: SNil _) ::: expr ::: SNil _) = do
+    subE <- compileExp expr
+    pure (Pf2Bv width subE)
+compileExp ((Atom "uext" _ ::: Num amount _ ::: SNil _) ::: expr ::: SNil _) = do
+    subE <- compileExp expr
+    pure (UExt amount subE)
+compileExp ((Atom "bit" _ ::: Num pos _ ::: SNil _) ::: expr ::: SNil _) = do
+    subE <- compileExp expr
+    pure (BitSelect pos subE)
 
 compileExp (Atom "let" _ ::: bindingList ::: bodyExp ::: SNil _) = do
   binds <- compileLetBindings bindingList

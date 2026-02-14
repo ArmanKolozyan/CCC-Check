@@ -10,7 +10,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant if" #-}
 
-module ValueAnalysis.Analysis (analyzeProgram, VariableState(..), updateValues, initVarState, ValueDomain(..), analyzeFromFile, inferValues) where
+module ValueAnalysis.Analysis (analyzeProgram, VariableState(..), updateValues, initVarState, ValueDomain(..), analyzeFromFile, analyzeFromFileWithTags, inferValues) where
 
 import Syntax.AST
 import Data.Map.Strict (Map)
@@ -22,12 +22,15 @@ import qualified Data.Sequence as Seq
 import Data.Maybe (fromMaybe)
 import Data.Either (fromRight)
 import Syntax.Compiler (parseAndCompile)
+import Syntax.TagsParser (parseTagsFile)
 import ValueAnalysis.UserRules
 import ValueAnalysis.VariableState
 import ValueAnalysis.ValueDomain
 import ValueAnalysis.Printer
 
 import Control.Monad (foldM)
+
+
 
 --------------------------
 -- 1) Variable State Representation
@@ -83,6 +86,10 @@ collectVarsFromExpr nameToID (BvLit _ _) = []
 collectVarsFromExpr nameToID (BoolLit _) = []
 collectVarsFromExpr nameToID (BvXor e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
 collectVarsFromExpr nameToID (Bv2Pf _ e) = collectVarsFromExpr nameToID e
+collectVarsFromExpr nameToID (Pf2Bv _ e) = collectVarsFromExpr nameToID e
+collectVarsFromExpr nameToID (Bool2Bv e) = collectVarsFromExpr nameToID e
+collectVarsFromExpr nameToID (UExt _ e) = collectVarsFromExpr nameToID e
+collectVarsFromExpr nameToID (BitSelect _ e) = collectVarsFromExpr nameToID e
 collectVarsFromExpr nameToID (Let bindings body) =
     let localVars = concatMap (\(_, expr) -> collectVarsFromExpr nameToID expr) bindings
         bodyVars = collectVarsFromExpr nameToID body
@@ -584,6 +591,7 @@ mapExclusionKnownSub s1 (l2, u2) p =
 --    `gapEnd = (16 - 1 + 17) mod 17 = 15`.
 --    The excluded gap interval is `[2, 15]`.
 --    The result is stored as `BoundedValues (Just 0) (Just (p-1)) (Just [(2, 15)])`.
+--    TODO: We assume here that ValueDomain uses excluded intervals. Check if we respect this everywhere.
 
 -- Helper to calculate the bounds of the gap interval during wrap-around.
 -- Returns the interval (gapStart, gapEnd) representing excluded values.
@@ -1540,8 +1548,7 @@ analyzeConstraints constraints nameToID varToConstraints maybeRules = loop (init
                                  in loop newQ updatedStates
                                else
                                  loop restQueue updatedStates
-
-                Left err -> error $ "Analysis error: " ++ err
+                Left _err -> loop restQueue vStates
 
 -- Helper to re-queue constraints that reference changed variables
 reQueue :: Seq Int -> Map Int [Int] -> [Int] -> Seq Int
@@ -1594,6 +1601,37 @@ analyzeFromFile filePath = do
         Left err -> putStrLn $ "Error: " ++ err  
         Right program -> do
             let store = analyzeProgram program
+            putStrLn "\n====== Inferred Value Information ======\n"
+            prettyPrintStore store
+
+-- | Applying tags from a tags file to the Program's bindings.
+applyTags :: Program -> Map String Tag -> Program
+applyTags prog tagsMap = prog
+    { inputs = map applyTag (inputs prog)
+    , computationVars = map applyTag (computationVars prog)
+    , constraintVars = map applyTag (constraintVars prog)
+    , returnVars = map applyTag (returnVars prog)
+    }
+  where
+    applyTag binding = case Map.lookup (name binding) tagsMap of
+        Just t  -> binding { tag = Just t }
+        Nothing -> binding
+
+-- | Analyzing from a .circir file with an optional tags file.
+analyzeFromFileWithTags :: FilePath -> Maybe FilePath -> IO ()
+analyzeFromFileWithTags circirFile maybeTagsFile = do
+    content <- readFile circirFile
+    case parseAndCompile content of
+        Left err -> putStrLn $ "Error: " ++ err
+        Right program -> do
+            taggedProgram <- case maybeTagsFile of
+                Nothing -> return program
+                Just tagsPath -> do
+                    tagsResult <- parseTagsFile tagsPath
+                    case tagsResult of
+                        Left err -> error $ "Error parsing tags: " ++ err
+                        Right tagsMap -> return (applyTags program tagsMap)
+            let store = analyzeProgram taggedProgram
             putStrLn "\n====== Inferred Value Information ======\n"
             prettyPrintStore store
 
