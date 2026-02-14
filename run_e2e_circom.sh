@@ -21,7 +21,7 @@ OUTPUT_DIR="/tmp/e2e_circom_test"
 # All available tagged programs
 ALL_PROGRAMS=(
     and or not nand nor xor
-    mux1 multimux1
+    mux1 multimux1 mux11 mux2 mux21 mux3 mux31 mux4 mux41
     isequal iszero decoder
     num2bits bits2num
     binsub binsum
