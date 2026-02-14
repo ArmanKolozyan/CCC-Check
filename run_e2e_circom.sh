@@ -28,6 +28,7 @@ ALL_PROGRAMS=(
     lessthan lesseqthan greaterthan greatereqthan
     biglessthan
     compconstant
+    aliascheck
 )
 
 # Specific programs or all
