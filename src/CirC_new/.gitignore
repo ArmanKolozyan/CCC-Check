@@ -24,6 +24,7 @@ package-lock.json
 circom-benches/**
 !circom-benches/**/
 !circom-benches/**/*.circom
+!circom-benches/**/*.tags
 OVERVIEW.md
 REVIEW-*.md
 RESULT.md

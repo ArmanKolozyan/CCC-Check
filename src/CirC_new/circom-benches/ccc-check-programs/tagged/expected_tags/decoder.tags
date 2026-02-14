@@ -1,0 +1,12 @@
+(tags
+  (main.checkZero_0.out binary)
+  (main.checkZero_1.out binary)
+  (main.checkZero_2.out binary)
+  (main.checkZero_3.out binary)
+  (main.checkZero_4.out binary)
+  (main.checkZero_5.out binary)
+  (main.checkZero_6.out binary)
+  (main.checkZero_7.out binary)
+  (main.out binary)
+  (main.success binary)
+)

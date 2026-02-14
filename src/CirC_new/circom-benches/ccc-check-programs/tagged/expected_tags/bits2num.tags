@@ -1,0 +1,11 @@
+(tags
+  (main.in_0 binary)
+  (main.in_1 binary)
+  (main.in_2 binary)
+  (main.in_3 binary)
+  (main.in_4 binary)
+  (main.in_5 binary)
+  (main.in_6 binary)
+  (main.in_7 binary)
+  (main.out (maxbits 8))
+)
