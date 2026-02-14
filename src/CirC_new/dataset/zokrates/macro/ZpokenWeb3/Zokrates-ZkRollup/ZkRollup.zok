@@ -1,0 +1,50 @@
+from "./BabyJubJub.zok" import ECPoint
+from "./EdDSA.zok" import EdDSAVerify
+
+const u32 TCNT = 10
+const u32 ACNT = 2 * TCNT
+
+struct Transaction {
+	field Value
+	field Nonce
+	ECPoint Receiver
+	ECPoint Sender
+	ECPoint R
+	field S
+}
+
+struct Account {
+	ECPoint Owner
+	field OldValue
+	field OldNonce
+	field NewValue
+	field NewNonce
+}
+
+def main(private Transaction[TCNT] T, Account[ACNT] A) -> (field):
+	for u32 i in 0..TCNT do
+		bool empty = (T[i].Value == 0)
+		field[4] message = [T[i].Value, T[i].Nonce, T[i].Receiver.X, T[i].Receiver.Y]
+		bool correct = EdDSAVerify(T[i].Sender, message, T[i].R, T[i].S)
+		assert(empty || correct)
+	endfor
+	
+	for u32 x in 0..ACNT do			
+		field value = A[x].OldValue
+		field nonce = A[x].OldNonce
+		
+		for u32 y in 0..TCNT do
+			bool nonEmpty = (T[y].Value != 0)
+			bool isSender = nonEmpty && (T[y].Sender == A[x].Owner)
+			bool isReceiver = nonEmpty && (T[y].Receiver == A[x].Owner)
+			bool canSend = (T[y].Nonce == nonce + 1) && (T[y].Value <= value)			
+			assert(!isSender || canSend)
+			
+			value = value + (isReceiver ? T[y].Value : 0)
+			value = value - (isSender ? T[y].Value : 0)
+			nonce = nonce + (isSender ? 1 : 0)		
+		endfor
+		
+		assert((A[x].NewValue == value) && (A[x].NewNonce == nonce))		
+	endfor
+	return 1

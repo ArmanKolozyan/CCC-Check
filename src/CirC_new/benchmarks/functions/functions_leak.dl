@@ -1,0 +1,26 @@
+#include "../analysis.dl"
+
+// Private Inputs:
+PrivateVariable("c").
+// Public Inputs:
+PublicVariable("return").
+// Identifiers:
+Identifier("return").
+Identifier("c").
+// Field Constants:
+FieldConstant("2").
+// BV Constants:
+// Boolean Constants:
+// Binary Expressions:
+BinaryExpr("e1", "c", "2", "+").
+BinaryExpr("e2", "e1", "return", "=").
+// Assignments:
+Assignment("return", "e1").
+Assignment("c1", "e2").
+// Assertions:
+Assert("c1").
+// Not:
+// Ite:
+// Transforms:
+// ConcatX:
+// BoolMaj:

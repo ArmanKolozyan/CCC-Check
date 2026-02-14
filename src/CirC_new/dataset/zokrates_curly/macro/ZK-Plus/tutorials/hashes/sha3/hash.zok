@@ -1,0 +1,7 @@
+import "hashes/sha3/256bit" as sha3;
+
+def main(u8[32] hash ,private u8[64] msg) {
+    
+    u8[32] digest = sha3(msg);
+	assert(digest == hash);
+}

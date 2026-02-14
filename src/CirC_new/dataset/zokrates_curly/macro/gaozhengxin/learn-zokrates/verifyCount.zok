@@ -1,0 +1,21 @@
+import "utils/casts/u8_to_field";
+
+// max 20 candidates
+// n is the size of voter set
+def count<N>(u8[N][20] votes) -> field[20] {
+    field[20] mut result = [0;20];
+    for u32 i in 0..N {
+        for u32 j in 0..20 {
+            result[j] = result[j] + u8_to_field(votes[i][j]);
+        }
+    }
+    return result;
+}
+
+def verifyCount1024(u8[1024][20] votes, field[20] result) -> bool {
+    return (count(votes) == result);
+}
+
+def main(private u8[1024][20] votes, field[20] result) {
+    assert(verifyCount1024(votes, result));
+}

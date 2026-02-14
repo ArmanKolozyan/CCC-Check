@@ -1,0 +1,21 @@
+//import "./VerifyMerkleProof.zok" as verifyMerkleProof;
+
+import "hashes/keccak/256bit" as keccak256;
+
+def verifyMerkleProof<N>(u8[32] root, u8[32] leaf, u8[N][32] path) -> bool {
+    u8[32] mut root_ = leaf;
+    u8[32] nullHash = [0;32];
+    for u32 i in 0..N {
+        root_ = if (path[i] == nullHash) {
+            root_
+        } else {
+            keccak256([...root_, ...path[i]])
+        };
+    }
+    bool res = if (root_ == root) { true } else { false };
+    return res;
+}
+
+def main(u8[32] root, u8[32] leaf, u8[10][32] path) {
+    assert(verifyMerkleProof(root, leaf, path));
+}

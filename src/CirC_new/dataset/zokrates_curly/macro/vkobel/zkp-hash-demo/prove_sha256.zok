@@ -1,0 +1,7 @@
+import "hashes/sha256/256bitPadded" as sha256;
+
+def main(private u32[8] secretValue, u32[8] publicHash) {
+    u32[8] h = sha256(secretValue);
+    assert(h == publicHash);
+    return;
+}

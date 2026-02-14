@@ -1,0 +1,77 @@
+/*
+ * Copyright 2023 Contributors the the zkp-audit-zokrates repository
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied.  See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
+from "../common/common" import Account, Transaction, Block, PublicBlock;
+from "../common/common" import Hash, hash_transaction;
+
+def same_account(Account a, Account b) -> bool {
+	/* accounts are u32[5] under the hood */
+	return a[0] == b[0] \
+	    && a[1] == b[1] \
+	    && a[2] == b[2] \
+	    && a[3] == b[3] \
+	    && a[4] == b[4];
+}
+
+def is_whitelisted<W>(u32[W][5] whitelist, Account account) -> bool {
+	bool mut yes = false;
+	for u32 i in 0..W {
+		yes = if (yes) {
+			true /* once true, always true */
+		} else { same_account(whitelist[i], account) };
+	}
+	return yes;
+}
+
+const u32 N_ = 10;      /* number of blocks */
+const u32 M_ = 10;      /* number of transactions per block */
+const u32 W_ = 10;      /* length of whitelist */
+
+def main( \
+    private Block<M_>[N_] blocks, \
+    private PublicBlock<M_>[N_] publicBlockData, \
+    private u32 n_blocks, \
+    u32[W_][5] whitelist, u32 n_whitelist) {
+	for u32 i in 0..N_ {
+		Block<M_> b = blocks[i];
+		PublicBlock<M_> pb = publicBlockData[i];
+
+		/*
+		 * Commitment: assert previous hash and tx count are
+		 * valid
+		 */
+		assert(b.prevHash == pb.prevHash);
+		assert(b.transactionCount == pb.transactionCount);
+
+		for u32 j in 0..M_ {
+			Transaction t = b.transactions[j];
+			Hash h = pb.hashes[j];
+
+			/* Commitment: assert tx hash is valid */
+			assert(i >= n_blocks \
+			       || j >= b.transactionCount \
+			       || hash_transaction(t) == h);
+
+			/* (2) Destination is whitelisted */
+			assert(i >= n_blocks \
+			       || j >= b.transactionCount \
+			       || is_whitelisted( \
+				      whitelist, t.destination));
+		}
+	}
+
+	return;
+}

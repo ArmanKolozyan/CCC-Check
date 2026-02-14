@@ -1,0 +1,10 @@
+def main(private field voteChoice, field voteLimit) -> bool {
+    // Ensure voteChoice is within a valid range (e.g., 1 or 2)
+    assert(voteChoice == 1 || voteChoice == 2);
+
+    // Ensure the vote limit is respected
+    assert(voteLimit >= 2);
+
+    // Return voteChoice directly as a single field
+    return true;
+}

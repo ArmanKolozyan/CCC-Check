@@ -1,0 +1,27 @@
+import "hashes/sha256/512bitPacked" as sha256packed
+from "./const" import balance_threshold, account_hash, merkle_root
+
+// target leaf contains the info about the account in the merkle tree in this order, account address, account balance, account storage root, account code hash, we leave out account nonce for now because the standard sha256 function only supports 4 inputs
+def main(private field[4] target_leaf, private field[2][2] proof) -> field:
+
+    // check that the input address hashes to the correct commited hash
+    field[2] input_address_hash = sha256packed([0, 0, 0, target_leaf[0]])
+    assert(input_address_hash[0] == account_hash[0])
+    assert(input_address_hash[1] == account_hash[1])
+
+    // check the balance balance_threshold
+    assert(target_leaf[1] >= balance_threshold)
+    
+    // first we calcualte the leaf hash of the input account
+    field[2] intermediate_hash = sha256packed([target_leaf[0], target_leaf[1], target_leaf[2], target_leaf[3]])
+    assert(intermediate_hash == [288361725155818543995141366590042248777,126961234099104555272130717014383848498])
+
+    // we calculate the root hash through the input path
+    // TODO: for now for simplicity we don't order the hashes, but we actually should be
+    for u32 i in 0..2 do
+        intermediate_hash = sha256packed([intermediate_hash[0], intermediate_hash[1], proof[i][0], proof[i][1]])
+    endfor
+
+    // check that the root hash is the correct one
+    assert(intermediate_hash == merkle_root)
+    return 1

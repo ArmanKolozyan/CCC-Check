@@ -1,0 +1,3 @@
+[submodule "third_party/bellman"]
+	path = third_party/bellman
+	url = https://github.com/alex-ozdemir/bellman.git

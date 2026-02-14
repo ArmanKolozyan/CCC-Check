@@ -1,0 +1,95 @@
+// checks whether num is a valid value for a "`bound` by `bound`" sudoku board.
+def validateNumber(u32 num, u32 bound) -> bool {
+    return num != 0 && num <= bound;
+}
+
+// returns true for x in (1..N) and false otherwise
+def validateSet<N>(u32[N] set) -> bool {
+
+    // first check that all numbers make sense
+    for u32 i in 0..N {
+        assert(validateNumber(set[i], N));
+    }
+
+    // then verify that each number appears exactly once
+    u32[N] mut occurrences = [0; N];
+    for u32 i in 0..N {
+        occurrences[set[i]-1] = occurrences[set[i]-1] + 1;
+    }
+    for u32 i in 0..N {
+        assert(occurrences[i] == 1);
+    }
+
+    return true;
+}
+
+def checkRows<N>(u32[N][N] unsolved, u32[N][N] solved) -> bool {
+    for u32 i in 0..N {
+        assert(validateSet(solved[i]));
+    }
+
+    return true;
+}
+
+def checkColumns<N>(u32[N][N] unsolved, u32[N][N] solved) -> bool {
+    for u32 i in 0..N {
+        u32[N] mut column = [0; N];
+        for u32 j in 0..N {
+            column[j] = solved[j][i];
+        }
+        assert(validateSet(column));
+    }
+
+    return true;
+}
+
+def checkBoxes<N>(u32 sqrtN, u32[N][N] unsolved, u32[N][N] solved) -> bool {
+    // i and j iterate through the boxes
+    // k and m iterate through the entries in each box
+    for u32 i in 0..sqrtN {
+        for u32 j in 0..sqrtN {
+            (u32, u32) topLeftCorner = (i*sqrtN, j*sqrtN);
+            u32[N] mut box = [0; N];
+            for u32 k in 0..sqrtN {
+                for u32 m in 0..sqrtN {
+                    u32 x = topLeftCorner.0 + k;
+                    u32 y = topLeftCorner.1 + m;
+                    u32 setIndex = k*sqrtN + m;
+                    box[setIndex] = solved[x][y];
+                }
+            }
+            assert(validateSet(box));
+        }
+    }
+
+    return true;
+}
+
+// check if unsolved is the initial state of solved
+def checkSolvedSolvesUnsolved<N>(u32[N][N] unsolved, u32[N][N] solved) -> bool {
+    bool mut all_match = true;
+    for u32 i in 0..N {
+        for u32 j in 0..N {
+            bool prefilled_ok = if unsolved[i][j] == 0 {
+                true
+            } else {
+                solved[i][j] == unsolved[i][j]
+            };
+                
+            all_match = all_match && prefilled_ok;
+        }
+    }
+
+    return all_match;
+}
+
+def main(u32[4][4] unsolved, private u32[4][4] solved) {
+    u32 sqrtN = 2;
+    
+    assert(checkRows(unsolved, solved));
+    assert(checkColumns(unsolved, solved));
+    assert(checkBoxes(sqrtN, unsolved, solved)); 
+    assert(checkSolvedSolvesUnsolved(unsolved, solved));
+
+    return;
+}

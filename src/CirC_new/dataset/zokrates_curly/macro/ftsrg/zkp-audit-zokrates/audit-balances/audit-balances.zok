@@ -1,0 +1,146 @@
+/*
+ * Copyright 2023 Contributors the the zkp-audit-zokrates repository
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied.  See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
+from "../common/common" import Account, Transaction, Block, PublicBlock;
+from "../common/common" import AccountBalance, Balance;
+from "../common/common" import Hash, hash_transaction;
+from "../util/u32_8_tools" import add_u32_8, subtract_u32_8;
+from "../util/u32_8_tools" import compare_u32_8, U32_8_ZERO;
+
+/* Get a `Balance' with zero value */
+def zero_balance() -> Balance {
+	return U32_8_ZERO;
+}
+
+/* Get the balance of an account from an AccountBalance array */
+def get_balance<B>( \
+    AccountBalance[B] balances, Account account) -> Balance {
+	/*
+	 * Look up `account' in the `balances' array and retrieve its
+	 * balance
+	 */
+	Balance mut balance = zero_balance();
+	for u32 i in 0..B {
+		balance = if (account == balances[i].0) {
+			balances[i].1
+		} else { balance };
+	}
+	return balance;
+}
+
+/* Set the balance of an account in an AccountBalance array */
+def set_balance<B>( \
+    AccountBalance[B] mut balances, \
+    Account account, Balance balance) -> AccountBalance[B] {
+	/*
+	 * Look up `account' in the `balances' array and update its
+	 * balance
+	 */
+	for u32 i in 0..B {
+		balances[i].1 = if (account == balances[i].0) {
+			balance
+		} else { balances[i].1 };
+	}
+
+	return balances;
+}
+
+/* Decide whether Balance b is greater than balance a */
+def compare_balances(Balance a, Balance b) -> bool {
+	return compare_u32_8(a, b);
+}
+
+/* Get the sum of two balances */
+def sum_balances(Balance a, Balance b) -> Balance {
+	return add_u32_8(a, b);
+}
+
+/* Get the balance obtained by subtracting a balance from another */
+def diff_balances(Balance a, Balance b) -> Balance {
+	return subtract_u32_8(a, b);
+}
+
+/* Add an amount to a balance */
+def add_to_balance<B>( \
+    AccountBalance[B] mut balances, \
+    Account account, Balance amount) -> AccountBalance[B] {
+	return set_balance( \
+	    balances, \
+	    account, \
+	    sum_balances(get_balance(balances, account), amount));
+}
+
+/* Subtract an amount from a balance */
+def subtract_from_balance<B>( \
+    AccountBalance[B] mut balances, \
+    Account account, Balance amount) -> AccountBalance[B] {
+	return set_balance( \
+	    balances, \
+	    account, \
+	    diff_balances(get_balance(balances, account), amount));
+}
+
+
+const u32 N_ = 10;       /* number of blocks */
+const u32 M_ = 10;       /* number of transactions per block */
+const u32 B_ = 10;       /* number of accounts */
+
+def main( \
+    private AccountBalance[B_] mut balances, \
+    private Block<M_>[N_] blocks, \
+    public PublicBlock<M_>[N_] publicBlockData, \
+    private u32 n_blocks) {
+	for u32 i in 0..N_ {
+		Block<M_> b = blocks[i];
+		PublicBlock<M_> pb = publicBlockData[i];
+
+		/*
+		 * Commitment: assert previous hash and tx count are
+		 * valid
+		 */
+		assert(b.prevHash == pb.prevHash);
+		assert(b.transactionCount == pb.transactionCount);
+
+		for u32 j in 0..M_ {
+			Transaction t = b.transactions[j];
+			Hash h = pb.hashes[j];
+
+			/* Commitment: assert tx hash is valid */
+			assert(i >= n_blocks \
+			       || j >= b.transactionCount \
+			       || hash_transaction(t) == h);
+
+			/* (1) Source has sufficient balance */
+			assert(i >= n_blocks \
+			       || j >= b.transactionCount \
+			       || compare_balances( \
+				      t.amount, \
+				      get_balance(balances, t.source)));
+
+			/* (3), (4) Balance changes described by tx */
+			balances = if (j < b.transactionCount) {
+				add_to_balance( \
+				    balances, t.destination, t.amount)
+			} else { balances };
+			balances = if (j < b.transactionCount) {
+				subtract_from_balance( \
+				    balances, t.source, t.amount)
+			} else { balances };
+		}
+	}
+
+	return;
+}

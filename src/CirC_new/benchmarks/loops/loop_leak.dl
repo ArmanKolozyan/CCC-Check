@@ -1,0 +1,37 @@
+#include "../analysis.dl"
+
+// Private Inputs:
+PrivateVariable("a").
+// Public Inputs:
+PublicVariable("return").
+// Identifiers:
+Identifier("return").
+Identifier("a").
+// Field Constants:
+// BV Constants:
+// Boolean Constants:
+// Binary Expressions:
+BinaryExpr("e1", "a", "a", "+").
+BinaryExpr("e2", "a", "e1", "+").
+BinaryExpr("e3", "a", "e2", "+").
+BinaryExpr("e4", "a", "e3", "+").
+BinaryExpr("e5", "a", "e4", "+").
+BinaryExpr("e6", "a", "e5", "+").
+BinaryExpr("e7", "a", "e6", "+").
+BinaryExpr("e8", "a", "e7", "+").
+BinaryExpr("e9", "a", "e8", "+").
+BinaryExpr("e10", "a", "e9", "+").
+BinaryExpr("e11", "a", "e10", "+").
+BinaryExpr("e12", "a", "e11", "+").
+BinaryExpr("e13", "a", "e12", "+").
+BinaryExpr("e14", "e13", "return", "=").
+// Assignments:
+Assignment("c1", "e14").
+Assignment("return", "comp13").
+// Assertions:
+Assert("c1").
+// Not:
+// Ite:
+// Transforms:
+// ConcatX:
+// BoolMaj:

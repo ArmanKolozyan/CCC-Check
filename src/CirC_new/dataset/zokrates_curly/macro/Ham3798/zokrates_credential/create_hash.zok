@@ -1,0 +1,23 @@
+import "hashes/sha256/512bitPacked" as sha256packed;
+import "utils/pack/u32/nonStrictUnpack256" as unpack256u;
+
+def main(private field context_hash, private field age, private field alumni_of_hash, private field credential_subject_hash, private field exp_hash, private field id_hash, private field issuance_date_hash, private field issuer_hash, private field name_hash, private field student_number_hash, private field type_hash) -> (u32[8], u32[8]) {
+    // 첫 번째 4개 입력에 대한 해시 계산
+    field[2] first_hash = sha256packed([context_hash, age, alumni_of_hash, credential_subject_hash]);
+    
+    // 두 번째 4개 입력에 대한 해시 계산
+    field[2] second_hash = sha256packed([exp_hash, id_hash, issuance_date_hash, issuer_hash]);
+
+    // 세 번째 3개 입력 및 첫 번째 해시의 첫 요소에 대한 해시 계산
+    // 세 번째 해시 계산에는 name_hash, student_number_hash, type_hash 및 first_hash의 첫 요소를 사용
+    field[2] third_hash = sha256packed([name_hash, student_number_hash, type_hash, first_hash[0]]);
+    
+    // 첫 번째, 두 번째, 세 번째 해시 결과의 두 번째 요소들을 다시 해시하여 최종 해시를 계산
+    field[2] final_hash = sha256packed([second_hash[1], third_hash[1], third_hash[0], first_hash[1]]);
+    
+    // final_hash의 각 field 요소를 u32[8] 타입으로 변환
+    u32[8] M0 = unpack256u(final_hash[0]);
+    u32[8] M1 = unpack256u(final_hash[1]);
+
+    return (M0, M1);
+}

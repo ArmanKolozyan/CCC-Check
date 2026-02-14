@@ -1,0 +1,5 @@
+import "hashes/sha256/512bitPacked.zok" as sha256packed;
+
+def main(private field value_ ) -> field[2] {
+    return sha256packed([0, 0, 0, value_]);
+}

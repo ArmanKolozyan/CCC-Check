@@ -1,0 +1,7 @@
+import "hashes/sha256/sha256" as sha256;
+
+def main(u32[8] hash ,private u32[2][8] msg) {
+
+    u32[8] digest = sha256(msg[0], msg[1]);
+    assert(digest == hash);
+}

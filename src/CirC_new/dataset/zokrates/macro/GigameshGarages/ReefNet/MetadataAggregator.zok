@@ -1,0 +1,5 @@
+// Metadata Aggregator Proofs
+
+def main(private field[2] a) -> (field):
+  field result = if a[1] * a[0] == 144 then 1 else 0 fi
+  return result

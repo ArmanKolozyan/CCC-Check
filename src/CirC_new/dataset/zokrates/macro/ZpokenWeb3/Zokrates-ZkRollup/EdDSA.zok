@@ -1,0 +1,9 @@
+from "./Poseidon.zok" import Poseidon
+from "./BabyJubJub.zok" import ECPoint, ECSubtract, ECMultiply, G 
+
+def EdDSAVerify(ECPoint publicKey, field[4] message, ECPoint R, field S) -> bool:
+    field h = Poseidon([R.X, publicKey.X, ...message])
+    return ECSubtract(ECMultiply(S, G), ECMultiply(h, publicKey)) == R
+
+def main() -> field:
+    return 1

@@ -1,0 +1,2 @@
+def main(field id, private field balance, private field home, private field loan, private field us, private field ps, private field debt) -> field:
+    return balance + (home * 100) - (loan * 500) + (us * 10) + (ps * 100) - (debt * 2)

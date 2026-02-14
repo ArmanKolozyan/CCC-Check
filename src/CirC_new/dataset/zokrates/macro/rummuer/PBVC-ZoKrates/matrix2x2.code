@@ -1,0 +1,7 @@
+def main(field a00, field a01, field a10, field a11, field b00, field b01, field b10, field b11, private field c00,private field c01,private field c10,private field c11) -> (field):
+	field a = 0
+	a = a + if a00 + b00 == c00 then 1 else 0 fi
+	a = a + if a01 + b01 == c01 then 1 else 0 fi
+	a = a + if a10 + b10 == c10 then 1 else 0 fi
+	a = a + if a11 + b11 == c11 then 1 else 0 fi
+	return a

@@ -1,0 +1,43 @@
+from "./Poseidon.Parameters.zok" import LENGTH, ROUNDS, MATRIX, CONSTANTS
+
+const u32 SIZE = LENGTH + 1
+type MESSAGE = field[LENGTH]
+type STATE = field[SIZE]
+
+def Initialize(field[LENGTH] message) -> field[SIZE]:
+	return [0, ...message]
+	
+def Add(field[SIZE] state, u32 round) -> field[SIZE]:
+	u32 offset = round * SIZE
+	for u32 i in 0..SIZE do
+		state[i] = state[i] + CONSTANTS[offset + i]
+	endfor
+	return state
+
+def Substitute(field[SIZE] state, bool partial) -> field[SIZE]:
+	state[0] = state[0]**5
+	for u32 i in 1..SIZE do
+		state[i] = partial ? state[i] : state[i]**5
+	endfor
+	return state
+	
+def Mix(field[SIZE] state) -> field[SIZE]:
+	field[SIZE] new = [0; SIZE]
+	for u32 i in 0..SIZE do
+		for u32 k in 0..SIZE do
+			new[i] = new[i] + state[k] * MATRIX[i][k]
+		endfor	
+	endfor
+	return new
+	
+def Poseidon(field[LENGTH] message) -> field:
+	field[SIZE] state = Initialize(message)
+	for u32 i in 0..ROUNDS do
+		state = Add(state, i)
+		state = Substitute(state, (i > 3) && (i + 4 < ROUNDS))
+		state = Mix(state)
+	endfor
+	return state[1]
+
+def main() -> field:
+    return 1

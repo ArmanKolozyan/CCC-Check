@@ -1,0 +1,6 @@
+// Token Supply Range Proof  
+
+def main(private field supply, field min, field max) -> bool:
+    assert(supply>min)
+    assert(supply<max)
+    return true

@@ -1,0 +1,50 @@
+COPYRIGHT NOTICE
+----------------
+
+Copyright 2023 Contributors the the zkp-audit-zokrates repository
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+LICENSES OF DEPENDENCIES
+------------------------
+
+The ZoKrates source code under the audit-balances/, audit-whitelist/,
+audit-merkle/, common/, and util/ directories depends on the ZoKrates
+standard library [1].  ZoKrates's source code is licensed under the GNU
+Lesser General Public License v3.0 (LGPL-3.0), but this project
+distributes neither ZoKrates, nor its standard library.
+
+
+The input generator source code that resides in the input-generator/
+directory depends on a number of JavaScript dependencies, most of which
+have permissive licenses that are compatible with Apache-2.0.  However,
+some of the dependencies referenced in the package.json file may have
+licenses that are incompatible with Apache-2.0.  These are the
+following components:
+
+* ethereumjs-util@7.1.5 (MPL-2.0)
+* rlp@2.2.7 (MPL-2.0)
+* sha.js@2.4.11 (MIT and BSD-3-Clause)
+* web3-utils@1.9.0 (LGPL-3.0)
+
+(This list was obtained using the license-compatility-checker tool [2].)
+(Last updated: 2023-05-10)
+
+These dependencies are required to run the input generator script and
+can be downloaded using the npm tool.  However, these libraries are not
+bundled or shipped with this repository, they are merely referenced as
+dependency metadata in the package.json file.  Therefore, there is no
+licensing conflict to consider.
+
+
+The Python source code in the measurements/calculate_mean_times/
+directory depends on the Pandas library, which is licensed under the BSD
+2-Clause license and plac, which is licensed under the BSD 3-Clause
+license.  As with the JavaScript components, this project does not
+distribute these libraries.
+
+
+[1] https://zokrates.github.io/toolbox/stdlib.html
+[2] https://github.com/HansHammel/license-compatibility-checker#readme

@@ -1,0 +1,7 @@
+// p and q are factorization of n
+def main(private field p, private field q, field n) {
+    assert(p * q == n);
+    assert(p > 1);
+    assert(q > 1);
+    return;
+}

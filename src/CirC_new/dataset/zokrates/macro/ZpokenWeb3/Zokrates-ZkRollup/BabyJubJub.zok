@@ -1,0 +1,46 @@
+#pragma curve bn128
+
+from "EMBED" import unpack
+
+struct ECPoint {
+	field X
+	field Y
+}
+
+const field A = 168700
+const field D = 168696
+
+const ECPoint I = ECPoint {X: 0, Y: 1}
+const ECPoint G = ECPoint {
+	X: 16540640123574156134436876038791482806971768689494387082833631921987005038935,                
+	Y: 20819045374670962167435360035096875258406992893633759881276124905556507972311
+}
+
+def ECCheck(ECPoint p) -> bool:
+	field f = p.X ** 2
+	field s = p.Y ** 2
+	return A * f + s == 1 + D * f * s
+
+def ECNegate(ECPoint p) -> ECPoint:
+	return ECPoint {X: -p.X, Y: p.Y}
+
+def ECAdd(ECPoint a, ECPoint b) -> ECPoint:
+	field c = D * a.X * b.X * a.Y * b.Y
+	field x = (a.X * b.Y + b.X * a.Y) / (1 + c)
+	field y = (a.Y * b.Y - A * a.X * b.X) / (1 - c)
+	return ECPoint {X: x, Y: y}
+
+def ECSubtract(ECPoint a, ECPoint b) -> ECPoint:
+	return ECAdd(a, ECNegate(b))
+
+def ECMultiply(field a, ECPoint p) -> ECPoint:
+	ECPoint r = I
+	bool[254] b = unpack(a)		
+	for u32 i in 0..254 do
+		r = b[253 - i] ? ECAdd(r, p) : r
+		p = ECAdd(p, p)	
+	endfor	
+	return r
+
+def main() -> (field):
+    return 1

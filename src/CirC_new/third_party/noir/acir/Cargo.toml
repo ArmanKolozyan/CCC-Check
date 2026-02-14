@@ -1,0 +1,33 @@
+[package]
+name = "acir"
+description = "ACIR is the IR that the VM processes, it is analogous to LLVM IR"
+version = "1.0.0-beta.6"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+acir_field = { path = "../acir_field" }
+brillig = { path = "../brillig" }
+
+serde = { version = "1.0.136", features = ["derive"] }
+thiserror = "1.0"
+flate2 = "1.0"
+bincode = "1"
+base64 = "0.22.1"
+rmp-serde = "1"
+serde-big-array = "0.5.1"
+strum = "0.24"
+strum_macros = "0.24"
+num-bigint = "0.4"
+
+proptest = { version = "1.0", optional = true }
+proptest-derive = { version = "0.4", optional = true }
+
+[features]
+default = []
+bn254 = ["acir_field/bn254"]
+bls12_381 = ["acir_field/bls12_381"]
+arb = ["proptest", "proptest-derive", "brillig/arb"]
+
+[lib]
+bench = false

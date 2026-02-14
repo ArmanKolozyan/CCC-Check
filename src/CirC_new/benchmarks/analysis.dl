@@ -1,0 +1,91 @@
+// Language expressions
+.decl Expr(id: symbol)
+.decl Identifier(x: symbol)
+.decl FieldConstant(x: symbol)
+.decl BooleanConstant(x: symbol)
+.decl BinaryExpr(id: symbol, lexpr: symbol, rexpr: symbol, op: symbol)
+.decl Assignment(target: symbol, expr: symbol)
+.decl PrivateVariable(x: symbol)
+.decl PublicVariable(x: symbol)
+.decl Assert(x: symbol)
+.decl Not(id: symbol, x: symbol)
+.decl Ite(id: symbol, condition: symbol, thenExpr: symbol, elseExpr: symbol)
+
+// Composite facts
+.decl binaryExprVariable(expr: symbol, identifier: symbol)
+.decl iteVariable(expr: symbol, identifier: symbol)
+.decl hasIdentifier(expr: symbol, identifier: symbol)
+.decl flows(x: symbol, y: symbol)
+// finds all targets (i.e., constraints) with the following conditions:
+// 1. there's a flow between at least one private variable to a target.
+// 2. there's a flow between at least one public variable to a target.
+// 3. the number of private variables is less than that of public ones.
+.decl suspiciousTarget(target: symbol)
+
+// There's an information leak from a source to a target when the following
+// conditions hold:
+//   1. target is suspicious target
+//   2. there's a flow between source and the suspicious target.
+.decl infoLeak(source: symbol, target: symbol)
+
+binaryExprVariable(e1, x) :-
+  Identifier(x),
+  BinaryExpr(e1, x, _, _).
+binaryExprVariable(e1, x) :-
+  Identifier(x),
+  BinaryExpr(e1, _, x, _).
+binaryExprVariable(e1, x) :-
+  BinaryExpr(e1, e2, _, _),
+  hasIdentifier(e2, x).
+binaryExprVariable(e1, x) :-
+  BinaryExpr(e1, _, e2, _),
+  hasIdentifier(e2, x).
+
+iteVariable(expr, var_) :-
+  Identifier(var_),
+  Ite(expr, var_, _, _).
+iteVariable(expr, var_) :-
+  Identifier(var_),
+  Ite(expr, _, var_, _).
+iteVariable(expr, var_) :-
+  Identifier(var_),
+  Ite(expr, _, _, var_).
+iteVariable(expr, var_) :-
+  Ite(expr, cond, _, _),
+  hasIdentifier(cond, var_).
+iteVariable(expr, var_) :-
+  Ite(expr, _, trueExpr, _),
+  hasIdentifier(trueExpr, var_).
+iteVariable(expr, var_) :-
+  Ite(expr, _, _, falseExpr),
+  hasIdentifier(falseExpr, var_).
+
+hasIdentifier(expr, var_) :- binaryExprVariable(expr, var_).
+hasIdentifier(expr, var_) :- iteVariable(expr, var_).
+
+// Relation of the flow: s flows to t.
+flows(source, target) :-
+  Assignment(target, source),
+  Identifier(source).
+flows(source, target) :-
+  Assignment(target, expr),
+  hasIdentifier(expr, source).
+flows(source, target) :-
+  Assignment(target, intermediate),
+  flows(source, intermediate).
+
+suspiciousTarget(target) :-
+  Assert(target),
+  q = count: { flows(source, target), PublicVariable(source) },
+  q > 0,
+  c = count: { flows(source, target), PrivateVariable(source) },
+  c <= q.
+
+
+infoLeak(source, target) :-
+  suspiciousTarget(target),
+  PrivateVariable(source),
+  flows(source, target).
+
+.output infoLeak
+.output flows

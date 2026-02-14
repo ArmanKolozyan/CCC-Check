@@ -1,0 +1,7 @@
+// this is the first ZKP program
+// it will prove that for public argument `b`, you know a numer `a` such that `a*a = b`
+// open root.sh and follow the commands to create the proof and Ethereum verifier smart-contract.
+
+def main(private field a, field b) -> (field):
+    field result = if a * a == b then 1 else 0 fi
+    return result

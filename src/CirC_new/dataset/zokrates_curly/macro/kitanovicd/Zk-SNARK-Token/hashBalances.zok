@@ -1,0 +1,31 @@
+import "hashes/sha256/512bitPacked" as sha256;
+
+def main(
+    private field senderBalance,
+    private field receiverBalance,
+    private field amount,
+    field hashSenderBalance,
+    field hashReceiverBalance,
+    field hashAmount,
+    field hashSenderBalanceAfter,
+    field hashReceiverBalanceAfter
+) -> bool {
+    assert(amount <= senderBalance);
+
+    field[2] realHashSenderBalance = sha256([0,0,0,senderBalance]);
+    assert(hashSenderBalance == realHashSenderBalance[0]);
+
+    field[2] realHashReceiverBalance = sha256([0,0,0,receiverBalance]);
+    assert(hashReceiverBalance == realHashReceiverBalance[0]);
+
+    field[2] realHashAmount = sha256([0,0,0,amount]);
+    assert(hashAmount == realHashAmount[0]);
+
+    field[2] realHashSenderBalanceAfter = sha256([0,0,0,senderBalance - amount]);
+    assert(hashSenderBalanceAfter == realHashSenderBalanceAfter[0]);
+    
+    field[2] realHashReceiverBalanceAfter = sha256([0,0,0,receiverBalance + amount]);
+    assert(hashReceiverBalanceAfter == realHashReceiverBalanceAfter[0]);
+
+    return true;
+}

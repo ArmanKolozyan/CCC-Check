@@ -1,0 +1,75 @@
+// This PoA will verify EdDSA signatures.
+
+// this doesn't work due to there being an assert, and us not being able to guarantee valid sigs for every i..
+// import "signatures/verifyEddsa.code" as verifyEddsa;
+
+// ..so the file contents were copied and edited
+import "./verifyEddsa.zok" as verifyEddsa;
+
+import "ecc/babyjubjubParams.zok" as context;
+from "ecc/babyjubjubParams" import BabyJubJubParams;
+import "utils/pack/bool/nonStrictUnpack256" as unpack256bool;
+from "EMBED" import u8_from_bits;
+
+// std version doesn't seem to work so I copied the contents over to a local file
+from "./keccak" import tmain as keccak;
+
+// size of the anonimity set
+const u32 N = 2;
+
+def bool_to_u8_arr<Q, P>(bool[Q] bits) -> u8[P] {
+	u8[P] mut res = [0; P];
+	for u32 i in 0..P {
+		res[i] = u8_from_bits(bits[8 * i..8 * (i + 1)]);
+	}
+  return res;
+}
+
+def main(private field[N][2] R, private field[N] S, private field[N][2] A, u32[N][8] M0, u32[N][8] M1, private bool[N] ownership, field[N] balances, u8[N][32] anonSet) -> field {
+
+  	BabyJubJubParams context = context();
+
+    field mut res = 0;
+    for u32 i in 0..N {
+        res = res + if ownership[i] == true {
+            balances[i]
+        } else {
+            0
+        };
+
+        // calc keccak hash
+
+        u8[64] mut preimage = [0;64];
+
+        //log("pub key x is {}", A[i][0]);
+        //log("pub key y is {}", A[i][1]);
+
+        bool[256] b0 = unpack256bool(A[i][0]);
+        bool[256] b1 = unpack256bool(A[i][1]);
+
+        u8[32] u0 = bool_to_u8_arr(b0);
+        u8[32] u1 = bool_to_u8_arr(b1);
+
+        for u32 k in 0..32 {
+            preimage[k] = u0[k];
+        }
+        for u32 k in 0..32 {
+            preimage[32+k] = u1[k];
+        }
+
+        //log("preimage {}", preimage);
+
+        u8[32] digest = keccak::<_, 32>(preimage, 0x01); // keccak(preimage);
+        //log("digest is {}", digest);
+
+        bool mut inAnonSet = true;
+        for u32 j in 0..32 {
+            inAnonSet = inAnonSet && digest[j] == anonSet[i][j];
+        }
+
+        bool isVerified = verifyEddsa(R[i], S[i], A[i], M0[i], M1[i], context);
+        assert(!ownership[i] || inAnonSet);// (isVerified && inAnonSet));
+    }
+
+    return res;
+}

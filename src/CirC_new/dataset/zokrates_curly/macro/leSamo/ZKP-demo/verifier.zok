@@ -1,0 +1,10 @@
+def main (
+    private field factor1,
+    private field factor2,
+    public field product,
+    public field address  
+) -> bool {
+    assert (factor1 * factor2 == product);
+
+    return true;
+}

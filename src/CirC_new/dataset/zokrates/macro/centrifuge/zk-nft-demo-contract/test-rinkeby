@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -ex
+
+ANCHOR_REPOSITORY=0x92AD44BB8F23D5d129eB82a50d3868bB4b1ceF1F
+NFT_REGISTRY=0xe1e70a83cdf8217b22950b08b78d815a1fb02a75
+
+DOC_ROOT=8c64d2c0b3ae3bb40cba87610d504e1e136efb2d7eda515bddd5c85035b5b709
+DATA_ROOT=f7d919ad10c87f635dc3ebaafb01f27b051b5aa9ca20de8740308a5e6d31da9d
+SIG_ROOT=6fc0fefd3edcffe09fef4617a9a9da39cecf0d5b90e38ed9d35c8a1ec50a76db
+
+AMOUNT=0x0000000000000000000000000000000000000000000000000000000000000140
+RATING=0x0000000000000000000000000000000000000000000000000000000000000064
+
+RATINGS_ROOT=0xaba3f2af3c5c97f5aa54b81af14eb156e1c66790472354804009125b56773228
+# Pick a random tokenid under which to mint it
+TKN_ID=0x$(dd if=/dev/urandom bs=32 count=1 | xxd -ps -c 200 | tr -d '\n')
+
+POINTS="[22c4826277e052f9e8241a6b833f78e538bf14ea9b310a5232ddd040ad2ef790,1e0be49de09c8cbda1093b858c6b737556a07b9ee041338d58b6d8fbb976e6fe,0d370b4b20dac2a7a962f3806d4ff3b0a5fa74a5ad1566a577610e27bc68450b,26131143fe9ba354f01b0ffb8c3f1c6f2bf6b3ec2a36a9e8185a32c446820383,2e31b7820b55431839dd5ba4973ff8c27647324d471a699cc5838139039b1353,05e66d29e0f4784d51e4ddf5bca88ce52cfe929970f932fa4f5b5835115f8514,0aaa296461eb3c149b9a833dfc5b916d5506a94c6b5734f99a6f4371d6c8eef4,10991a234ff86ac45394a82fe6a1d4c66bbc46ea93edfd22857fcba252c11202]"
+
+# The anchor registry stores the DOC_ROOT under ANCHOR_ID
+ANCHOR_PREIMAGE=$(dd if=/dev/urandom bs=32 count=1 | xxd -ps -c 200 | tr -d '\n')
+ANCHOR_ID=$(echo -n $ANCHOR_PREIMAGE | xxd -r -p | sha256sum | cut -d' ' -f1)
+
+seth send $ANCHOR_REPOSITORY 'commit(uint,bytes32,bytes32)' $ANCHOR_PREIMAGE $DOC_ROOT $(seth --to-bytes32 0x0)
+
+# Sending 'file("ratings", $RATINGS_ROOT)' sets the Merkle root on the ZKNFT contract. 
+#seth send $NFT_REGISTRY 'file(bytes32,bytes32)' $(seth --to-bytes32 $(seth --from-ascii "ratings")) $(seth --to-bytes32 $RATINGS_ROOT)
+
+# Mint the NFT against the document root above while verifying the snark
+seth send $NFT_REGISTRY 'mint(address,uint,uint,bytes32,bytes32,uint,uint,uint[8] memory)(uint)' $ETH_FROM $TKN_ID $ANCHOR_ID $DATA_ROOT $SIG_ROOT $AMOUNT $RATING $POINTS 

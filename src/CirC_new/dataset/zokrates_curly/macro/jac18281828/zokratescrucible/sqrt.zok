@@ -1,0 +1,17 @@
+def mod(field a, field b) -> field {
+    field q = a / b;
+    field r = a - q * b;
+    return r;
+}
+
+// proof of knowledge that the prover knows the square root of a large quadratic residue
+// modulo a large composite (blum integer) number
+// 
+// this is similar to the discrete logarithm problem and considered to provide
+// a strong assurance that the prover knows the square root
+//
+// the prover provides a and b, and the verifier checks that a^2 = b (mod n)
+def main(private field a, field b, field n) {
+    assert(mod(a * a, n) == mod(b, n));
+    return;
+}

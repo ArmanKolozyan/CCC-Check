@@ -1,0 +1,252 @@
+file = { SOI ~ pragma_decl? ~ symbol_declaration* ~ EOI }
+
+pragma_decl = { "pragma" ~ pragma_directive ~ semicolon }
+pragma_directive = { ("circom" ~ version) | "custom_templates" }
+version = @{ dec_number ~ "." ~ dec_number ~ "." ~ dec_number }
+pathstring = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+semicolon = _{ ";" }
+
+symbol_declaration = { (include_decl | template_decl | function_decl | main_component) }
+
+include_decl = { "include" ~ pathstring ~ ";" }
+template_decl = { "template" ~ template_modifiers? ~ identifier ~ "(" ~ parameter_list ~ ")" ~ block_statement }
+template_modifiers = { (("custom" ~ "parallel") | "custom" | "parallel") }
+function_decl = { "function" ~ identifier ~ "(" ~ parameter_list ~ ")" ~ block_statement }
+
+parameter_list = _{(identifier ~ ("," ~ identifier)*)?}
+
+
+// Statements
+block_statement_or_statement = _{ block_statement | statement }
+statement = { (for_statement
+              | while_statement
+              | if_statement
+              | log_statement
+              | return_statement
+              | assert_statement
+              | signal_statement
+              | component_statement
+              | variable_statement
+              | (expression ~ semicolon)
+
+)}
+block_statement = _{ "{" ~ statement* ~ "}" }
+for_statement = { 
+    "for" ~ "(" ~ 
+    variable_statement ~ 
+    expression ~ semicolon ~
+    expression ~
+    ")" ~ block_statement_or_statement
+}
+while_statement = { "while" ~ "(" ~ expression ~ ")" ~ block_statement }
+if_statement = { 
+    "if" ~ "(" ~ expression ~ ")" ~ block_statement_or_statement ~ 
+    else_if_branch* ~
+    else_branch? 
+}
+
+else_if_branch = {
+   "else" ~ "if" ~ "(" ~ expression ~ ")" ~ block_statement_or_statement 
+}
+
+else_branch = {
+   "else" ~ block_statement_or_statement
+}
+
+log_statement = { "log" ~ "(" ~ expression ~ ")" ~ semicolon }
+assert_statement = { "assert" ~ "(" ~ expression ~ ")" ~ semicolon }
+return_statement = { "return" ~ expression? ~ semicolon }
+signal_statement = { signal_decl | signal_assignment_statement | signal_assignment_constraint_statement | constraint_statement }
+signal_decl = {
+    "signal" ~ bus_modifier? ~ signal_type? ~ signal_tags? ~ assignee ~ ("," ~ assignee)* ~ (
+        ";" | ("<" ~ "==" ~ expression ~ semicolon)
+    )
+}
+signal_tags = { "{" ~ identifier ~ ("," ~ identifier)* ~ "}" }
+bus_modifier = { "bus" }
+signal_type = { input_signal | output_signal }
+input_signal = { "input" }
+output_signal = { "output" }
+signal_assignment_statement = {
+    signal_assignment_left |
+    signal_assignment_right
+}
+signal_assignment_left = {
+    assignee_target ~ "<--" ~ ternary_or_expression ~ semicolon
+}
+signal_assignment_right = {
+    ternary_or_expression ~ "-->" ~ assignee_target ~ semicolon
+}
+signal_assignment_constraint_statement = {
+    signal_constraint_left |
+    signal_constraint_right
+}
+signal_constraint_left = {
+    assignee_target ~ "<==" ~ ternary_or_expression ~ semicolon
+}
+signal_constraint_right = {
+    ternary_or_expression ~ "==>" ~ assignee_target ~ semicolon
+}
+constraint_statement = { expression ~ "===" ~ expression ~ semicolon }
+component_statement = {
+    "component" ~ assignee ~ ("=" ~ component_instantiation)? ~ semicolon
+}
+variable_statement = { "var"? ~ variable_declaration ~ ("," ~ variable_declaration)* ~ semicolon }
+variable_declaration = { assignee ~ (var_assignment_op ~ ternary_or_expression)? }
+// end statements
+
+// Expressions
+ternary_or_expression = { ternary_expression | expression }
+expression = { unaried_term ~ (op_binary ~ unaried_term)* }
+
+unaried_term = { op_unary? ~ postfixed_term }
+
+postfixed_term = { term ~ access* }
+
+term = { 
+    "(" ~ expression ~ ")" |
+    primary_expression
+}
+
+access = {
+    array_access |
+    call_access |
+    dot_access |
+    op_increment |
+    op_decrement
+}
+
+primary_expression = { 
+    number |
+    identifier |
+    array_expr
+}
+
+array_expr = { "[" ~ (expression ~ ("," ~ expression)*)? ~ "]" }
+array_access = { "[" ~ expression ~ "]" }
+call_access = { "(" ~ arg_list? ~ ")" }
+dot_access = { "." ~ identifier ~ array_access? }
+
+ternary_expression = { expression ~ "?" ~ expression ~ ":" ~ expression }
+// end expressions
+
+// Main component
+main_component = {
+    "component" ~ "main" ~ public_signals? ~ "=" ~ component_instantiation ~ ";"
+}
+public_signals = _{ "{" ~ "public" ~ "[" ~ identifier_list? ~ "]" ~ "}" }
+identifier_list = _{ identifier ~ ("," ~ identifier)* }
+// end main component
+
+// Misc
+arg_list = _{ expression ~ ("," ~ expression)* }
+component_instantiation = {
+    identifier ~ "(" ~ arg_list? ~ ")"
+}
+assignee = { identifier ~ assignee_access* }
+assignee_access = { array_access | dot_access }
+identifier = @{ !(keyword ~ !(ASCII_ALPHANUMERIC | "_")) ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+
+assignee_tuple = {
+    "(" ~ assignee ~ ("," ~ assignee)* ~ ")"
+}
+
+assignee_target = {
+    assignee_tuple | assignee
+}
+
+// Operators
+// Basic operators
+op_or = @{"||"}
+op_and = @{"&&"}
+op_bit_xor = {"^"}
+op_bit_and = {"&"}
+op_bit_or = {"|"}
+op_bit_not = {"~"}
+op_equal = @{"=="}
+op_not_equal = @{"!="}
+op_lt = {"<"}
+op_lte = @{"<="}
+op_gt = {">"}
+op_gte = @{">="}
+op_add = {"+"}
+op_sub = {"-"}
+op_mul = {"*"}
+op_div = {"/"}
+op_idiv = {"\\"}
+op_mod = {"%"}
+op_pow = @{"**"}
+op_not = {"!"}
+op_neg = {"-"}
+op_pos = {"+"}
+op_left_shift = @{"<<"}
+op_right_shift = @{">>"}
+op_increment = @{"++"}
+op_decrement = @{"--"}
+
+// Assignment operators
+op_assign = {"="}
+op_add_assign = @{"+="}
+op_sub_assign = @{"-="}
+op_mul_assign = @{"*="}
+op_div_assign = @{"/="}
+op_idiv_assign = @{"\\="}
+op_mod_assign = @{"%="}
+op_pow_assign = @{"**="}
+op_bit_and_assign = @{"&="}
+op_bit_or_assign = @{"|="}
+op_bit_xor_assign = @{"^="}
+op_left_shift_assign = @{"<<="}
+op_right_shift_assign = @{">>="}
+op_bit_not_assign = @{"~="}
+
+// Signal and constraint operators
+op_signal_assign_l = @{"<--"}
+op_signal_assign_r = @{"-->"}
+op_constraint_l = @{"<=="}
+op_constraint_r = @{"==>"}
+op_constraint_eq = @{"==="}
+
+// Group operators by type
+op_binary = _{
+    op_or | op_and |
+    op_left_shift | op_right_shift |
+    op_bit_xor | op_bit_and | op_bit_or | op_bit_not |
+    op_equal | op_not_equal |
+    op_lte | op_lt | op_gte | op_gt |
+    op_add | op_sub |
+    op_pow |
+    op_mul | op_div | op_idiv | op_mod 
+}
+
+op_unary = { op_neg | op_not | op_increment | op_decrement }
+op_post_unary = { op_increment | op_decrement }
+
+var_assignment_op = { 
+    op_assign |
+    op_add_assign | op_sub_assign |
+    op_mul_assign | op_pow_assign |
+    op_div_assign | op_idiv_assign | op_mod_assign |
+    op_bit_and_assign | op_bit_or_assign | op_bit_xor_assign |
+    op_left_shift_assign | op_right_shift_assign |
+    op_bit_not_assign
+}
+
+// Basic syntax elements
+WHITESPACE = _{ " " | "\t" | "\n" | "\r" }
+COMMENT = _{ line_comment | block_comment }
+line_comment = _{ "//" ~ (!"\n" ~ ANY)* }
+block_comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+
+// Numbers and identifiers
+number = @{ hex_number | dec_number }
+dec_number = @{ ASCII_DIGIT+ }
+hex_number = @{ "0x" ~ ASCII_HEX_DIGIT+ }
+
+// Keywords
+keyword = @{
+    "assert" | "bus" | "component" | "custom" | "custom_templates" |
+    "else" | "false" | "for" | "function" |
+    "if" | "include" | "input" | "log" | "output" | "parallel" | "pragma" |
+    "return" | "signal" | "template" | "true" | "var" | "while"
+}

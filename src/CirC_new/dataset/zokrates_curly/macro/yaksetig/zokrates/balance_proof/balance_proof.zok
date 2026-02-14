@@ -1,0 +1,38 @@
+import "hashes/sha256/512bitPacked" as sha256packed;
+
+// number of merkle tree leaves
+const u32 N = 3;
+
+
+// HashIt receives an id and a balance
+// calculates a hash of both elements concatenated
+// returns a 256-bit hash
+def HashIt(field id, field b) -> field[2]{
+    
+    field[2] h = sha256packed([0, 0, id, b]);
+
+    return h; 
+}
+
+// I know a set of secret preimages, each in the form (id, balance), such that all the balances added result in this public total_balance
+
+def main(
+    public  field total_balance, 
+    private field[N][2] leaves, 
+    private field[N] user_handle, 
+    private field[N] amount
+    ) {
+    
+    field[2] mut h = [0, 0];
+    field mut total = 0; 
+    
+    for u32 i in 0..N {
+        h = HashIt(user_handle[i], amount[i]);
+        total = total + amount[i];
+        assert(h == leaves[i]);
+    }
+
+    assert(total == total_balance);
+
+    return;
+}

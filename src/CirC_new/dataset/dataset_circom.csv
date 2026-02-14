@@ -1,0 +1,2 @@
+language,repo,commit,directory,file,function,project_type,status
+circom,https://github.com/a16z/zkdrops,a4e58bd,zkdrops-contracts/circuits/,circuit.circom,main,Good,

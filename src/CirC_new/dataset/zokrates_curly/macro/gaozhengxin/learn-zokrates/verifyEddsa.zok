@@ -1,0 +1,7 @@
+import "signatures/verifyEddsa" as verifyEddsa;
+from "ecc/babyjubjubParams" import BabyJubJubParams;
+from "ecc/babyjubjubParams" import BABYJUBJUB_PARAMS;
+
+def main(field[2] R, field S, field[2] A, u32[8] M0, u32[8] M1) -> bool {
+    return verifyEddsa(R, S, A, M0, M1, BABYJUBJUB_PARAMS);
+}

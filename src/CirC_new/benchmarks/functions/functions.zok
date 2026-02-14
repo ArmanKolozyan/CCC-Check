@@ -1,0 +1,7 @@
+def foo(field a, field b) -> field {
+    return a + b;
+}
+
+def main(field c) -> field {
+    return foo(c, 2);
+}

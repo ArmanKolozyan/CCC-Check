@@ -1,0 +1,6 @@
+import "hashes/poseidon/poseidon.zok" as H
+
+def main(private field s, private field birthday, field pubKey, field birthdayHash, field currentTime) -> field:
+  assert(birthdayHash == H([s, pubKey, birthday]))
+  assert(birthday + 18 > currentTime)
+  return 1

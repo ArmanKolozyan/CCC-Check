@@ -1,0 +1,63 @@
+/*
+ * Copyright 2023 Contributors the the zkp-audit-zokrates repository
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied.  See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
+import "hashes/sha256/1024bitPadded" as sha256_1024bit;
+
+type Account = u32[5];  /* addresses are 160 bits -> 5 x 32 */
+type Balance = u32[8];  /* 8 x 32 = 256 bits of balance */
+type Hash = u32[8];     /* 256 bits for SHA256 */
+type AccountBalance = (Account, Balance);
+
+struct Transaction {
+	u32             index;
+	Account         source;
+	Account         destination;
+	Balance         amount;
+}
+
+struct Block<M> {
+	Hash            prevHash;
+	Transaction[M]  transactions;
+	u32             transactionCount;
+}
+
+struct PublicBlock<M> {
+	Hash            prevHash;
+	Hash[M]         hashes;
+	u32             transactionCount;
+}
+
+def hash_transaction(Transaction t) -> Hash {
+	return sha256_1024bit( \
+	    [0; 8], \
+	    [0, 0, 0, 0, 0, t.index, t.source[0], t.source[1]], \
+	    [
+		t.source[2],
+		t.source[3],
+		t.source[4],
+		t.destination[0],
+		t.destination[1],
+		t.destination[2],
+		t.destination[3],
+		t.destination[4]
+	    ], \
+	    t.amount \
+	);
+}
+
+def main() -> field {
+    return 1;
+}

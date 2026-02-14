@@ -1,0 +1,6 @@
+def main(private field income, private field netWorth) {
+    // Income criteria: $200,000 individually or $300,000 jointly with a spouse
+    // Net worth criteria: $1,000,000 excluding primary residence
+    assert (income >= 200000 || netWorth >= 1000000);
+    return;
+}

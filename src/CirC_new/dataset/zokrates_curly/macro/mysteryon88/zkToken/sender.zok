@@ -1,0 +1,23 @@
+import "hashes/sha256/512bitPacked.zok" as sha256packed;
+
+def main(
+    private field value_, 
+    private field senderBalanceBefore_, 
+    private field SenderBalanceAfter_, 
+    public field[2] hashValue_, 
+    public field[2] hashSenderBalanceBefore_, 
+    public field[2] hashSenderBalanceAfter_
+    ) {
+    assert(senderBalanceBefore_ >= value_);
+	
+    field[2] hashValue = sha256packed([0, 0, 0, value_]);
+    assert(hashValue == hashValue_);
+	
+    field[2] senderBalanceBefore = sha256packed([0, 0, 0, senderBalanceBefore_]);
+    assert(senderBalanceBefore == hashSenderBalanceBefore_);
+	
+    field[2] hashSenderBalanceAfter = sha256packed([0, 0, 0, SenderBalanceAfter_]);
+    assert(hashSenderBalanceAfter == hashSenderBalanceAfter_);
+	
+    return;
+}

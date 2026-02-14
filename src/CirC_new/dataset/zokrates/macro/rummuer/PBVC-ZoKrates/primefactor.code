@@ -1,0 +1,4 @@
+def main(field c0, private field p, private field q) -> (field):
+	field nonPrime = 0
+	nonPrime = nonPrime + if p * q == c0 then 1 else 0 fi
+	return nonPrime

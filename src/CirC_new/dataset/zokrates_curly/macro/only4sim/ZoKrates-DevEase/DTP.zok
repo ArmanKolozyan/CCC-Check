@@ -1,0 +1,47 @@
+def predict(field sepal_length, field sepal_width, field petal_length, field petal_width) -> field {
+    return if petal_width <= 80 {
+         0
+     }
+    else {
+        if petal_width <= 175 {
+            if petal_length <= 495 {
+                if petal_width <= 165 {
+                     1
+                 }
+                else {
+                     2
+                 }
+             }
+            else {
+                if petal_width <= 155 {
+                     2
+                 }
+                else {
+                    if petal_length <= 545 {
+                         1
+                     }
+                    else {
+                         2
+                     }
+                 }
+             }
+         }
+        else {
+            if petal_length <= 485 {
+                if sepal_width <= 310 {
+                     2
+                 }
+                else {
+                     1
+                 }
+             }
+            else {
+                 2
+             }
+         }
+     };
+}
+
+def main(private field sepal_length, private field sepal_width, private field petal_length, private field petal_width) -> field  {
+    return predict(sepal_length, sepal_width, petal_length, petal_width);
+}

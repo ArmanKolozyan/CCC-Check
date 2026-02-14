@@ -1,0 +1,11 @@
+[package]
+name = "circom_parser"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pest = "2.4"
+pest_derive = "2.4"
+
+[dev-dependencies]
+glob = "0.2"

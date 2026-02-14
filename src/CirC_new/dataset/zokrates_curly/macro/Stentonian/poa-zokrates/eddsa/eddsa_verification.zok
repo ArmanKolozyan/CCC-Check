@@ -1,0 +1,19 @@
+import "signatures/verifyEddsa.zok" as verifyEddsa;
+import "ecc/babyjubjubParams.zok" as context;
+from "ecc/babyjubjubParams" import BabyJubJubParams;
+
+def main(private field[2] R, private field S, field[2] A, u32[8] M0, u32[8] M1) -> bool {
+
+	BabyJubJubParams context = context();
+	
+  bool isVerified = verifyEddsa(R, S, A, M0, M1, context);
+
+	return isVerified;
+}
+
+// import "signatures/verifyEddsa" as verifyEddsa;
+// from "ecc/babyjubjubParams" import BABYJUBJUB_PARAMS;
+// 
+// def main(field[2] R, field S, field[2] A, u32[8] M0, u32[8] M1) -> bool {
+//     return verifyEddsa(R, S, A, M0, M1, BABYJUBJUB_PARAMS);
+// }

@@ -1,0 +1,42 @@
+import "hashes/sha256/512bitPacked.zok" as sha256
+
+//Private field are the decrypted bids by the auctioner with the private key. Public keys are the hashes provided by the bidders and stored in the Smart Contract.
+def main(private field a, private field b, private field c, private field d, field[2] e, field[2] f, field[2] g, field[2] h) -> (field[4]):
+    //Hashing the decrypted bids for comparing these hashes with the public ones provided as inputs, and in the Auction Smart Contract
+    field[2] hashA = sha256([0,0,0,a])
+    field[2] hashB = sha256([0,0,0,b])
+    field[2] hashC = sha256([0,0,0,c])
+    field[2] hashD = sha256([0,0,0,d])
+
+    //Comparison between the hashes provided as inputs and the ones calculated before
+    field hashCheckedA = if hashA[0] == e[0] && hashA[1] == e[1] then 1 else 0 fi
+    field hashCheckedB = if hashB[0] == f[0] && hashB[1] == f[1] then 1 else 0 fi
+    field hashCheckedC = if hashC[0] == g[0] && hashC[1] == g[1] then 1 else 0 fi
+    field hashCheckedD = if hashD[0] == h[0] && hashD[1] == h[1] then 1 else 0 fi
+
+    //Array whose values are 1 or 0s, indicating if the hashes and amounts were correct or not
+    field[4] allCheckedHashesResults = [hashCheckedA, hashCheckedB, hashCheckedC, hashCheckedD]
+
+    //Obtaining the values of the bids in case that hashes were correct
+    field bidA = if hashCheckedA == 1 then a else 0 fi
+    field bidB = if hashCheckedB == 1 then b else 0 fi
+    field bidC = if hashCheckedC == 1 then c else 0 fi
+    field bidD = if hashCheckedD == 1 then d else 0 fi
+
+    //Array for looping all the bids
+    field[4] allBids = [bidA, bidB, bidC, bidD]
+    //Variable for saving the highestBid
+    field highestBid = 0
+    //Variable for saving the position of the winner array and retrieve the address
+    field position = 0
+
+    //For loop for obtaining the highest bid
+    for field i in 0..4 do 
+        field j = 3-i
+        position = if highestBid < allBids[j] then j else position fi
+        highestBid = if highestBid < allBids[j] then allBids[j] else highestBid fi
+        
+    endfor
+
+    //Return values of the highest bid and the result of comparing the hashes, and the position for retrieving the position of arrays
+    return allCheckedHashesResults

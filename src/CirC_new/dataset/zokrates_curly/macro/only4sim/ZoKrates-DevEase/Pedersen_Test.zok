@@ -1,0 +1,12 @@
+from "ecc/babyjubjubParams" import BabyJubJubParams;
+import "ecc/babyjubjubParams" as context;
+import "./Pedersen_commitment.zok" as pc;
+
+
+
+def main(private field input, private field r) -> field[2] {
+    BabyJubJubParams context = context();
+
+    return pc(input, r, context);
+
+}

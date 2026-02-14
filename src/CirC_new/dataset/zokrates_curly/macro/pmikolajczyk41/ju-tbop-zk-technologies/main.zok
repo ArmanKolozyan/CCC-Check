@@ -1,0 +1,11 @@
+def sum_powers<N>(field a) -> field {
+    field mut res = 0;
+    for u32 i in 0..N {
+        res = res + a ** i;
+    }
+    return res;
+}
+
+def main(private field a, field b) {
+    assert(sum_powers::<5>(a) == b);
+}

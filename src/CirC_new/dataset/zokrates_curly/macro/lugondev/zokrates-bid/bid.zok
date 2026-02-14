@@ -1,0 +1,13 @@
+import "hashes/sha256/512bitPacked" as sha256packed;
+const field MIN_PRICE = 20;
+
+def checkHashValue( field value, field hash) -> field {
+    field[2] valueHash = sha256packed([0, 0, 0, value]);
+    return (value <= MIN_PRICE || valueHash[0] != hash) ? 0 : 1;
+}
+
+def main(private field value, field revealValue, field hash) -> field {
+    return if revealValue != 0 {
+      (value != revealValue) ? 0 : checkHashValue(value, hash)
+    } else { checkHashValue(value, hash) };
+}

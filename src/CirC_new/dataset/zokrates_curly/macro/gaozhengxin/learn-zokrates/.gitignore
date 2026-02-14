@@ -1,0 +1,9 @@
+**/workspace-*/*.json
+**/workspace-*/*.r1cs
+**/workspace-*/*.wtns
+**/workspace-*/*.key
+**/workspace-*/*.sol
+**/workspace-*/out
+**/workspace-*/witness
+**/js/build/*
+**/js/bin/*

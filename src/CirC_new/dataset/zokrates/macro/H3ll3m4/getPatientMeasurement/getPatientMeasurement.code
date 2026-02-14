@@ -1,0 +1,3 @@
+def main(private field Initials, field DOB, field NextAppointment) -> (field):
+    //Test if this is the patient's device with patient data
+    return if (Initials == 74466846) && (DOB == 1011984) &&  (NextAppointment == 20052019) then 1 else 0 fi 

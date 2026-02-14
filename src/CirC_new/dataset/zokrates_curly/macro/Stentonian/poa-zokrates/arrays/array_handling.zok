@@ -1,0 +1,18 @@
+const u32 N = 4;
+
+def main(private field[2][N] keys, private bool[N] ownership, field[N] addresses, field[N] balances) -> field {
+    field mut res = 0;
+    for u32 i in 0..N {
+        res = res + if ownership[i] == true {
+            balances[i]
+        } else {
+            0
+        };
+
+        assert(!ownership[i] || keys[0][i] == addresses[i]);
+        assert(!ownership[i] || keys[1][i] == 0);
+    }
+
+    return res;
+}
+

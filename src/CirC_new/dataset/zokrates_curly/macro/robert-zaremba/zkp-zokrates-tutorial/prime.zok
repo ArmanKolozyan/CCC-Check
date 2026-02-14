@@ -1,0 +1,20 @@
+// I know a number which is not prime, by proving that I know it's factorization
+
+def isFactorization(field a, field b, field c) -> bool {
+    // make sure that a and b are not 1
+    assert(a != 1 && b != 1);
+
+    // we know how to factor a
+    return a == b * c;
+}
+
+// define all
+def main(field a, private field p, private field q) -> bool {
+    // prover the factorization
+    return isFactorization(a, p, q);
+}
+
+
+// 8719
+
+// 2^(82,589,933) − 1

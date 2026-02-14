@@ -1,0 +1,77 @@
+/*
+ * Copyright 2023 Contributors the the zkp-audit-zokrates repository
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied.  See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
+import "hashes/sha256/512bitPadded" as sha256_512bit;
+import "hashes/sha256/1024bitPadded" as sha256_1024bit;
+from "../common/common" import Transaction, hash_transaction;
+
+type Hash = u32[8];
+const Hash empty_hash = [0; 8];
+
+def build_tree(Hash[10] hashes) -> Hash {
+	/*
+	 * A tree of 10 hashes will look like this:
+	 *
+	 *   ROOT
+	 *   |- h01234567
+	 *   |  |- h0123
+	 *   |  |  |- h01
+	 *   |  |  |  |- h0
+	 *   |  |  |  \- h1
+	 *   |  |  \- h23
+	 *   |  |     |- h2
+	 *   |  |     \- h3
+	 *   |  \- h4567
+	 *   |     |- h45
+	 *   |     |  |- h4
+	 *   |     |  \- h5
+	 *   |     \- h67
+	 *   |        |- h6
+	 *   |        \- h7
+	 *   \- h89
+	 *      \- h89
+	 *         \- h89
+	 *            |- h8
+	 *            \- h9
+	 */
+
+	Hash h01 = sha256_512bit(hashes[0], hashes[1]);
+	Hash h23 = sha256_512bit(hashes[2], hashes[3]);
+	Hash h45 = sha256_512bit(hashes[4], hashes[5]);
+	Hash h67 = sha256_512bit(hashes[6], hashes[7]);
+	Hash h89 = sha256_512bit(hashes[8], hashes[9]);
+
+	Hash h0123 = sha256_512bit(h01, h23);
+	Hash h4567 = sha256_512bit(h45, h67);
+
+	Hash h01234567 = sha256_512bit(h0123, h4567);
+
+	Hash root = sha256_512bit(h01234567, h89);
+	return root;
+}
+
+const u32 M_ = 10;       /* number of transactions per block */
+
+def main(private Transaction[M_] transactions, private Hash hash) {
+	Hash[M_] mut hashes = [empty_hash; M_];
+	for u32 j in 0..M_ {
+		hashes[j] = hash_transaction(transactions[j]);
+	}
+	/* (5) Merkle-tree root in block is valid */
+	assert(hash == build_tree(hashes));
+
+	return;
+}

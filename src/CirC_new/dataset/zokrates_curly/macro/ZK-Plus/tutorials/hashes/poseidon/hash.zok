@@ -1,0 +1,7 @@
+import "hashes/poseidon/poseidon" as poseidon;
+
+def main(field hash ,private field[2] preimage) {
+    
+      field digest = poseidon(preimage);
+      assert(digest == hash);
+}

@@ -1,0 +1,4 @@
+def main(private u8 a, private u8 b, public u8 c) {
+    assert(a * a * c == b);
+    return;
+}

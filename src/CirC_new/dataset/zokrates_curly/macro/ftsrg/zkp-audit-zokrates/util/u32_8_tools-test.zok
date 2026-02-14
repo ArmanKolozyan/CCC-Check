@@ -1,0 +1,149 @@
+/*
+ * Copyright 2023 Contributors the the zkp-audit-zokrates repository
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied.  See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
+from "./u32_8_tools" import add_u32_8, subtract_u32_8;
+from "./u32_8_tools" import compare_u32_8, equals_u32_8;
+
+const u32 U32_MAX = 4294967295;
+
+/* Sanity test for sum */
+def sum_sanity() -> bool {
+	u32[8] a =  [0, 0, 0, 0, 0, 0, 1, 1];
+	u32[8] b =  [0, 0, 0, 0, 0, 0, 0, 1];
+	u32[8] s = add_u32_8(a, b);
+	return s == [0, 0, 0, 0, 0, 0, 1, 2];
+}
+
+/* Test sum with single carry */
+def sum_carry() -> bool {
+	u32[8] a =  [0, 0, 0, 0, 0, 0, 0, U32_MAX];
+	u32[8] b =  [0, 0, 0, 0, 0, 0, 0,       1];
+	u32[8] s = add_u32_8(a, b);
+	return s == [0, 0, 0, 0, 0, 0, 1,       0];
+}
+
+/* Test sum with consecutive carries */
+def sum_carries() -> bool {
+	u32[8] a =  [0, 0, 0, 0, 0, 0, U32_MAX, U32_MAX];
+	u32[8] b =  [0, 0, 0, 0, 0, 0,       0,       1];
+	u32[8] s = add_u32_8(a, b);
+	return s == [0, 0, 0, 0, 0, 1,       0,       0];
+}
+
+/* Test a complete sum overflow */
+def sum_overflow() -> bool {
+	u32[8] a =  [U32_MAX; 8];
+	u32[8] b =  [0, 0, 0, 0, 0, 0, 0, 1];
+	u32[8] s = add_u32_8(a, b);
+	return s == [0; 8];
+}
+
+/* Arbitrary complicated sum test */
+def sum_compl() -> bool {
+	u32[8] a =  [0, 0, 0, 2, U32_MAX,  8, U32_MAX, U32_MAX];
+	u32[8] b =  [0, 0, 0, 0,       1,  2,       1, U32_MAX];
+	u32[8] s = add_u32_8(a, b);
+	return s == [0, 0, 0, 3,       0, 11,       1, U32_MAX-1];
+}
+
+/* Sanity check for subtraction */
+def sub_sanity() -> bool {
+	u32[8] a =  [0, 0, 0, 0, 0, 0, 1, 1];
+	u32[8] b =  [0, 0, 0, 0, 0, 0, 0, 1];
+	u32[8] d = subtract_u32_8(a, b);
+	return d == [0, 0, 0, 0, 0, 0, 1, 0];
+}
+
+/* Test subtraction with a single carry */
+def sub_carry() -> bool {
+	u32[8] a =  [0, 0, 0, 0, 0, 0, 1,       0];
+	u32[8] b =  [0, 0, 0, 0, 0, 0, 0,       1];
+	u32[8] d = subtract_u32_8(a, b);
+	return d == [0, 0, 0, 0, 0, 0, 0, U32_MAX];
+}
+
+/* Test subtraction with consecutive carries */
+def sub_carries() -> bool {
+	u32[8] a =  [0, 0, 0, 0, 0, 1,       1,       0];
+	u32[8] b =  [0, 0, 0, 0, 0, 0,       1,       1];
+	u32[8] d = subtract_u32_8(a, b);
+	return d == [0, 0, 0, 0, 0, 0, U32_MAX, U32_MAX];
+}
+
+/* Test subtraction with a complete underflow */
+def sub_underflow() -> bool {
+	u32[8] a =  [0; 8];
+	u32[8] b =  [0, 0, 0, 0, 0, 0, 0, 1];
+	u32[8] d = subtract_u32_8(a, b);
+	return d == [U32_MAX; 8];
+}
+
+/* Sanity check for comparison */
+def cmp_sanity() -> bool {
+	u32[8] a = [0, 0, 0, 0, 0, 0, 0, 0];
+	u32[8] b = [0, 0, 0, 0, 0, 0, 0, 1];
+	return compare_u32_8(a, b);
+}
+
+/* Comparison test with arbitrary numbers */
+def cmp_random() -> bool {
+	u32[8] a = [1, 6, 0, 0, 1, 2, 1, 8];
+	u32[8] b = [1, 6, 0, 0, 0, 2, 2, 2];
+	return !compare_u32_8(a, b);
+}
+
+/* Comparison test with equal numbers */
+def cmp_equal() -> bool {
+	u32[8] a = [1; 8];
+	u32[8] b = a;
+	return compare_u32_8(a, b);
+}
+
+/* Equality test with equal numbers */
+def eq_equal() -> bool {
+	u32[8] a = [1; 8];
+	u32[8] b = a;
+	return equals_u32_8(a, b);
+}
+
+/* Equality test with non-equal numbers */
+def eq_non_equal() -> bool {
+	u32[8] a = [1; 8];
+	u32[8] b = [1, 1, 1, 2, 1, 1, 1, 1];
+	return !equals_u32_8(a, b);
+}
+
+def main() {
+	assert(sum_sanity());
+	assert(sum_carry());
+	assert(sum_carries());
+	//assert(sum_overflow());
+	assert(sum_compl());
+
+	assert(sub_sanity());
+	assert(sub_carry());
+	assert(sub_carries());
+	//assert(sub_underflow());
+
+	assert(cmp_sanity());
+	assert(cmp_random());
+	assert(cmp_equal());
+
+	assert(eq_equal());
+	assert(eq_non_equal());
+
+	return;
+}

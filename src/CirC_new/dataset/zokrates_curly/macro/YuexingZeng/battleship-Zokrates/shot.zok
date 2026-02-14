@@ -1,0 +1,43 @@
+import "utils/casts/u32_to_field.zok" as u32_to_field;
+import "hashes/mimcSponge/mimcSponge.zok" as mimcSponge;
+
+struct Coordinate {
+    u32 x;
+    u32 y;
+    u32 z;
+}
+
+def check_for_hit(u32[5] lengths,Coordinate[5] ships,u32[2] shot) -> bool {
+    u32 shot_coord = shot[0] + shot[1]*10;
+    u32 mut hits = 0;
+    for u32 mut i in 0..5 {
+        for u32 mut j in 0..lengths[i] {
+            u32 mut coord = 0 ;
+            coord = if ships[i].z == 1 {
+                ships[i].x + ships[i].y*10 + j*10
+            } else {
+                ships[i].x + ships[i].y*10 + j
+            };
+            hits = hits + (shot_coord == coord ? 1u32 : 0u32);
+        }
+    }
+    return hits>0;
+}
+
+
+
+def main(public field hash, public bool hit, Coordinate[5] ships,public u32[2] shot){
+    u32[5] lengths = [5,4,3,3,2];
+    assert(shot[0] < 11);
+    assert(shot[1] < 11);
+    field[15] mut preImage = [0;15];
+    for u32 i in 0..5 {
+        preImage[i*3]=u32_to_field(ships[i].x);
+        preImage[i*3+1]=u32_to_field(ships[i].y);
+        preImage[i*3+2]=u32_to_field(ships[i].z);
+    }
+    field[1] out = mimcSponge::<_,1>(preImage,0);
+    assert(hash == out[0]);
+    bool hitRes = check_for_hit(lengths,ships,shot);
+    assert(hitRes==hit);
+}

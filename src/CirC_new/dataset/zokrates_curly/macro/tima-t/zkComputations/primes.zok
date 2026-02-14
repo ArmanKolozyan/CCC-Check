@@ -1,0 +1,17 @@
+def is_prime(u32 n) -> bool {
+    bool mut result = true;
+    u32 mut iterator = 1;
+    for u32 i in 2..10000 {
+        iterator = iterator + 1;
+        result = i > n / 2? result : result && (n % iterator != 0);
+    }
+    //log("result {}", result);
+    return result ;
+}
+
+def main(private u32 p){
+    u32 min_val = 1000;
+    assert(p > min_val);
+    bool prime = is_prime(p);
+    assert(prime);
+}

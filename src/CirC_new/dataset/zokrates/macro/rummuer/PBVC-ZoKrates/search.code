@@ -1,0 +1,5 @@
+def main(field[10] num, field search, private field p) -> (field):
+
+	field nonPrime = 0
+	nonPrime = nonPrime + if num[p] == search then 1 else 0 fi
+	return nonPrime

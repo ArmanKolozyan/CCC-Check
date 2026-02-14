@@ -1,0 +1,206 @@
+= Example ZoKrates Audit Programs
+Bertalan Zoltán Péter <bpeter@edu.bme.hu>
+2023-04-28
+:toc:
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+== INTRODUCTION
+
+This repository hosts the prototype source code related to the article _Privacy-Preserving Noninteractive Compliance Audits of Blockchain Ledgers with Zero-Knowledge Proofs._
+
+*Please cite as*
+
+[source,bibtex]
+----
+@unpublished{peter_kocsis,
+        title   = {Privacy-Preserving Noninteractive Compliance Audits of Blockchain Ledgers with Zero-Knowledge Proofs},
+        author  = {Péter, Bertalan Zoltán and Kocsis, Imre},
+        note    = {repository: \url{https://github.com/ftsrg/zkp-audit-zokrates}}
+}
+----
+
+
+
+== AUDIT PROGRAMS
+
+The three example audit programs reside in separate directories.
+Some shared ZoKrates code is factored out into link:common/[`common/`] and link:util/[`util/`].
+
+In every program’s directory, you will find a `Makefile` which makes it easy to automatically perform all the steps to get from source code in ZoKrates and an input JSON file to a valid proof file.
+You can then try verifying the proof using the `verify` target.
+
+INFO: You will need https://pubs.opengroup.org/onlinepubs/009695299/utilities/make.html[`make`] to ‘build’ these targets, which should be available on most UNIX/Linux systems.
+
+[source,shell-session]
+----
+[audit-balances/] $ make
+  [... lots of output ...]
+
+[audit-balances/] $ make verify
+----
+
+The generated `abi.json` descibes what inputs the programs expect.
+
+
+== SHARED CODE
+
+=== Common types
+
+In link:common/common.zok[`common.zok`], you will find the domain-specific types used in the audit programs, such as the structure that encodes a `Transaction` or a `Block`.
+
+=== `u32[8]` tools
+
+Unfortunately, the only way to deal with large (256-bit) numbers in ZoKrates is to store them in a split form in an array.
+The link:util/u32_8_tools.zok[`u32_8_tools`] ‘library’ provides the API to work with these `u32[8]` objects, defining functions for example, that are able to add two ``u32[8]``-encoded numbers together.
+
+
+== INPUT GENERATION
+
+`input.json` files would be extremely cumbersome to write by hand.
+This is why link:input_generator/[`input_generator`] was born.
+It lets you generate `input.json` files from much simpler, human writable input files.
+
+For example, consider the following input (an input of the `input_generator`, that is):
+
+[source,json]
+----
+{
+  "balances": { "0": 10000, "1": 800, "2": 200 },
+  "blocks": [
+    [
+      { "source": "0", "destination": "1", "amount": 100 },
+      { "source": "1", "destination": "2", "amount": 20 }
+    ],
+    [
+      { "source": "1", "destination": "2", "amount": 10 },
+      { "source": "2", "destination": "1", "amount": 50 }
+    ],
+    [
+      { "source": "2", "destination": "1", "amount": 3 },
+      { "source": "2", "destination": "1", "amount": 7 }
+    ]
+  ],
+  "whitelist": [ "1", "2" ]
+}
+----
+
+It first describes the intial balances of three accounts, named `0`, `1`, and `2`.
+Then, the data within 3 blocks is defined: each block is a list of transactions and each transaction is of the form `{ "source": ACCOUNT, "destination": ACCOUNT, "amount": NUMBER }` where `ACCOUNT` is one of the accounts defined in the `balances` field and `NUMBER` is an arbitrary number.
+Finally, the whitelist is defined as list of accounts.
+
+NOTE: Account identifiers have to be strings even if they are numeric, as JSON keys are always strings.
+
+The link:input_generator/[`input_generator`] project is able to take this data and generate the input files required by the audit programs, performing the necessary transformations, calculating hash values, etc.
+
+INFO: To use the input generator, you will need `NodeJS` *(≥ v14)* and `npm`.
+
+First, transpile the Typescript code:
+
+[source,shell-session]
+----
+[input_generator/] $ npm install
+
+> input_generator@0.1.0 prepare
+> npx tsc
+
+[... some additional output ...]
+----
+
+Then run the script with the correct parametrization for the audit program you want to generate input for.
+
+[source,shell-session]
+----
+[input_generator/] $ npm start --silent -- -h
+input_generator
+
+OPTIONS:
+  --input-file, -i <str>                     - a string [optional]
+  --addresses-file, -a <str>                 - a string [optional]
+  --total-blocks, -n <number>                - a number [optional]
+  --total-transactions-per-blok, -m <number> - a number [optional]
+  --total-accounts, -b <number>              - a number [optional]
+  --total-whitelist-length, -w <number>      - a number [optional]
+  --merkle-block-index, -j <number>          - a number [optional]
+
+FLAGS:
+  --validate-only, -W - a boolean
+  --help, -h          - show help
+
+ARGUMENTS:
+  <audit type> - One of 'balances', 'whitelist', 'merkle'
+----
+
+For instance, to generate input for link:audit-balances/[`audit-balances`]:
+
+[source,shell-session]
+----
+[input_generator/] $ npm start --silent -- -i input.json balances
+----
+
+The above command gives you link:examples/readme-input.json[`examples/readme-input.json`], which looks like the following:
+
+[source,json]
+----
+[
+  [
+    [
+      [ "0x00d7b92a", "0xec4093dd", "0x1994262b", "0xf85d7235", "0x0f616a9c" ], <1>
+      [ "0", "0", "0", "0", "0", "0", "0", "10000" ] <2>
+    ],
+    ...
+  ],
+  [
+    {
+      "prevHash": [ "0x00000000", "0x00000000", "0x00000000", "0x00000000", "0x00000000", "0x00000000", "0x00000000", "0x00000000" ],
+      "transactions": [
+        {
+          "index": "0", <3>
+          "source": [ "0x00d7b92a", "0xec4093dd", "0x1994262b", "0xf85d7235", "0x0f616a9c" ],
+          "destination": [ "0x117b3909", "0x75488a3b", "0x0b78767c", "0x9a498d6d", "0xb296cad3" ],
+          "amount": [ "0", "0", "0", "0", "0", "0", "0", "100" ]
+        },
+        ... <4>
+      ],
+      "transactionCount": "2" <4>
+    },
+    ...
+  ],
+  [
+    {
+      "prevHash": [ "0x00000000", "0x00000000", "0x00000000", "0x00000000", "0x00000000", "0x00000000", "0x00000000", "0x00000000" ],
+      "hashes": [
+        [ "0x5729833d", "0xd7cba892", "0x968ab414", "0xa7fe9f45", "0xa4071f52", "0x13c1b8b5", "0xe815b741", "0x7069a971" ],
+        ...
+      ],
+      "transactionCount": "2"
+    },
+    ...
+  ],
+  "3"
+]
+----
+<1> Accounts specified like `0` in the input file are mapped to real Ethereum-like addresses
+<2> Numerical values like `1000` are padded with leading zeros to be valid `u32[8]` numbers
+<3> The `index` field of transactions is automatically added
+<4> Constant size arrays are automatically padded with dummy trailing elements and the relevant `*Count` field is automatically added
+
+
+== MISCELLANEOUS
+
+=== License
+
+The contents of this repository are licensed under *Apache 2.0.*
+Please refer to the link:LICENSE[`LICENSE`] file.
+
+For additional information regarding the licenses of external libraries and tools referenced as dependencies, please consult the link:NOTICE[`NOTICE`] file.
+
+=== Contributors
+
+.List of contributors to this project
+* Bertalan Zoltán Péter `<bpeter@edu.bme.hu>`

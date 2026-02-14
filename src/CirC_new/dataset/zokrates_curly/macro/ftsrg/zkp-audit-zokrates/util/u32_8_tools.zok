@@ -1,0 +1,118 @@
+/*
+ * Copyright 2023 Contributors the the zkp-audit-zokrates repository
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied.  See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
+import "utils/casts/u32_8_to_bool_256";
+import "utils/casts/u32_to_bits";
+import "utils/casts/u64_from_bits";
+
+/*
+ * ----------------------------------------------------------------
+ * This 'library' provides functions to deal with numbers encoded in
+ * u32[8] arrays -- ie 256-bit numbers split into 8 32 bit parts
+ * (big-endian style).
+ * ----------------------------------------------------------------
+ */
+
+/* Maximum representable unsigned 32-bit number = 2^32 - 1 */
+const u64 U32_MAX = 4294967295;
+
+const u32[8] U32_8_ZERO = [0; 8];
+
+/* Cast an u32 number to u64 */
+def u32_to_u64(u32 input) -> u64 {
+	bool[32] u32_bits = u32_to_bits(input);
+	bool[32] empty_32 = [false; 32];
+	bool[64] u64_bits = [...empty_32, ...u32_bits];
+	return u64_from_bits(u64_bits);
+}
+
+/*
+ * Add together two u32[8] numbers.
+ *
+ * The result is allowed to overflow.
+ */
+def add_u32_8(u32[8] a, u32[8] b) -> u32[8] {
+	u32[8] mut result = U32_8_ZERO;
+	u32 mut carry = 0;
+
+	for u32 i in 0..8 {
+		u32 I = 8 - i - 1; /* ugly reverse indexing */
+		result[I] = a[I] + b[I] + carry; /* XXX can overflow */
+		carry = (u32_to_u64(a[I]) \
+			 + u32_to_u64(b[I]) \
+			 + u32_to_u64(carry) > U32_MAX) ? 1 : 0;
+	}
+
+	return result;
+}
+
+/*
+ * Subtract a u32[8] number from another.
+ *
+ * The result is allowed to underflow.
+ */
+def subtract_u32_8(u32[8] a, u32[8] b) -> u32[8] {
+	u32[8] mut result = U32_8_ZERO;
+	u32 mut carry = 0;
+
+	for u32 i in 0..8 {
+		u32 I = 8 - i - 1; /* ugly reverse indexing */
+		result[I] = a[I] - b[I] - carry; /* XXX can underflow */
+		carry = (a[I] < b[I] + carry) ? 1 : 0;
+	}
+
+	return result;
+}
+
+/*
+ * Decide which of two u32[8] numbers is greater.
+ *
+ * Returns true if b >= a, false otherwise.
+ */
+def compare_u32_8(u32[8] a, u32[8] b) -> bool {
+	bool mut b_greater = false;
+	bool mut a_greater = false;
+	for u32 i in 0..8 {
+		a_greater \
+		    = a_greater \
+		    ? true \
+		    : a[i] > b[i];
+		b_greater \
+		    = a_greater \
+		    ? false \
+		    : b_greater ? true : b[i] > a[i];
+	}
+
+	return b_greater || (!b_greater && !a_greater);
+}
+
+/*
+ * Decide whether two u32[8] numbers are equal.
+ */
+def equals_u32_8(u32[8] a, u32[8] b) -> bool {
+	return a[0] == b[0] \
+	    && a[1] == b[1] \
+	    && a[2] == b[2] \
+	    && a[3] == b[3] \
+	    && a[4] == b[4] \
+	    && a[5] == b[5] \
+	    && a[6] == b[6] \
+	    && a[7] == b[7];
+}
+
+def main() -> field {
+    return 1;
+}

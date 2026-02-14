@@ -1,0 +1,47 @@
+import "hashes/mimcSponge/mimcSponge" as mimcSponge;
+
+const u32 DEPTH = 6;
+
+// computes mimcSponge(elements)
+def hash<N>(field[N] elements) -> field {
+    field[3] outs = mimcSponge::<_, 3>(elements, 0); // k = 0
+    return outs[0];
+}
+
+// if condition == 0 returns [left, right]
+// if condition == 1 returns [right, left]
+def select(bool condition, field left, field right) -> (field, field) {
+	return (condition ? right : left, condition ? left : right);
+}
+
+// proof I know secret and nullifier for a commitment that belongs to the tree
+def merkleTreeChecker(
+    field root, 
+    field leaf,
+    field[DEPTH] path,
+    bool[DEPTH] direction_selector  // direction_selector => true if current digest is on the rhs of the hash
+) -> bool {
+	// check root hash is correct starting from commitment leaf
+    field mut digest = leaf;
+	for u32 i in 0..DEPTH {
+		(field, field) s = select(direction_selector[i], digest, path[i]);
+		digest = hash([s.0, s.1]);
+	}
+
+   return digest == root;
+}
+
+def main(
+    field root,
+    field nullifier_hash,
+    private field secret,
+    private field nullifier,
+    private field[DEPTH] path,
+    private bool[DEPTH] direction_selector
+) {
+    assert(nullifier_hash == hash([nullifier]));
+
+    field commitment = hash([nullifier, secret]);
+    assert(merkleTreeChecker(root, commitment, path, direction_selector) == true);
+    return;
+}

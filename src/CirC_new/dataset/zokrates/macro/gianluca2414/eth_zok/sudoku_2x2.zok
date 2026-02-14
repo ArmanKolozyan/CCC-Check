@@ -1,0 +1,130 @@
+// SUDOKU GAME
+
+// | a11 | a12 || b11 | b12 |
+// --------------------------
+// | a21 | a22 || b21 | b22 |
+// ==========================
+// | c11 | c12 || d11 | d12 |
+// --------------------------
+// | c21 | c22 || d21 | d22 |
+
+// REGOLE:
+
+// - Inserire numeri da 1 a 4 in ogni casellina
+// - Somma dei quadrati = 10
+// - Somma delle righe = 10
+// - Somma delle colonne = 10
+// - No ripetizione dei numeri nel quadrato
+// - No ripetizione dei numeri nelle righe o nelle colonne
+
+//ESEMPIO DI SOLUZIONE
+// | 1 | 2 || 3 | 4 |
+// ------------------
+// | 4 | 3 || 2 | 1 |
+// ==================
+// | 3 | 4 || 1 | 2 |
+// ------------------
+// | 2 | 1 || 4 | 3 |
+
+
+//---------------------------------------------------------------------------------------------
+
+
+//Funzione che fa la somma dei sotto-quadrati della matrice (quadratini 2x2 che rappresentano una regione, tipo [a11, a12, a21, a22])
+//Restituisce 4 risultati, che sono ognuno la somma dei numeri delle varie regioni, in ordine: in alto a sx, in alto a dx, in basso a sx, in basso a dx
+
+def sum_regions(field[4][4] matr) -> (field[4]):
+    field alto_sx=matr[0][0]+matr[0][1]+matr[1][0]+matr[1][1]
+    field alto_dx=matr[0][2]+matr[0][3]+matr[1][2]+matr[1][3]
+    field basso_sx=matr[2][0]+matr[2][1]+matr[3][0]+matr[3][1]
+    field basso_dx=matr[2][2]+matr[2][3]+matr[3][2]+matr[3][3]
+
+    return [alto_sx, alto_dx, basso_sx, basso_dx]
+
+
+//---------------------------------------------------------------------------------------------
+
+
+//Funzione per controllo ripetizione in riga e in colonna. Ritornail contatore delle ripetizioni, che è diverso da 0 se ce ne sono
+
+def check_repetitions(field[4][4] matr) -> field:
+    field counter=0
+
+    //controllo le righe
+    for field r in 0..3 do
+        counter=counter + if (matr[r][0]==matr[r][1] || matr[r][0]==matr[r][2] || matr[r][0]==matr[r][3] || matr[r][1]==matr[r][2] || matr[r][1]==matr[r][3] || matr[r][2]==matr[r][3]) then 1 else 0 fi 
+    endfor
+
+    //controllo le colonne
+    for field c in 0..3 do
+        counter=counter + if (matr[0][c]==matr[1][c] || matr[0][c]==matr[2][c] || matr[0][c]==matr[3][c] || matr[1][c]==matr[2][c] || matr[1][c]==matr[3][c] || matr[2][c]==matr[3][c]) then 1 else 0 fi
+    endfor
+
+    return counter
+
+
+//---------------------------------------------------------------------------------------------
+
+
+//MAIN 
+def main(private field a11, private field a12, private field a21, private field a22, private field b11, private field b12, private field b21, private field b22, private field c11, private field c12, private field c21, private field c22, private field d11, private field d12, private field d21, private field d22) -> field:
+    
+    //0) Controllo che i numeri inseriti siano numeri nel range [1,4]
+    assert(a11<5 && a11>0)
+    assert(a12<5 && a12>0)
+    assert(a21<5 && a21>0)
+    assert(a22<5 && a22>0)
+
+    assert(b11<5 && b11>0)
+    assert(b12<5 && b12>0)
+    assert(b21<5 && b21>0)
+    assert(b22<5 && b22>0)
+
+    assert(c11<5 && c11>0)
+    assert(c12<5 && c12>0)
+    assert(c21<5 && c21>0)
+    assert(c22<5 && c22>0)
+
+    assert(d11<5 && d11>0)
+    assert(d12<5 && d12>0)
+    assert(d21<5 && d21>0)
+    assert(d22<5 && d22>0)
+
+
+    //matrice che mi rappresenta l'intero sudoku
+    field[4][4] matrix = [[a11, a12, b11, b12],[a21, a22, b21, b22],[c11, c12, d11, d12],[c21, c22, d21, d22]]
+    
+
+    //1) Controllo che la somma di ognuna delle 4 regioni sia pari a 10
+    field[4] regions_sums=sum_regions(matrix)
+    for field i in 0..3 do
+        assert(regions_sums[i]==10)
+    endfor
+
+    //2) Controllo che non ci siano ripetizioni in riga o in colonna
+    field rep=check_repetitions(matrix)
+    assert(rep==0)
+
+    //3) Controllo che non ci siano ripetizioni nelle regioni: mi basta guardare le caselle in diagonale delle regioni, per le altre 
+    //   caselle infatti il controllo di non uguaglianza viene fatto quando si controllano le ripetizioni in riga e in colonna
+    assert(a11!=a22 && a21!=a12)
+    assert(b11!=b22 && b21!=b12)
+    assert(c11!=c22 && c21!=c12)
+    assert(d11!=d22 && d21!=d12)
+
+
+    //4) Controllo che la somma degli elementi per ogni riga sia pari a 10 (stessa cosa per le colonne)
+    
+    //colonne
+    assert(a11+a21+c11+c21 == 10)
+    assert(a12+a22+c12+c22 == 10)
+    assert(b11+b21+d11+d21 == 10)
+    assert(b12+b22+d12+d22 == 10)
+
+    //righe
+    assert(a11+a12+b11+b12 == 10)
+    assert(a21+a22+b21+b22 == 10)
+    assert(c11+c12+d11+d12 == 10)
+    assert(c21+c22+d21+d22 == 10)
+
+    return 1

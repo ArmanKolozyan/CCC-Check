@@ -1,0 +1,160 @@
+language,repo,commit,directory,file,function,project_type,status
+zok,https://github.com/xana-org/contracts,1c0d15b,price_range_proof,PriceRange.zok,main,Dummy,
+zok,https://github.com/tomoima525/zkp-vote,a2cf6d2,contracts/circuits,voteEvenOrOdd.zok,main,Dummy,
+zok,https://github.com/yehjxraymond/zokrates-experiment,b3224b3,./,complete.zok,main,Dummy,
+zok,https://github.com/GarryFCR/Mastemind,4a47422,circuit,master.zok,main,Dummy,
+zok,https://github.com/andrejrakic/verify-adultness,320a402,./,main.zok,main,Dummy,
+zokc,https://github.com/lugondev/zkp-zokrates-wtf,e9ad373,./,*.zok,main,OK,
+zok,https://github.com/GuthL/zkp_baby_jubjub_protocols,3ffb94f,./,proofOfOwnership.code,main,Bad,
+zok,https://github.com/hossam-magdy/erc721-nft-zokrates-zksnarks,2120fe8,zokrates/code/square,square.zok,main,Dummy,
+zok,https://github.com/Blockchain-E-Voting/EthzkSNARK-Voting,a63a308,src/voter/ui/passPhrase,sha256hashgenerate.code,main,Dummy,
+zok,https://github.com/steel-feel/zokrates,fb153b4,zok-src,simple.zok,main,Dummy,
+zok,https://github.com/mchinaloy/real-estate-marketplace,afc9081,zokrates/code/square,square.code,main,Dummy,
+zok,https://github.com/AwesomeHuang/Zokrates_Demo,60800c1,./,*.code,main,Bad,
+zok,https://decentral.medium.com/a-working-example-of-zero-knowledge-proofs-code-included-1418c0c64a3b,,blogs/SimpleExample,program.zok,main,Dummy,
+zokc,https://github.com/robert-zaremba/zkp-zokrates-tutorial,d81a3e8,./,*.zok,main,Dummy,
+zokc,https://scryptplatform.medium.com/create-your-first-zero-knowledge-proof-program-on-bitcoin-ec159cc501f4,,blogs/SimpleExample2,program.zok,main,Dummy,
+zokc,https://github.com/kiseln/hangman-zokrates,c1208b2,hangman-contracts,hangman.zok,main,Good,
+zok,https://github.com/derekzx/z-serve,6ab266a,./,program.zok,main,Dummy,
+zokc,https://github.com/VinGeo1/Lab6,acc65c7,./,main.zok,main,Dummy,
+zok,https://github.com/andrejrakic/zokrates-demo,ffa1a89,./,main.zok,main,Dummy,
+zokc,https://github.com/Yhtiyar/zokrates-exploring,3b2daee,./,*.zok,main,OK,
+zok,https://github.com/elimsc/zokrates_examples,f5bdbd7,./*/,*.zok,main,Good,
+zok,https://github.com/JonathanHeiss/ZoKrates-Credential-Verification,b673ab5,./,minAge.zok,main,OK,
+zokc,https://github.com/matzapata/zokrates-tornado,77af0bf,contracts/circuits/,root.zok,main,Good,
+zokc,https://github.com/0xisk/exploring-zokrates,bfb4fa4,circuits,*.zok,main,Good,
+zokc,https://github.com/leSamo/ZKP-demo,b62f7c9,./,*.zok,main,OK,
+zokc,https://github.com/zkAA-onchain/zkaa-zokrates,194129b,./,*.zok,main,Bad,
+zokc,https://github.com/sladecek/algorand-zokrates-convertor,69077fc,./,magic_square.zok,main,OK,
+zokc,https://github.com/RodrigoRalhaMoreira/locations,4ee3be7,./,locationchecker/locationchecker.zok,main,OK,
+zokc,https://github.com/only4sim/ZoKrates-DevEase,8201e51,./,*.zok,main,OK,
+zok,https://github.com/gianluca2414/eth_zok,a77ab30,./,sudoku_2x2.zok,main,OK,
+zokc,https://github.com/tima-t/zkComputations,06e571f,./,*.zok,main,OK,
+zokc,https://github.com/jac18281828/zokratescrucible,3912e80,./,sqrt.zok,main,OK,
+zokc,https://github.com/matzapata/zokrates-airdrop,222f03e,./,root.zok,main,Good,
+zokc,https://github.com/pmikolajczyk41/ju-tbop-zk-technologies,ad8ae7d,./,main.zok,main,OK,
+zokc,https://github.com/Ham3798/zokrates_credential,e2022f6,./,*.zok,main,Good,
+zokc,https://github.com/Satyam-git-hub/zero-knowledge-hackathon,cc7b084,./,*.zok,main,OK,
+zokc,https://github.com/Stentonian/poa-zokrates,f89f2a1,./*/,*.zok,main,OK,
+zokc,https://github.com/yaksetig/zokrates,1c6d5b0,./*/,*.zok,main,OK,
+zokc,https://github.com/vkobel/zkp-hash-demo,de085db,./,*.zok,main,OK,
+zokc,https://github.com/hmzakhalid/zkp-poc,481630b,zokrates/accreditedInvestor/,accreditedInvestor.zok,main,Good,
+zokc,https://github.com/Turupawn/ZokratesSudokuExample,c37a339,assets/,source.zok,main,OK,
+zokc,https://github.com/kilyig/zkSudoku,bea7c12,zokrates,sudoku.zok,main,OK,
+zok,https://github.com/kmiyachi/CrossSelling-Zero-Knowledge,65b4c10,./,vip.code,main,OK,
+zok,https://github.com/H3ll3m4/getPatientMeasurement,a25c6ae,./,getPatientMeasurement.code,main,Bad,
+zok,https://github.com/GigameshGarages/HydraNet,e96c255,./,tokenSupplyRangeProof.zok,main,OK,
+zok,https://github.com/eloramirez1356/zokratesAuctioneerProgram,7592b82,./,obtainWinner.code,main,Good,
+zok,https://github.com/Voxelot/zk-dex,f04088d,circuits,*.code,main,Bad,
+zok,https://github.com/anhdungle93/Zokrates-experiments,61cd6c8,./,*.zok,main,OK,
+zokc,https://github.com/Ekaanth/Zokrates,74c99f4,./,*.zok,main,OK,
+zokc,https://github.com/gaozhengxin/learn-zokrates,c5b098f,./,*.zok,main,OK,
+zokc,https://github.com/IamTalha-Sajid/zokrates-voting,6e25c43,./,vote.zok,main,Bad,
+zokc,https://github.com/lugondev/zokrates-bid,caf7213,./,bid.zok,main,OK,
+zokc,https://github.com/YuexingZeng/battleship-Zokrates,6d903dd,./,*.zok,main,Good,
+zokc,https://github.com/ftsrg/zkp-audit-zokrates,3af0380,./*/,*.zok,main,Great,
+zokc,https://github.com/ReevaShenoy/zokrates-basic-quadratic,8a4dac8,./,root.zok,main,OK,
+zokc,https://github.com/mysteryon88/zkToken,1f72caa,./,*.zok,main,Good,
+zokc,https://github.com/kitanovicd/Zk-SNARK-Token,ad99eaa,./,hashBalances.zok,main,OK,
+zok,https://github.com/ZpokenWeb3/Zokrates-ZkRollup,fdea751,./,*.zok,main,Good,
+zok,https://github.com/rummuer/PBVC-ZoKrates,8502b86,./,*.code,main,OK,
+zok,https://github.com/gr3yc4t/secure-computation-project,adece6b,./,*.zok,main,Good,
+zok,https://github.com/Epiisteme/Semiott,9b0ef02,./,*.zok,main,Good,
+zok,https://github.com/GigameshGarages/ReefNet,f9ad4e5,./,*.zok,main,OK,
+circom,https://github.com/0xPARC/zk-group-sigs,1337689,circuits/,*.circom,main,Great,
+circom,https://github.com/0xZKML/zk-mnist,25c9424,./,circuit.circom,main,OK,
+circom,https://github.com/AmirH-A/ZKWave,a22bf33,circuit/,wave.circom,main,OK,
+circom,https://github.com/BattleZips/BattleZips-Circom,d6f6b0e,zk/circuits/,*.circom,main,Great,
+circom,https://github.com/FlynnSC/zk-hunt,3965203,src/,*.circom,main,Good, 
+circom,https://github.com/Rate-Limiting-Nullifier/circom-rln,17f0fed,circuits/,*.circom,main,Great,
+circom,https://github.com/SpiralOutDotEu/zk_whitelist,01c84e4,templates/,circuit.circom,main,OK,
+circom,https://github.com/Unitychain/zkvote-web,1eb4240,circom/,zkVote.circom,main,OK,
+
+
+
+circom,https://github.com/a16z/zkdrops,a4e58bd,zkdrops-contracts/circuits/,circuit.circom,main,Good,
+circom,https://github.com/advaita-saha/zk-Voting,776155b,circuits/,circuit.circom,main,Good,
+circom,https://github.com/alxkzmn/zk-wordle,aedc210,circuits/src/,*.circom,main,Good,
+circom,https://github.com/ameensol/privacy-pools,12dae2d,circuits,*.circom,main,Great,
+circom,https://github.com/bankisan/zkShield,acb853c,src/,*.circom,main,Great, move circuits to top
+circom,https://github.com/darkforest-eth/circuits,9033eaf,./,*.circom,main,Great, move all main circuits on the top dir -- change template private to main
+circom,https://github.com/enricobottazzi/ZK-SBT,fd5f9f6,circuits/,verify.circom,main,Great,
+circom,https://github.com/factorgroup/nightmarket,366b4d7,circuits/,*.circom,main,Good, move sell and list to circuits top dir
+circom,https://github.com/glamperd/snark-example,0ba1560,poker/,poker.circom,main,Bad, fix private from template
+circom,https://github.com/heivenn/zk-blind-auction,7f7ed45,circuits/,highestbidder.circom,main,OK, 
+circom,https://github.com/holyaustin/ZeroSecret,f7724ec,circuits/,zkblind.circom,main,Good,
+circom,https://github.com/iden3/circuits,ab9d53f,circuits/,*.circom,main,Great,
+circom,https://github.com/jefflau/zk-identity,51e1551,test/,*.circom,main,Good, move circuits to main and remove unrelated tests (e.g., hash)
+circom,https://github.com/mjerkov/membership,135e551,zk/circuits/,merkle.circom,main,Bad,
+circom,https://github.com/nalinbhardwaj/snarky-sudoku,9c57db9,circuits/,sudoku.circom,main,OK,
+circom,https://github.com/noway/nzcp-circom,c8b3e3b,circuits/,nzcp_liveTest.circom,main,OK, minor fix required in the import
+circom,https://github.com/nulltea/zk-SQL,4c3626d,circuits/,*.circom,main,Good, move utils to utils dir
+circom,https://github.com/nulven/EthDataMarketplace,1d45cee,circuits/,*.circom,main,OK, fix private and move everything to top except utils.
+circom,https://github.com/nulven/zk-message-board,f5a220f,circuits/,*/*.circom,main,OK, fix private
+circom,https://github.com/pratham-bhatnagar/zkpVault,48491e4,circuits/,*/*.circom,main,OK, needs cleanup
+circom,https://github.com/privacy-scaling-explorations/maci,c2bb8d0,packages/circuits/circom/,*.circom,main,Great,we need to generate the main circuits from the json
+circom,https://github.com/rubydusa/circom-graceful-labeling,7c95d1e,circuits/,main.circom,main,OK,
+circom,https://github.com/rubydusa/proof-of-life,b030124,circuits/,main.circom,main,Good, instantiate
+circom,https://github.com/semaphore-protocol/semaphore,f679583,packages/circuits/src/,main.circom,main,Great, we need to generate the circuit from the json
+circom,https://github.com/sismo-core/hydra-s1-zkps,388bcae,circuits/,hydra-s1.circom,main,Great,
+circom,https://github.com/socathie/ZKaggleV2,1e76ec4,hardhat/circuits/,circuit.circom,main,OK,
+circom,https://github.com/socathie/zkPhoto,12b8d51,circuits/,zkPhoto.circom,main,OK,
+circom,https://github.com/tornadocash/tornado-core,1ef6a26,circuits/,withdraw.circom,main,Great, we need to update the circuits to latest format (e.g., private is in template)
+circom,https://github.com/trifle-labs/anybody-problem,509e356,circuits/,*.circom,main,Good, split the files to those with main and without
+circom,https://github.com/vocdoni/zk-franchise-proof-circuit,dc66587,./,census.circom,main,Great, we need to move it out to top dir and uncomment main
+circom,https://github.com/vplasencia/zkGames,a068017,circuits/,*/*.circom,main,Good,
+circom,https://github.com/web3-master/zksnark-sudoku,b06a4e8,./,sudoku.circom,main,Great, we need to move to top dir from packages/circuit/circuits
+circom,https://github.com/weijiekoh/zkmm,f988828,mastermind/circuits,mastermind.circom,main,Great,
+circom,https://github.com/weijiekoh/zknftmint,6d41780,circuits/circom/test/,NftMint_test.circom,main,OK,
+circom,https://github.com/z-kaggle/ZKaggle,97babe4,hardhat/circuits/,circuit.circom,main,OK,
+circom,https://github.com/zk-ml/linear-regression-demo,e558676,circuits/,lr/circuit.circom,main,Good,OK, fix private etc.
+circom,https://github.com/zk-passport/openpassport,62be8c9,TODO,TODO,main,Great,
+circom,https://github.com/zkMaps/zkMaps,4b48b46,main_circuits/,*.circom,main,Great, move aboveline and raytracing to main directory
+circom,https://github.com/zkemail/proof-of-twitter,b6d9c2d,src/,twitter.circom,main,Great, move to top the circuits
+circom,https://github.com/zkemail/zk-email-verify,b193cf0,tests/test-circuits/,*.circom,main,Great, move packages/circuits to main and figure out which tests to keep
+circom,https://github.com/zkemail/zk-regex,b7bb363,./,*.circom,main,Great,  move packages circom on top and all tests to top so we can just run them
+circom,https://github.com/zkp2p/zkp2p-poc,d07265d,circuit/,circuit.circom,main,Great,
+noir,https://github.com/BattleZips/BattleZips-Noir,,,,,
+noir,https://github.com/Maddiaa0/noir-storage-proofs-demo,,,,,
+noir,https://github.com/Philogy/zk-sudoku-noir,,,,,
+noir,https://github.com/Rate-Limiting-Nullifier/noir-rln,,,,,
+noir,https://github.com/ZKCamp/noir-voting,,,,, code is not in the main repo
+noir,https://github.com/colinnielsen/dark-safe,,,,,
+noir,https://github.com/colinnielsen/ecrecover-noir,,,,,
+noir,https://github.com/gakonst/noir-hello-world,,,,, trivial issue
+noir,https://github.com/guipublic/crypdoku,,,,,
+noir,https://github.com/jimjimvalkema/scrollZkWormholes,,,,,
+noir,https://github.com/joss-aztec/quadratic_voting_noir,,,,,
+noir,https://github.com/kilyig/zkMafia,,,,,
+noir,https://github.com/madztheo/zk-fruits-noir-project,,,,,
+noir,https://github.com/metavind/noir-ml,,,,,
+noir,https://github.com/noir-lang/noir-examples,,,,,stealthdrop
+noir,https://github.com/noir-lang/noir_json_parser,,,,, need to write main
+noir,https://github.com/noir-lang/noir_string_search,,,,, need to write main
+noir,https://github.com/partylikeits1983/privacy-vote,,,,,
+noir,https://github.com/pintoinfant/heimdall-protocol,,,,,
+noir,https://github.com/porco-rosso-j/safe-recovery-noir,,,,,
+noir,https://github.com/richardliang/zkdsl-workshop,,,,, trivial issue
+noir,https://github.com/sambarnes/noir-by-example,,,,,
+noir,https://github.com/thor314/circuit-examples,,,,,
+noir,https://github.com/vezenovm/mastermind-noir,,,,,
+noir,https://github.com/vezenovm/simple_shield,,,,,
+noir,https://github.com/vocdoni/smtverifier-noir,,,,,
+noir,https://github.com/zkemail/zkemail.nr,,,,,
+noir,https://github.com/zkpassport/circuits,,,,,
+noir,https://github.com/zkpersona/noir_social_verify,,,,,
+noir,https://github.com/zubietaroberto/zkvax,,,,,
+noir,https://github.com/storswiftlabs/zkml-noir,,,,,
+noir,https://github.com/olehmisar/vlayer-monorepo,,,,,
+noir,https://github.com/manu-bhadoria/CSPRNG,,,,,
+noir,https://github.com/zkpersona/noir_hmac,,,,, need to write a main
+noir,https://github.com/zkpersona/noir_jwt,,,,,
+noir,https://github.com/shield-labs-xyz/zklogin,,,,, https://github.com/shield-labs-xyz/zklogin/blob/main/packages/contracts/noir/jwt_account/src/main.nr
+noir,https://github.com/oxor-io/samm-circuits,,,,, https://github.com/oxor-io/samm-circuits/blob/master/builds/samm_1024/src/main.nr
+noir,https://github.com/1kx-network/zksafe,,,,,
+noir,https://github.com/saleel/gitclaim,,,,,
+noir,https://github.com/Mach-34/z-imburse,,,,,
+noir,https://github.com/aragonzkresearch/nouns-anonymous-voting,,,,,
+noir,https://github.com/anon-aadhaar/anon-aadhaar-noir,,,,,
+noir,https://github.com/zk-passport/openpassport,,,,, seems incomplete
+noir,https://github.com/saleel/stealthnote,,,,,

@@ -1,0 +1,4 @@
+def main(field c, private field a, private field b) -> (field): 
+    field d = a * b 
+    assert(c == d)
+    return 1

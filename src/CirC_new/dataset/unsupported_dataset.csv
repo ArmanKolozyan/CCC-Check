@@ -1,0 +1,10 @@
+language,repo,commit,directory,file,function,project_type,status
+zokc,https://github.com/ZK-Plus/tutorials,20f9e51,*,*.zok,main,Good,
+zok,https://github.com/ashkanemami/off-chain-evoting,7db09c5,Zokrates/*/,*.zok,main,Good,
+zok,https://github.com/Hither1/nightfall-b,d321f0b,./*/,*.code,main,Great,
+zok,https://github.com/JacobEberhardt/ZoKratesBenchmarks,8138759,files/,*.zok,main,Good,
+zok,https://github.com/zhuang-weiming/FairBiddingScheme,284a6ce,verifier,verifybid.code,main,Good,
+zok,https://github.com/centrifuge/zk-nft-demo-contract,87541c8,src/circuit,*.code,main,OK,
+zok,https://github.com/robmuth/proof-of-work,3bd352a,zokrates,pow.code,main,Dummy,
+zok,https://github.com/thekscar/zkp-workshop-project,0cc24fd,./,*.code,main,Bad,
+zok,https://github.com/keviinfoes/zkTokens,83f2db8,zkcode,*.code,main,Bad,

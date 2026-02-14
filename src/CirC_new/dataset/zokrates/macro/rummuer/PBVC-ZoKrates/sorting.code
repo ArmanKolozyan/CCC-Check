@@ -1,0 +1,5 @@
+def main(field i0,field i1,field i2,field i3,field i4,field i5,field i6,field i7,field i8,field i9,private field e0,private field e1, private field e2, private field e3, private field e4,private field e5,private field e6,private field e7,private field e8,private field e9) -> (field):
+	field a = 0
+	a = a + if i0*i1*i2*i3*i4*i5*i6*i7*i8*i9 == e0*e1*e2*e3*e4*e5*e6*e7*e8*e9 then 1 else 0 fi
+	a = a + if e0 < e1 && e1 < e2 && e2 < e3 && e3 < e4 && e4 < e5 && e5 < e6 && e6 < e7 && e7 < e8 && e8 < e9 then 1 else 0 fi
+	return a

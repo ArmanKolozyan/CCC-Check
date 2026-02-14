@@ -1,0 +1,11 @@
+# OS temps
+.DS_Store
+
+
+# ZoKrates intermediates 
+**/*.json
+**/*.key
+**/*.wtns
+**/witness
+**/out
+**/*.r1cs

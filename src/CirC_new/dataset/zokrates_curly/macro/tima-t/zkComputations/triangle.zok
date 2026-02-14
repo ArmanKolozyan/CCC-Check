@@ -1,0 +1,9 @@
+def main(private field[6] a) {
+    field sum = 10;
+
+    // check sides
+    assert(a[0] + a[1] + a[3] == sum);
+    assert(a[3] + a[4] + a[5] == sum);
+    assert(a[0] + a[2] + a[5] == sum);
+    return;
+}

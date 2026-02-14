@@ -1,0 +1,16 @@
+node_modules/
+out
+out.ztf
+*.key
+witness
+*.sol
+
+**/out
+**/out.ztf
+**/*.key
+**/witness
+**/*.sol
+**/proof.json
+**/abi.json
+.DS_Store
+**/circuit
