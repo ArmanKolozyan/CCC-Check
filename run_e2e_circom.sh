@@ -33,6 +33,7 @@ ALL_PROGRAMS=(
     bigadd
     bigadd15
     bigadd2030
+    constants
 )
 
 # Specific programs or all
