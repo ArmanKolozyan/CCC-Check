@@ -1317,7 +1317,33 @@ impl<'ast, 'ret: 'ast> CircomStatementWalker<'ast, 'ret> {
                     matches!(acc, ast::Access::CallAccess(_))
                 });
 
-                if has_dot_access || has_call_access {
+                if has_dot_access {
+                    return None;
+                }
+
+                // Handle function calls at compile time
+                if has_call_access {
+                    if postfix.access.len() == 1 {
+                        if let ast::Access::CallAccess(call) = &postfix.access[0] {
+                            if let ast::Expression::Identifier(func_id) = postfix.base.as_ref() {
+                                let func_name = &func_id.value;
+                                // Evaluate all arguments as compile-time constants
+                                let mut const_args = Vec::new();
+                                for arg in &call.args {
+                                    if let Some(val) = self.extract_constant_value_expr_big(arg) {
+                                        const_args.push(val);
+                                    } else {
+                                        return None; // Argument is not a compile-time constant
+                                    }
+                                }
+                                // Look up the function and evaluate it
+                                if let Some((_path, func_def)) = self.circom_gen.find_function(func_name) {
+                                    let func_def = func_def.clone();
+                                    return self.eval_function_constant(&func_def, const_args);
+                                }
+                            }
+                        }
+                    }
                     return None;
                 }
 
@@ -1574,6 +1600,323 @@ impl<'ast, 'ret: 'ast> CircomStatementWalker<'ast, 'ret> {
                 }
             }
             _ => None,
+        }
+    }
+
+    /// Evaluate a Circom function at compile time with constant arguments.
+    /// Returns the return value as an Integer, or None if evaluation fails.
+    /// Supports: var declarations/assignments, for loops, if/else, return statements.
+    fn eval_function_constant(
+        &self,
+        func_def: &circom_pest_ast::FunctionDefinition<'ast>,
+        args: Vec<rug::Integer>,
+    ) -> Option<rug::Integer> {
+        use rug::Integer;
+
+        if func_def.params.len() != args.len() {
+            return None;
+        }
+
+        // Local variable environment for this function evaluation
+        let mut env: HashMap<String, Integer> = HashMap::default();
+        for (param, val) in func_def.params.iter().zip(args.iter()) {
+            env.insert(param.value.clone(), val.clone());
+        }
+
+        /// Result of evaluating statements: either a return value was hit, or execution continues.
+        enum StmtResult {
+            Continue,
+            Return(rug::Integer),
+        }
+
+        /// Evaluate a list of statements. Returns None on failure.
+        fn eval_stmts(
+            stmts: &[circom_pest_ast::Statement],
+            env: &mut HashMap<String, rug::Integer>,
+            depth: usize,
+        ) -> Option<StmtResult> {
+            if depth > 1000 { return None; }
+            for stmt in stmts {
+                if let Some(r) = eval_stmt(stmt, env, depth)? {
+                    return Some(StmtResult::Return(r));
+                }
+            }
+            Some(StmtResult::Continue)
+        }
+
+        /// Evaluate a single statement. Returns Some(val) if a return was hit, None-in-Option otherwise.
+        /// Outer Option is for failure (None = can't evaluate).
+        fn eval_stmt(
+            stmt: &circom_pest_ast::Statement,
+            env: &mut HashMap<String, rug::Integer>,
+            depth: usize,
+        ) -> Option<Option<rug::Integer>> {
+            match stmt {
+                circom_pest_ast::Statement::Variable(var_stmt) => {
+                    for decl in &var_stmt.declarations {
+                        let var_name = decl.assignee.id.value.clone();
+                        if let Some(val_expr) = &decl.value {
+                            if let circom_pest_ast::TernaryOrExpression::Expression(rhs) = val_expr {
+                                let val = eval_expr(rhs, env)?;
+                                // Handle assignment operators (=, +=, etc.)
+                                let final_val = if let Some(op) = &decl.op {
+                                    apply_assign_op(op, env.get(&var_name).cloned().unwrap_or(rug::Integer::from(0)), val)?
+                                } else {
+                                    val
+                                };
+                                env.insert(var_name, final_val);
+                            } else {
+                                return None; // ternary not supported
+                            }
+                        } else {
+                            // Declaration without value: var x;
+                            env.insert(var_name, rug::Integer::from(0));
+                        }
+                    }
+                    Some(None)
+                }
+                circom_pest_ast::Statement::Return(ret) => {
+                    if let Some(ref expr) = ret.expression {
+                        let val = eval_expr(expr, env)?;
+                        Some(Some(val))
+                    } else {
+                        Some(Some(rug::Integer::from(0)))
+                    }
+                }
+                circom_pest_ast::Statement::If(if_stmt) => {
+                    let cond = eval_expr(&if_stmt.condition, env)?;
+                    if cond != 0 {
+                        match eval_stmts(&if_stmt.then_statements, env, depth + 1)? {
+                            StmtResult::Return(v) => return Some(Some(v)),
+                            StmtResult::Continue => {}
+                        }
+                    } else {
+                        // Try else-if branches
+                        let mut handled = false;
+                        for else_if in &if_stmt.else_if_branches {
+                            let c = eval_expr(&else_if.condition, env)?;
+                            if c != 0 {
+                                match eval_stmts(&else_if.statements, env, depth + 1)? {
+                                    StmtResult::Return(v) => return Some(Some(v)),
+                                    StmtResult::Continue => {}
+                                }
+                                handled = true;
+                                break;
+                            }
+                        }
+                        if !handled {
+                            if let Some(else_branch) = &if_stmt.else_branch {
+                                match eval_stmts(&else_branch.statements, env, depth + 1)? {
+                                    StmtResult::Return(v) => return Some(Some(v)),
+                                    StmtResult::Continue => {}
+                                }
+                            }
+                        }
+                    }
+                    Some(None)
+                }
+                circom_pest_ast::Statement::For(for_stmt) => {
+                    // Init: for_stmt.var is a VariableStatement
+                    let init_stmt = circom_pest_ast::Statement::Variable(for_stmt.var.clone());
+                    if let Some(v) = eval_stmt(&init_stmt, env, depth + 1)? {
+                        return Some(Some(v));
+                    }
+                    let mut iterations = 0;
+                    loop {
+                        if iterations > 100_000 { return None; }
+                        iterations += 1;
+                        let cond = eval_expr(&for_stmt.condition, env)?;
+                        if cond == 0 { break; }
+                        // Body
+                        match eval_stmts(&for_stmt.statements, env, depth + 1)? {
+                            StmtResult::Return(v) => return Some(Some(v)),
+                            StmtResult::Continue => {}
+                        }
+                        // Increment (it's an Expression)
+                        eval_increment_expr(&for_stmt.increment, env)?;
+                    }
+                    Some(None)
+                }
+                circom_pest_ast::Statement::Expression(expr) => {
+                    // Expression statements in functions — handle assignments and increments
+                    eval_increment_expr(expr, env)?;
+                    Some(None)
+                }
+                circom_pest_ast::Statement::Log(_) | circom_pest_ast::Statement::Assert(_) => {
+                    Some(None) // Skip log/assert during constant evaluation
+                }
+                _ => None, // Unsupported statement type
+            }
+        }
+
+        /// Handle increment/decrement and assignment expressions used as statements
+        fn eval_increment_expr(
+            expr: &circom_pest_ast::Expression,
+            env: &mut HashMap<String, rug::Integer>,
+        ) -> Option<()> {
+            match expr {
+                circom_pest_ast::Expression::Postfix(postfix) => {
+                    if let circom_pest_ast::Expression::Identifier(id) = postfix.base.as_ref() {
+                        if let Some(access) = postfix.access.first() {
+                            match access {
+                                circom_pest_ast::Access::Increment(_) => {
+                                    let val = env.get(&id.value)?.clone();
+                                    env.insert(id.value.clone(), val + 1);
+                                    return Some(());
+                                }
+                                circom_pest_ast::Access::Decrement(_) => {
+                                    let val = env.get(&id.value)?.clone();
+                                    env.insert(id.value.clone(), val - 1);
+                                    return Some(());
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    // Other postfix — just evaluate for side effects
+                    eval_expr(expr, env)?;
+                    Some(())
+                }
+                circom_pest_ast::Expression::Unary(un) => {
+                    if let circom_pest_ast::Expression::Identifier(id) = &*un.expression {
+                        match un.op {
+                            circom_pest_ast::OpUnary::Increment(_) => {
+                                let val = env.get(&id.value)?.clone();
+                                env.insert(id.value.clone(), val + 1);
+                                return Some(());
+                            }
+                            circom_pest_ast::OpUnary::Decrement(_) => {
+                                let val = env.get(&id.value)?.clone();
+                                env.insert(id.value.clone(), val - 1);
+                                return Some(());
+                            }
+                            _ => {}
+                        }
+                    }
+                    eval_expr(expr, env)?;
+                    Some(())
+                }
+                _ => {
+                    eval_expr(expr, env)?;
+                    Some(())
+                }
+            }
+        }
+
+        /// Apply a compound assignment operator
+        fn apply_assign_op(
+            op: &circom_pest_ast::VarAssignmentOp,
+            lhs: rug::Integer,
+            rhs: rug::Integer,
+        ) -> Option<rug::Integer> {
+            use rug::ops::Pow;
+            match op {
+                circom_pest_ast::VarAssignmentOp::Assign(_) => Some(rhs),
+                circom_pest_ast::VarAssignmentOp::AddAssign(_) => Some(lhs + rhs),
+                circom_pest_ast::VarAssignmentOp::SubAssign(_) => Some(lhs - rhs),
+                circom_pest_ast::VarAssignmentOp::MulAssign(_) => Some(lhs * rhs),
+                circom_pest_ast::VarAssignmentOp::DivAssign(_) => {
+                    if rhs == 0 { None } else { Some(lhs / rhs) }
+                }
+                circom_pest_ast::VarAssignmentOp::ModAssign(_) => {
+                    if rhs == 0 { None } else { Some(lhs % rhs) }
+                }
+                circom_pest_ast::VarAssignmentOp::PowAssign(_) => {
+                    rhs.to_u32().map(|e| lhs.pow(e))
+                }
+                circom_pest_ast::VarAssignmentOp::LeftShiftAssign(_) => {
+                    rhs.to_u32().map(|s| lhs << s)
+                }
+                circom_pest_ast::VarAssignmentOp::RightShiftAssign(_) => {
+                    rhs.to_u32().map(|s| lhs >> s)
+                }
+                circom_pest_ast::VarAssignmentOp::BitAndAssign(_) => Some(lhs & rhs),
+                circom_pest_ast::VarAssignmentOp::BitOrAssign(_) => Some(lhs | rhs),
+                circom_pest_ast::VarAssignmentOp::BitXorAssign(_) => Some(lhs ^ rhs),
+                circom_pest_ast::VarAssignmentOp::BitNotAssign(_) => Some(!rhs),
+            }
+        }
+
+        fn eval_expr(
+            expr: &circom_pest_ast::Expression,
+            env: &HashMap<String, rug::Integer>,
+        ) -> Option<rug::Integer> {
+            use rug::Integer;
+            use rug::ops::Pow;
+            match expr {
+                circom_pest_ast::Expression::Number(num) => {
+                    match num {
+                        circom_pest_ast::Number::Decimal(dec) => {
+                            let num_str = dec.span.as_str().trim().replace('_', "");
+                            Integer::from_str_radix(&num_str, 10).ok()
+                        }
+                        circom_pest_ast::Number::Hex(hex) => {
+                            let raw = hex.span.as_str().trim();
+                            let hex_str = raw
+                                .strip_prefix("0x")
+                                .or_else(|| raw.strip_prefix("0X"))
+                                .unwrap_or(raw)
+                                .replace('_', "");
+                            Integer::from_str_radix(&hex_str, 16).ok()
+                        }
+                    }
+                }
+                circom_pest_ast::Expression::Identifier(id) => {
+                    env.get(&id.value).cloned()
+                }
+                circom_pest_ast::Expression::Binary(bin) => {
+                    let left = eval_expr(&bin.left, env)?;
+                    let right = eval_expr(&bin.right, env)?;
+                    match bin.op {
+                        circom_pest_ast::OpBinary::AddOp => Some(left + right),
+                        circom_pest_ast::OpBinary::SubOp => Some(left - right),
+                        circom_pest_ast::OpBinary::MulOp => Some(left * right),
+                        circom_pest_ast::OpBinary::DivOp | circom_pest_ast::OpBinary::IDivOp => {
+                            if right == 0 { None } else { Some(left / right) }
+                        }
+                        circom_pest_ast::OpBinary::ModOp => {
+                            if right == 0 { None } else { Some(left % right) }
+                        }
+                        circom_pest_ast::OpBinary::LeftShiftOp => {
+                            right.to_u32().map(|s| left << s)
+                        }
+                        circom_pest_ast::OpBinary::RightShiftOp => {
+                            right.to_u32().map(|s| left >> s)
+                        }
+                        circom_pest_ast::OpBinary::PowOp => {
+                            right.to_u32().map(|e| left.pow(e))
+                        }
+                        circom_pest_ast::OpBinary::BitAndOp => Some(left & right),
+                        circom_pest_ast::OpBinary::BitOrOp => Some(left | right),
+                        circom_pest_ast::OpBinary::BitXorOp => Some(left ^ right),
+                        circom_pest_ast::OpBinary::EqualOp => Some(Integer::from(if left == right { 1 } else { 0 })),
+                        circom_pest_ast::OpBinary::NotEqualOp => Some(Integer::from(if left != right { 1 } else { 0 })),
+                        circom_pest_ast::OpBinary::LtOp => Some(Integer::from(if left < right { 1 } else { 0 })),
+                        circom_pest_ast::OpBinary::GtOp => Some(Integer::from(if left > right { 1 } else { 0 })),
+                        circom_pest_ast::OpBinary::LteOp => Some(Integer::from(if left <= right { 1 } else { 0 })),
+                        circom_pest_ast::OpBinary::GteOp => Some(Integer::from(if left >= right { 1 } else { 0 })),
+                        circom_pest_ast::OpBinary::AndOp => Some(Integer::from(if left != 0 && right != 0 { 1 } else { 0 })),
+                        circom_pest_ast::OpBinary::OrOp => Some(Integer::from(if left != 0 || right != 0 { 1 } else { 0 })),
+                        _ => None,
+                    }
+                }
+                circom_pest_ast::Expression::Unary(un) => {
+                    let operand = eval_expr(&un.expression, env)?;
+                    match un.op {
+                        circom_pest_ast::OpUnary::Neg(_) => Some(-operand),
+                        circom_pest_ast::OpUnary::Not(_) => Some(Integer::from(if operand == 0 { 1 } else { 0 })),
+                        circom_pest_ast::OpUnary::Increment(_) => Some(operand + 1),
+                        circom_pest_ast::OpUnary::Decrement(_) => Some(operand - 1),
+                    }
+                }
+                _ => None,
+            }
+        }
+
+        // Run the function body
+        match eval_stmts(&func_def.statements, &mut env, 0)? {
+            StmtResult::Return(val) => Some(val),
+            StmtResult::Continue => None,
         }
     }
 
@@ -4442,6 +4785,36 @@ impl<'ast, 'ret: 'ast> CircomStatementWalker<'ast, 'ret> {
         }
     }
 
+    /// Like set_tag_value, but only sets the value if no value exists yet or the new
+    /// value is smaller (tighter bound). Used for assert-derived bounds that should not
+    /// override explicit tag assignments.
+    fn set_tag_value_upper_bound(&mut self, signal_name: &str, tag_name: &str, value: rug::Integer) {
+        // Helper: check if any tag entry for a signal already has a tighter bound
+        let has_tighter = |tags: &[(String, Option<rug::Integer>)]| -> bool {
+            tags.iter().any(|(name, val)| {
+                name == tag_name && val.as_ref().map_or(false, |v| *v <= value)
+            })
+        };
+
+        // Check exact signal name
+        if let Some(tags) = self.signal_tags.get(signal_name) {
+            if has_tighter(tags) {
+                return;
+            }
+        }
+
+        // Also check array-flattened names (signal_0, signal_1, ...)
+        let prefix = format!("{}_", signal_name);
+        let any_tighter = self.signal_tags.iter().any(|(key, tags)| {
+            key.starts_with(&prefix) && has_tighter(tags)
+        });
+        if any_tighter {
+            return;
+        }
+
+        self.set_tag_value(signal_name, tag_name, value);
+    }
+
     /// Try to extract tag value from assert expressions like:
     ///   assert(signal.tagname <= value)
     ///   assert(value >= signal.tagname)
@@ -4468,18 +4841,18 @@ impl<'ast, 'ret: 'ast> CircomStatementWalker<'ast, 'ret> {
                         if (is_direct || is_array) && is_lte {
                             if let Some(val) = self.extract_constant_value_expr_big(&*bin.right) {
                                 if is_direct {
-                                    self.set_tag_value(&signal_name, &tag_name, val.clone());
+                                    self.set_tag_value_upper_bound(&signal_name, &tag_name, val.clone());
                                     if let Some(ref comp) = self.current_component {
                                         let qualified = format!("{}.{}", comp, signal_name);
-                                        self.set_tag_value(&qualified, &tag_name, val);
+                                        self.set_tag_value_upper_bound(&qualified, &tag_name, val);
                                     }
                                 } else {
                                     for sig in self.signal_names.clone().iter() {
                                         if sig.starts_with(&array_prefix) {
-                                            self.set_tag_value(sig, &tag_name, val.clone());
+                                            self.set_tag_value_upper_bound(sig, &tag_name, val.clone());
                                             if let Some(ref comp) = self.current_component {
                                                 let qualified = format!("{}.{}", comp, sig);
-                                                self.set_tag_value(&qualified, &tag_name, val.clone());
+                                                self.set_tag_value_upper_bound(&qualified, &tag_name, val.clone());
                                             }
                                         }
                                     }
@@ -4502,18 +4875,18 @@ impl<'ast, 'ret: 'ast> CircomStatementWalker<'ast, 'ret> {
                         if (is_direct || is_array) && is_gte {
                             if let Some(val) = self.extract_constant_value_expr_big(&*bin.left) {
                                 if is_direct {
-                                    self.set_tag_value(&signal_name, &tag_name, val.clone());
+                                    self.set_tag_value_upper_bound(&signal_name, &tag_name, val.clone());
                                     if let Some(ref comp) = self.current_component {
                                         let qualified = format!("{}.{}", comp, signal_name);
-                                        self.set_tag_value(&qualified, &tag_name, val);
+                                        self.set_tag_value_upper_bound(&qualified, &tag_name, val);
                                     }
                                 } else {
                                     for sig in self.signal_names.clone().iter() {
                                         if sig.starts_with(&array_prefix) {
-                                            self.set_tag_value(sig, &tag_name, val.clone());
+                                            self.set_tag_value_upper_bound(sig, &tag_name, val.clone());
                                             if let Some(ref comp) = self.current_component {
                                                 let qualified = format!("{}.{}", comp, sig);
-                                                self.set_tag_value(&qualified, &tag_name, val.clone());
+                                                self.set_tag_value_upper_bound(&qualified, &tag_name, val.clone());
                                             }
                                         }
                                     }
