@@ -85,6 +85,12 @@ data Expression
     -- XOR operation
   | BvXor Expression Expression
 
+    -- bvurem e1 e2: unsigned remainder of bitvectors
+  | BvURem Expression Expression
+
+    -- bvudiv e1 e2: unsigned division of bitvectors
+  | BvUDiv Expression Expression
+
     -- bv2pf modulus expr: converts bitvector (bv) `expr` to prime field element (pf) mod `modulus`
     -- This operation is needed in CirC for type compatibility, particularly
     -- when using a bitvector value as an index for an array that

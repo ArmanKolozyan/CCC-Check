@@ -496,6 +496,14 @@ compileExp (Atom "bvxor" _ ::: e1 ::: e2 ::: SNil _) = do
     e1' <- compileExp e1
     e2' <- compileExp e2
     pure (BvXor e1' e2')
+compileExp (Atom "bvurem" _ ::: e1 ::: e2 ::: SNil _) = do
+    e1' <- compileExp e1
+    e2' <- compileExp e2
+    pure (BvURem e1' e2')
+compileExp (Atom "bvudiv" _ ::: e1 ::: e2 ::: SNil _) = do
+    e1' <- compileExp e1
+    e2' <- compileExp e2
+    pure (BvUDiv e1' e2')
 -- flat form: (bv2pf N expr)
 compileExp (Atom "bv2pf" _ ::: Num modulus _ ::: expr ::: SNil _) = do
     subE <- compileExp expr
