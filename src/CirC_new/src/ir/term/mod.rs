@@ -1871,6 +1871,21 @@ impl ComputationMetadata {
         out
     }
 
+    /// Returns the unique field type if all field variables use the same one.
+    pub fn input_field(&self) -> Option<FieldT> {
+        let mut field: Option<FieldT> = None;
+        for v in self.vars.values() {
+            if let Sort::Field(f) = &v.sort {
+                match &field {
+                    None => field = Some(f.clone()),
+                    Some(existing) if existing == f => {}
+                    Some(_) => return None,
+                }
+            }
+        }
+        field
+    }
+
     /// Give all public inputs, in a fixed order.
     pub fn ordered_public_inputs(&self) -> Vec<Term> {
         let mut out: Vec<Term> = self

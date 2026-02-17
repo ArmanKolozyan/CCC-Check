@@ -10,7 +10,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant if" #-}
 
-module ValueAnalysis.Analysis (analyzeProgram, VariableState(..), updateValues, initVarState, ValueDomain(..), analyzeFromFile, analyzeFromFileWithTags, inferValues) where
+module ValueAnalysis.Analysis (analyzeProgram, analyzeProgramFull, precomputeAnalysis, runAnalysis, PrecomputedAnalysis(..), transformIDToNames, VariableState(..), updateValues, initVarState, ValueDomain(..), analyzeFromFile, analyzeFromFileWithTags, inferValues) where
 
 import Syntax.AST
 import Data.Map.Strict (Map)
@@ -27,8 +27,13 @@ import ValueAnalysis.UserRules
 import ValueAnalysis.VariableState
 import ValueAnalysis.ValueDomain
 import ValueAnalysis.Printer
+import Data.IntMap.Strict (IntMap)
+import qualified Data.IntMap.Strict as IntMap
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 
 import Control.Monad (foldM)
+import Control.DeepSeq (NFData(..))
 
 
 
@@ -48,95 +53,77 @@ import Control.Monad (foldM)
 -- 3) Mapping Variables to Constraints
 --------------------------
 
--- | Collects all variable IDs from a constraint.
-collectVarsFromConstraint :: Map String Int -> Constraint -> [Int]
+-- | Collects all variable IDs from a constraint into an IntSet.
+collectVarsFromConstraint :: Map String Int -> Constraint -> IntSet
 collectVarsFromConstraint nameToID (EqC _ e1 e2) =
-    collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
+    IntSet.union (collectVarsFromExpr nameToID e1) (collectVarsFromExpr nameToID e2)
 collectVarsFromConstraint nameToID (AndC _ cs) =
-    concatMap (collectVarsFromConstraint nameToID) cs
+    IntSet.unions (map (collectVarsFromConstraint nameToID) cs)
 collectVarsFromConstraint nameToID (OrC _ cs) =
-    concatMap (collectVarsFromConstraint nameToID) cs
+    IntSet.unions (map (collectVarsFromConstraint nameToID) cs)
 collectVarsFromConstraint nameToID (NotC _ c) =
     collectVarsFromConstraint nameToID c
 
--- | Collects all variable IDs from an expression, using nameToID map.
-collectVarsFromExpr :: Map String Int -> Expression -> [Int]
-collectVarsFromExpr nameToID (Var name) = case Map.lookup name nameToID of
-    Just vID -> [vID]
-    Nothing  -> error $ "Variable name not found: " ++ name
-collectVarsFromExpr _ (Int _) = []
-collectVarsFromExpr nameToID (FieldConst _ _) = []
-collectVarsFromExpr nameToID (Add e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
-collectVarsFromExpr nameToID (Sub e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
-collectVarsFromExpr nameToID (Mul e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
-collectVarsFromExpr nameToID (Div e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
-collectVarsFromExpr nameToID (Ite e1 e2 e3) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2 ++ collectVarsFromExpr nameToID e3
-collectVarsFromExpr nameToID (Eq e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
-collectVarsFromExpr nameToID (Gt e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
-collectVarsFromExpr nameToID (Lt e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
-collectVarsFromExpr nameToID (Gte e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
-collectVarsFromExpr nameToID (Lte e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
-collectVarsFromExpr nameToID (And es) = concatMap (collectVarsFromExpr nameToID) es
-collectVarsFromExpr nameToID (Or es) = concatMap (collectVarsFromExpr nameToID) es
-collectVarsFromExpr nameToID (Not e) = collectVarsFromExpr nameToID e
-collectVarsFromExpr nameToID (PfRecip e) = collectVarsFromExpr nameToID e
-collectVarsFromExpr nameToID (BvExtract e _ _) = collectVarsFromExpr nameToID e
-collectVarsFromExpr nameToID (BvConcat e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
-collectVarsFromExpr nameToID (BvLit _ _) = []
-collectVarsFromExpr nameToID (BoolLit _) = []
-collectVarsFromExpr nameToID (BvXor e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
-collectVarsFromExpr nameToID (BvURem e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
-collectVarsFromExpr nameToID (BvUDiv e1 e2) = collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2
-collectVarsFromExpr nameToID (Bv2Pf _ e) = collectVarsFromExpr nameToID e
-collectVarsFromExpr nameToID (Pf2Bv _ e) = collectVarsFromExpr nameToID e
-collectVarsFromExpr nameToID (Bool2Bv e) = collectVarsFromExpr nameToID e
-collectVarsFromExpr nameToID (UExt _ e) = collectVarsFromExpr nameToID e
-collectVarsFromExpr nameToID (BitSelect _ e) = collectVarsFromExpr nameToID e
-collectVarsFromExpr nameToID (Let bindings body) =
-    let localVars = concatMap (\(_, expr) -> collectVarsFromExpr nameToID expr) bindings
-        bodyVars = collectVarsFromExpr nameToID body
-    in localVars ++ bodyVars
-collectVarsFromExpr nameToID (ArrayLiteral es _) =
-    concatMap (collectVarsFromExpr nameToID) es
-collectVarsFromExpr nameToID (ArraySparseLiteral indexedExprs defExpr _ _) =
-  -- Note: For `Let` expressions, we only collect variables from the binding *expressions*
-  -- and the *body*. The locally bound variable names themselves (e.g., 'a' in `let ((a 1)) ...`)
-  -- are not collected here because `collectVarsFromExpr` is used to track dependencies
-  -- on *global* variables for the fixed-point analysis. Local scopes and their variables
-  -- are handled separately during the evaluation phase by `inferValues`.
-  -- Since 'a' is not global, no other constraint can directly provide new information
-  -- about 'a'. Therefore, changes propagated through other constraints do not need
-  -- to trigger a re-analysis of this `Let` constraint *due to* the local variable 'a'.
-  let indexedVars = concatMap (\(_, expr) -> collectVarsFromExpr nameToID expr) indexedExprs
-      defaultVars = collectVarsFromExpr nameToID defExpr
-  in indexedVars ++ defaultVars
-collectVarsFromExpr nameToID (Return es) =
-    concatMap (collectVarsFromExpr nameToID) es
-collectVarsFromExpr nameToID (Tuple es) =
-    concatMap (collectVarsFromExpr nameToID) es    
-collectVarsFromExpr nameToID (ArrayConstruct es _) =
-    concatMap (collectVarsFromExpr nameToID) es
-collectVarsFromExpr nameToID (ArraySelect arr idx) =
-    collectVarsFromExpr nameToID arr ++ collectVarsFromExpr nameToID idx
-collectVarsFromExpr nameToID (ArrayStore arr idx val) =
-    collectVarsFromExpr nameToID arr ++ collectVarsFromExpr nameToID idx ++ collectVarsFromExpr nameToID val
-collectVarsFromExpr nameToID (ArrayFill val _ _) =
-    collectVarsFromExpr nameToID val
-collectVarsFromExpr nameToID (Assign _ expr) =
-    collectVarsFromExpr nameToID expr                
+-- | Collects all variable IDs from an expression into an IntSet.
+collectVarsFromExpr :: Map String Int -> Expression -> IntSet
+collectVarsFromExpr nameToID = go
+  where
+    go (Var name) = case Map.lookup name nameToID of
+        Just vID -> IntSet.singleton vID
+        Nothing  -> error $ "Variable name not found: " ++ name
+    go (Int _) = IntSet.empty
+    go (FieldConst _ _) = IntSet.empty
+    go (Add e1 e2) = IntSet.union (go e1) (go e2)
+    go (Sub e1 e2) = IntSet.union (go e1) (go e2)
+    go (Mul e1 e2) = IntSet.union (go e1) (go e2)
+    go (Div e1 e2) = IntSet.union (go e1) (go e2)
+    go (Ite e1 e2 e3) = IntSet.unions [go e1, go e2, go e3]
+    go (Eq e1 e2) = IntSet.union (go e1) (go e2)
+    go (Gt e1 e2) = IntSet.union (go e1) (go e2)
+    go (Lt e1 e2) = IntSet.union (go e1) (go e2)
+    go (Gte e1 e2) = IntSet.union (go e1) (go e2)
+    go (Lte e1 e2) = IntSet.union (go e1) (go e2)
+    go (And es) = IntSet.unions (map go es)
+    go (Or es) = IntSet.unions (map go es)
+    go (Not e) = go e
+    go (PfRecip e) = go e
+    go (BvExtract e _ _) = go e
+    go (BvConcat e1 e2) = IntSet.union (go e1) (go e2)
+    go (BvLit _ _) = IntSet.empty
+    go (BoolLit _) = IntSet.empty
+    go (BvXor e1 e2) = IntSet.union (go e1) (go e2)
+    go (BvURem e1 e2) = IntSet.union (go e1) (go e2)
+    go (BvUDiv e1 e2) = IntSet.union (go e1) (go e2)
+    go (Bv2Pf _ e) = go e
+    go (Pf2Bv _ e) = go e
+    go (Bool2Bv e) = go e
+    go (UExt _ e) = go e
+    go (BitSelect _ e) = go e
+    go (Let bindings body) =
+        IntSet.union (IntSet.unions (map (go . snd) bindings)) (go body)
+    go (ArrayLiteral es _) = IntSet.unions (map go es)
+    go (ArraySparseLiteral indexedExprs defExpr _ _) =
+        IntSet.union (IntSet.unions (map (go . snd) indexedExprs)) (go defExpr)
+    go (Return es) = IntSet.unions (map go es)
+    go (Tuple es) = IntSet.unions (map go es)
+    go (ArrayConstruct es _) = IntSet.unions (map go es)
+    go (ArraySelect arr idx) = IntSet.union (go arr) (go idx)
+    go (ArrayStore arr idx val) = IntSet.unions [go arr, go idx, go val]
+    go (ArrayFill val _ _) = go val
+    go (Assign _ expr) = go expr
 
 -- | Builds a variable-to-constraints mapping.
-buildVarToConstraints :: Map String Int -> [Constraint] -> Map Int [Int]
+buildVarToConstraints :: Map String Int -> [Constraint] -> IntMap IntSet
 buildVarToConstraints nameToID constraints =
-  let pairs = concatMap (extract nameToID) constraints
-  in Map.fromListWith (++) pairs
+  IntMap.fromListWith IntSet.union pairs
   where
-    extract :: Map String Int -> Constraint -> [(Int, [Int])]
-    extract nameToID (EqC cid e1 e2) =
-        [(v, [cid]) | v <- collectVarsFromExpr nameToID e1 ++ collectVarsFromExpr nameToID e2]
-    extract nameToID (AndC cid cs) = concatMap (extract nameToID) cs
-    extract nameToID (OrC cid cs) = concatMap (extract nameToID) cs
-    extract nameToID (NotC cid c) = extract nameToID c
+    pairs = concatMap (extract nameToID) constraints
+    extract :: Map String Int -> Constraint -> [(Int, IntSet)]
+    extract nmToID (EqC cid e1 e2) =
+        [(v, IntSet.singleton cid) | v <- IntSet.toList (collectVarsFromExpr nmToID e1 `IntSet.union` collectVarsFromExpr nmToID e2)]
+    extract nmToID (AndC _ cs) = concatMap (extract nmToID) cs
+    extract nmToID (OrC _ cs) = concatMap (extract nmToID) cs
+    extract nmToID (NotC _ c) = extract nmToID c
 
 --------------------------
 -- 4) Setting Up the Processing Queue
@@ -221,7 +208,7 @@ joinDomains d1 d2 = case (d1, d2) of
 
 -- | Recursively infers possible values of an expression
 -- Receives optional map for local (let) bindings.
-inferValues :: Expression -> Map String Int -> Map Int VariableState -> Maybe (Map String ValueDomain) -> ValueDomain
+inferValues :: Expression -> Map String Int -> IntMap VariableState -> Maybe (Map String ValueDomain) -> ValueDomain
 inferValues (Int c) _ _ _ = KnownValues (Set.singleton c)
 inferValues (FieldConst i p) _ _ _ = KnownValues $ Set.singleton (i `mod` p)
 
@@ -233,7 +220,7 @@ inferValues (Var xName) nameToID varStates maybeLocalBindings =
      Nothing -> -- not found locally, looking up globally
       case Map.lookup xName nameToID of
           -- variable known but no state? we return default domain
-          Just varID -> maybe defaultValueDomain domain (Map.lookup varID varStates)
+          Just varID -> maybe defaultValueDomain domain (IntMap.lookup varID varStates)
           -- variable name not found? we return default domain
           Nothing -> defaultValueDomain
 
@@ -626,7 +613,7 @@ extractRootFactors (Sub (Var xName) (FieldConst c fp)) = Just (xName, [c `mod` f
 extractRootFactors (Var xName) = Just (xName, [0]) -- is equivalent to (x - 0)
 extractRootFactors _ = Nothing
 
-zeroOne :: Int -> String -> String -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+zeroOne :: Int -> String -> String -> Map String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
 zeroOne _ xName yName nameToID oldVarStates = do
    xID <- lookupVarID xName nameToID
    yID <- lookupVarID yName nameToID
@@ -640,7 +627,7 @@ zeroOne _ xName yName nameToID oldVarStates = do
      newY <- updateValues ySt (BoundedValues (Just 0) (Just 1) Set.empty)
      let changedY = newY /= ySt
          newMapY  = if changedY
-                    then Map.insert yID newY oldVarStates
+                    then IntMap.insert yID newY oldVarStates
                     else oldVarStates
      pure (changedY, newMapY)
 
@@ -650,7 +637,7 @@ zeroOne _ xName yName nameToID oldVarStates = do
      newX <- updateValues xSt (BoundedValues (Just 0) (Just 1) Set.empty)
      let changedX = newX /= xSt
          newMapX  = if changedX
-                    then Map.insert xID newX oldVarStates
+                    then IntMap.insert xID newX oldVarStates
                     else oldVarStates
      pure (changedX, newMapX)
 
@@ -678,7 +665,7 @@ isIn01 st = case domain st of
         in boundsOk && exclusionsOk
 
 -- | Applies an "interesting" constraint to update variable states.
-analyzeConstraint :: Constraint -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+analyzeConstraint :: Constraint -> Map String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
 
 
 -- | Boolean OR Rule: out = a + b - a*b
@@ -746,7 +733,7 @@ analyzeConstraint (EqC _ (Var xName) e) nameToID varStates =
     (Var yName) ->
       case (Map.lookup xName nameToID, Map.lookup yName nameToID) of
         (Just xID, Just yID) ->
-          case (Map.lookup xID varStates, Map.lookup yID varStates) of
+          case (IntMap.lookup xID varStates, IntMap.lookup yID varStates) of
             (Just xState, Just yState) ->
               -- propagating information in both directions using updateValues (which uses intersectDomains)
               let xDomain = domain xState
@@ -756,8 +743,8 @@ analyzeConstraint (EqC _ (Var xName) e) nameToID varStates =
                       Right (updatedX, updatedY) of
                    Right (updatedX, updatedY) ->
                      let changed = updatedX /= xState || updatedY /= yState
-                         newVarStates = Map.insert xID updatedX $
-                                        Map.insert yID updatedY varStates
+                         newVarStates = IntMap.insert xID updatedX $
+                                        IntMap.insert yID updatedY varStates
                      in Right (changed, newVarStates)
                    Left errMsg -> Left errMsg -- intersection failed, contradiction
             _ -> Right (False, varStates)  -- one or both variables not initialized, no change
@@ -772,7 +759,7 @@ analyzeConstraint (EqC _ (Var xName) e) nameToID varStates =
       case updateValues xState omega of
         Right updatedState ->
           let changed = xState /= updatedState -- checking if the state actually changed
-              updatedMap = if changed then Map.insert xID updatedState varStates else varStates
+              updatedMap = if changed then IntMap.insert xID updatedState varStates else varStates
               (backwardChanged, finalStates) =
                   propagateExclusionsBackward e (domain updatedState) nameToID updatedMap
           in Right (changed || backwardChanged, finalStates)
@@ -846,7 +833,7 @@ analyzeConstraint (EqC _ (Mul (Int c) (Var xName)) e) nameToID varStates
           -- updating x's state using the calculated newDomainX
           updatedState <- updateValues xState newDomainX
           let changed = xState /= updatedState
-              updatedMap = if changed then Map.insert xID updatedState varStates else varStates
+              updatedMap = if changed then IntMap.insert xID updatedState varStates else varStates
           pure (changed, updatedMap)
 
   | otherwise = Right (False, varStates) -- if c is 0 mod p, constraint is 0 = e
@@ -866,7 +853,7 @@ analyzeConstraint (EqC _ rootExpr (Int 0)) nameToID varStates =
             -- updating x's state
             updatedState <- updateValues xState newDomain
             let changed = xState /= updatedState
-                updatedMap = if changed then Map.insert xID updatedState varStates else varStates
+                updatedMap = if changed then IntMap.insert xID updatedState varStates else varStates
             pure (changed, updatedMap)
         Nothing -> Right (False, varStates)  -- not a ROOT pattern
 
@@ -905,7 +892,7 @@ analyzeConstraint (EqC cid lhs (Var zName)) nameToID varStates
              updateValues zState (BoundedValues (Just 0) (Just upBound) Set.empty)
 
            let changed1   = updatedZState /= zState
-               varStates1 = Map.insert zID updatedZState varStates
+               varStates1 = IntMap.insert zID updatedZState varStates
 
            -- 4) If the analysis (potentially after intersecting with previous knowledge or other constraints)
            --    determines that 'z' must have a single, specific numerical value (i.e., its domain becomes
@@ -937,13 +924,11 @@ analyzeConstraint (AndC cid subCs) nameToID varStates = do
   (finalChanged, finalMap) <- foldlAndM nameToID initialAcc subCs
   pure (finalChanged, finalMap)
   where
-    -- we go over the sub-constraints in [Constraint] with a 
-    -- left-biased Either: if any sub-constraint fails, we propagate the error.
     foldlAndM
       :: Map String Int
-      -> (Bool, Map Int VariableState)
+      -> (Bool, IntMap VariableState)
       -> [Constraint]
-      -> Either String (Bool, Map Int VariableState)
+      -> Either String (Bool, IntMap VariableState)
     foldlAndM _ acc [] = Right acc
     foldlAndM nmToID (accChanged, accMap) (c:cs) = do
        (changedNow, newMap) <- analyzeConstraint c nmToID accMap
@@ -1040,7 +1025,7 @@ analyzeConstraint (EqC cid e (Var xName)) nameToID varStates =
 analyzeConstraint _ _ varStates = Right (False, varStates)
 
 -- Helper to update a specific element domain within an array variable's state
-updateArrayElement :: Expression -> Integer -> ValueDomain -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+updateArrayElement :: Expression -> Integer -> ValueDomain -> Map String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
 updateArrayElement (Var arrName) idx newElemDom nameToID varStates = do
   arrID <- lookupVarID arrName nameToID
   arrState <- lookupVarState arrID varStates
@@ -1053,13 +1038,13 @@ updateArrayElement (Var arrName) idx newElemDom nameToID varStates = do
            Left errMsg -> Left errMsg
            Right finalArrState ->
              let changed = finalArrState /= arrState
-                 finalStates = Map.insert arrID finalArrState varStates
+                 finalStates = IntMap.insert arrID finalArrState varStates
              in Right (changed, finalStates)
     _ -> Right (False, varStates)
 updateArrayElement _ _ _ _ varStates = Right (False, varStates)
 
 -- Helper to update the default domain and potentially all element domains of an Array.
-updateArrayDefaultAndElements :: Expression -> ValueDomain -> ValueDomain -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+updateArrayDefaultAndElements :: Expression -> ValueDomain -> ValueDomain -> Map String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
 updateArrayDefaultAndElements (Var arrName) newDefDom intersectDom nameToID varStates = do
   arrID <- lookupVarID arrName nameToID
   arrState <- lookupVarState arrID varStates
@@ -1076,13 +1061,13 @@ updateArrayDefaultAndElements (Var arrName) newDefDom intersectDom nameToID varS
            Left errMsg -> Left errMsg
            Right finalArrState ->
              let changed = finalArrState /= arrState
-                 finalStates = Map.insert arrID finalArrState varStates
+                 finalStates = IntMap.insert arrID finalArrState varStates
              in Right (changed, finalStates)
     _ -> Right (False, varStates)
 updateArrayDefaultAndElements _ _ _ _ varStates = Right (False, varStates)
 
 -- Helper function to constrain a variable to binary {0, 1}
-constrainVarToBinary :: String -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+constrainVarToBinary :: String -> Map String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
 constrainVarToBinary varName nameToID varStates = do
   varID <- lookupVarID varName nameToID
   oldState <- lookupVarState varID varStates
@@ -1090,7 +1075,7 @@ constrainVarToBinary varName nameToID varStates = do
   let binaryDomain = BoundedValues (Just 0) (Just 1) Set.empty
   newState <- updateValues oldState binaryDomain
   let changed = newState /= oldState
-  let newMap = if changed then Map.insert varID newState varStates else varStates
+  let newMap = if changed then IntMap.insert varID newState varStates else varStates
   pure (changed, newMap)
 
 -- | Propagates exclusions backward from a result domain to variables in an expression.
@@ -1098,8 +1083,8 @@ propagateExclusionsBackward
     :: Expression
     -> ValueDomain  -- the domain of the variable the expression is equal to (e.g., x's domain)
     -> Map String Int
-    -> Map Int VariableState
-    -> (Bool, Map Int VariableState) -- returns (if any change occurred, updated states)
+    -> IntMap VariableState
+    -> (Bool, IntMap VariableState) -- returns (if any change occurred, updated states)
 propagateExclusionsBackward expr xDomain nameToID varStates =
   let gapsX = getExclusionIntervals xDomain
   in if Set.null gapsX
@@ -1113,7 +1098,7 @@ propagateExclusionsBackward expr xDomain nameToID varStates =
     getExclusionIntervals (ArrayDomain _ _ _) = Set.empty
 
     -- helper to handle different expression structures
-    go :: Expression -> Set.Set (Integer, Integer) -> Map String Int -> Map Int VariableState -> (Bool, Map Int VariableState)
+    go :: Expression -> Set.Set (Integer, Integer) -> Map String Int -> IntMap VariableState -> (Bool, IntMap VariableState)
 
     -- x = y - c  =>  y = x + c
     go (Sub (Var yName) (Int c)) intervalsX nameToID currentStates =
@@ -1192,7 +1177,7 @@ intervalToValues modulus (l, u)
   | otherwise = [l..(modulus-1)] ++ [0..u]
 
 -- Helper: Applies exclusions to a specific array element's domain.
-applyExclusionsToArrayElement :: String -> Integer -> [Integer] -> Map String Int -> Map Int VariableState -> (Bool, Map Int VariableState)
+applyExclusionsToArrayElement :: String -> Integer -> [Integer] -> Map String Int -> IntMap VariableState -> (Bool, IntMap VariableState)
 applyExclusionsToArrayElement arrName idx exclusions nameToID currentStates =
   case lookupVarID arrName nameToID of
     Left _ -> (False, currentStates)
@@ -1219,11 +1204,11 @@ applyExclusionsToArrayElement arrName idx exclusions nameToID currentStates =
                             Left _ -> (False, currentStates) -- contradiction updating array state
                             Right finalArrState ->
                               let changed = finalArrState /= oldArrState
-                              in (changed, Map.insert arrID finalArrState currentStates)
+                              in (changed, IntMap.insert arrID finalArrState currentStates)
             _ -> (False, currentStates)
 
 -- Helper: Applies exclusions to the default domain and all element domains (over-approximation).
-applyExclusionsToArrayDefaultAndElements :: String -> [Integer] -> Map String Int -> Map Int VariableState -> (Bool, Map Int VariableState)
+applyExclusionsToArrayDefaultAndElements :: String -> [Integer] -> Map String Int -> IntMap VariableState -> (Bool, IntMap VariableState)
 applyExclusionsToArrayDefaultAndElements arrName exclusions nameToID currentStates =
   case lookupVarID arrName nameToID of
     Left _ -> (False, currentStates)
@@ -1248,7 +1233,7 @@ applyExclusionsToArrayDefaultAndElements arrName exclusions nameToID currentStat
                           Left _ -> (False, currentStates)
                           Right finalArrState ->
                             let changed = finalArrState /= oldArrState
-                            in (changed, Map.insert arrID finalArrState currentStates)
+                            in (changed, IntMap.insert arrID finalArrState currentStates)
             _ -> (False, currentStates)  
 
 -- Helper: Given an operation `op`, modulus `p`, and an interval `(l, u)`,
@@ -1259,7 +1244,7 @@ calculateExcludedSet op p (l, u) =
     in map (\v -> op v `mod` p) valuesX
 
 -- Helper: Applies a list of exclusions to a specific variable using excludeValue repeatedly.
-applyExclusionsToVar :: String -> [Integer] -> Map String Int -> Map Int VariableState -> (Bool, Map Int VariableState)
+applyExclusionsToVar :: String -> [Integer] -> Map String Int -> IntMap VariableState -> (Bool, IntMap VariableState)
 applyExclusionsToVar varName exclusions nameToID currentStates =
   case lookupVarID varName nameToID of
     Left _ -> (False, currentStates) -- var not found
@@ -1270,7 +1255,7 @@ applyExclusionsToVar varName exclusions nameToID currentStates =
           -- using foldl to apply each exclusion value
           foldl (\(changedAcc, statesAcc) valToExclude ->
                     -- getting the most recent state for the variable
-                    let currentVarState = statesAcc Map.! varID
+                    let currentVarState = statesAcc IntMap.! varID
                         currentVarDomain = domain currentVarState
                         -- creating the domain with the single value excluded
                         domainWithExclusion = excludeValue currentVarDomain valToExclude
@@ -1280,7 +1265,7 @@ applyExclusionsToVar varName exclusions nameToID currentStates =
                          Right newVarState ->
                            let changedNow = newVarState /= currentVarState
                            -- updating the state map only if a change occurred
-                           in (changedAcc || changedNow, Map.insert varID newVarState statesAcc)
+                           in (changedAcc || changedNow, IntMap.insert varID newVarState statesAcc)
                 ) (False, currentStates) exclusions -- initial state for fold
 
 -- Marks an expression as non-zero and updates variable states accordingly.
@@ -1297,7 +1282,7 @@ applyExclusionsToVar varName exclusions nameToID currentStates =
 -- If the domain is a wrap-around interval like [15, 2] mod 17 (i.e., {15, 16, 0, 1, 2}),
 -- excluding an internal value like 0 requires careful handling that simple bound
 -- adjustments cannot manage generically.
-markExprNonZero :: Expression -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+markExprNonZero :: Expression -> Map String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
 markExprNonZero (Var xName) nameToID varStates = do
     xID <- lookupVarID xName nameToID
     oldXSt <- lookupVarState xID varStates
@@ -1331,7 +1316,7 @@ markExprNonZero (Var xName) nameToID varStates = do
     -- Therefore, using `updateValues` ensures the analysis remains sound.
     newState <- updateValues oldXSt domainWithoutZero
     let changed = newState /= oldXSt
-    let newMap = if changed then Map.insert xID newState varStates else varStates
+    let newMap = if changed then IntMap.insert xID newState varStates else varStates
     pure (changed, newMap)
 
 markExprNonZero (Sub (Int c) (Var xName)) nameToID varStates = do
@@ -1344,7 +1329,7 @@ markExprNonZero (Sub (Int c) (Var xName)) nameToID varStates = do
     let domainWithoutC = excludeValue currentDomain valToExclude
     newState <- updateValues oldXSt domainWithoutC
     let changed = newState /= oldXSt
-    let newMap = if changed then Map.insert xID newState varStates else varStates
+    let newMap = if changed then IntMap.insert xID newState varStates else varStates
     pure (changed, newMap)
 
 markExprNonZero (Sub (Var xName) (Int c)) nameToID varStates = do
@@ -1360,7 +1345,7 @@ markExprNonZero (Int c) _ varStates =
 markExprNonZero _ _ varStates = Right (False, varStates)
 
 -- Marks a pair of expressions as non-zero.
-markExprPairNonZero :: Expression -> Expression -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+markExprPairNonZero :: Expression -> Expression -> Map String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
 markExprPairNonZero expr1 expr2 nameToID varStates = do
     (changed1, states1) <- markExprNonZero expr1 nameToID varStates
     -- applying the second check to the potentially updated state from the first check
@@ -1391,7 +1376,7 @@ modInverse a m
 fieldModulus :: Integer
 fieldModulus = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
-markNonZeroPair :: String -> String -> Map String Int -> Map Int VariableState -> Either String (Bool, Map Int VariableState)
+markNonZeroPair :: String -> String -> Map String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
 markNonZeroPair xName yName nameToID varStates = do
     xID <- lookupVarID xName nameToID
     yID <- lookupVarID yName nameToID
@@ -1414,7 +1399,7 @@ markNonZeroPair xName yName nameToID varStates = do
 
     let changed = newXSt /= oldXSt || newYSt /= oldYSt
         -- applying updates only if they succeeded
-        newMap = Map.insert xID newXSt (Map.insert yID newYSt varStates)
+        newMap = IntMap.insert xID newXSt (IntMap.insert yID newYSt varStates)
 
     pure (changed, newMap)
 
@@ -1464,7 +1449,7 @@ isExactPowerOf c n
       | otherwise = go (e+1) (pow*c)
 
 -- | Tests if given var is binary (0 or 1).
-isBinaryVar  :: Map String Int  -> Map Int VariableState -> String -> Bool
+isBinaryVar  :: Map String Int  -> IntMap VariableState -> String -> Bool
 isBinaryVar nameToID varStates varName = 
   case lookupVarStateByName varName nameToID varStates of
     Left _ -> False -- Variable not found or no state
@@ -1484,12 +1469,12 @@ decodeSumOfPowers
   -> Integer                    -- known value of z
   -> [(String, Integer)]        -- (bName, exponent) pairs
   -> Map String Int             -- nameToID
-  -> Map Int VariableState      -- varStates
-  -> Either String (Map Int VariableState)
+  -> IntMap VariableState      -- varStates
+  -> Either String (IntMap VariableState)
 decodeSumOfPowers cBase knownZ terms nameToID varStates0 =
   foldl step (Right varStates0) terms
   where
-    step :: Either String (Map Int VariableState) -> (String, Integer) -> Either String (Map Int VariableState)
+    step :: Either String (IntMap VariableState) -> (String, Integer) -> Either String (IntMap VariableState)
     step acc (bName, e) = do
       currentVarStates <- acc
       bID <- lookupVarID bName nameToID
@@ -1503,83 +1488,86 @@ decodeSumOfPowers cBase knownZ terms nameToID varStates0 =
 
       -- updating the bit variable's state
       updatedSt <- updateValues st newDomain
-      pure (Map.insert bID updatedSt currentVarStates)
+      pure (IntMap.insert bID updatedSt currentVarStates)
 
--- | Helper function to invert the nameToID map
-invertMap :: Map String Int -> Map Int String
-invertMap nmToID =
-  Map.fromList [ (vid, nm) | (nm, vid) <- Map.toList nmToID ]
-
--- | Transforms the final (Map Int VariableState) to a (Map String VariableState)
+-- | Transforms the final IntMap VariableState to a Map String VariableState
 -- so that we have the variable names instead of IDs.
 transformIDToNames
-  :: Map String Int                   -- ^ nameToID
-  -> Map Int VariableState            -- ^ final states keyed by Int
+  :: IntMap String                    -- ^ idToName (pre-computed)
+  -> IntMap VariableState             -- ^ final states keyed by Int
   -> Map String VariableState         -- ^ final states keyed by varName
-transformIDToNames nmToID vStates =
-  let idToName = invertMap nmToID
-  in Map.fromList
-      [ (idToName Map.! i, st) | (i, st) <- Map.toList vStates]
+transformIDToNames idToName vStates =
+  let pairs = [ (idToName IntMap.! i, st) | (i, st) <- IntMap.toList vStates]
+  in Map.fromList pairs
 
-analyzeConstraints :: Map Int Constraint -> Map String Int -> Map Int [Int] -> Maybe [UserRule] -> Map Int VariableState -> Map String VariableState
-analyzeConstraints constraints nameToID varToConstraints maybeRules = loop (initializeQueue (Map.elems constraints))
+analyzeConstraints :: IntMap Constraint -> Map String Int -> IntMap IntSet -> Maybe [UserRule] -> IntMap VariableState -> Map String VariableState
+analyzeConstraints constraints nameToID varToConstraints maybeRules initialStates =
+  let (finalIntMap, idToName) = analyzeConstraintsRaw constraints nameToID varToConstraints maybeRules initialStates
+  in transformIDToNames idToName finalIntMap
+
+-- | Core worklist loop returning the raw IntMap result and the idToName map.
+analyzeConstraintsRaw :: IntMap Constraint -> Map String Int -> IntMap IntSet -> Maybe [UserRule] -> IntMap VariableState -> (IntMap VariableState, IntMap String)
+analyzeConstraintsRaw constraints nameToID varToConstraints maybeRules =
+  let constraintVarSets = IntMap.map (collectVarsFromConstraint nameToID) constraints
+      idToName = IntMap.fromList [(vid, nm) | (nm, vid) <- Map.toList nameToID]
+      initialQueue = initializeQueue (IntMap.elems constraints)
+      initialInQueue = IntSet.fromList (IntMap.keys constraints)
+  in \initialStates -> loop constraintVarSets idToName initialQueue initialInQueue initialStates
   where
-    loop :: Seq Int -> Map Int VariableState -> Map String VariableState
-    loop queue vStates =
+    loop :: IntMap IntSet -> IntMap String -> Seq Int -> IntSet -> IntMap VariableState -> (IntMap VariableState, IntMap String)
+    loop cVarSets idToName queue inQueue vStates =
       case viewl queue of
-        Seq.EmptyL -> transformIDToNames nameToID vStates
+        Seq.EmptyL -> (vStates, idToName)
         cId :< restQueue ->
-          case Map.lookup cId constraints of
-            Nothing -> loop restQueue vStates
+          let inQueue' = IntSet.delete cId inQueue
+          in case IntMap.lookup cId constraints of
+            Nothing -> loop cVarSets idToName restQueue inQueue' vStates
 
             Just constraint ->
               case analyzeConstraint constraint nameToID vStates of
-                ----------------------------------------------------
-                -- CASE 1) built-in inference yields changes
-                ----------------------------------------------------
                 Right (True, newStates) ->
-                  let affected = collectVarsFromConstraint nameToID constraint
-                      newQ     = reQueue restQueue varToConstraints affected
-                  in loop newQ newStates
+                  let affected = IntMap.findWithDefault IntSet.empty cId cVarSets
+                      (newQ, newInQ) = reQueueDedup restQueue inQueue' varToConstraints affected
+                  in loop cVarSets idToName newQ newInQ newStates
 
-                ----------------------------------------------------
-                -- CASE 2) built-in inference yields no change
-                ----------------------------------------------------
-                Right (False, sameStates) -> 
+                Right (False, sameStates) ->
                   case maybeRules of
-                    -- no user rules => we move on
-                    Nothing -> loop restQueue sameStates
+                    Nothing -> loop cVarSets idToName restQueue inQueue' sameStates
 
-                    -- user rules => we attempt them
                     Just userRs ->
                       let (userChanged, updatedStates) =
                             applyUserRules constraint userRs sameStates nameToID
                           in if userChanged
-                               then 
-                                 let affected = collectVarsFromConstraint nameToID constraint
-                                     newQ = reQueue restQueue varToConstraints affected
-                                 in loop newQ updatedStates
+                               then
+                                 let affected = IntMap.findWithDefault IntSet.empty cId cVarSets
+                                     (newQ, newInQ) = reQueueDedup restQueue inQueue' varToConstraints affected
+                                 in loop cVarSets idToName newQ newInQ updatedStates
                                else
-                                 loop restQueue updatedStates
-                Left _err -> loop restQueue vStates
+                                 loop cVarSets idToName restQueue inQueue' updatedStates
+                Left _err -> loop cVarSets idToName restQueue inQueue' vStates
 
--- Helper to re-queue constraints that reference changed variables
-reQueue :: Seq Int -> Map Int [Int] -> [Int] -> Seq Int
-reQueue oldQueue varToConstraints = foldl (\accQ varID ->
-    let cIDs = Map.findWithDefault [] varID varToConstraints
-    in foldl (|>) accQ cIDs
-  ) oldQueue
+-- | Re-queue constraints that reference changed variables, with deduplication.
+reQueueDedup :: Seq Int -> IntSet -> IntMap IntSet -> IntSet -> (Seq Int, IntSet)
+reQueueDedup oldQueue inQueue varToConstraints affectedVars =
+  IntSet.foldl' (\(accQ, accSet) varID ->
+    let cIDs = IntMap.findWithDefault IntSet.empty varID varToConstraints
+    in IntSet.foldl' (\(q, s) cId ->
+         if IntSet.member cId s
+         then (q, s)
+         else (q |> cId, IntSet.insert cId s)
+       ) (accQ, accSet) cIDs
+  ) (oldQueue, inQueue) affectedVars
 
 --------------------------
 -- 6) Main Analysis
 --------------------------
 
 -- | Applies tag constraints to input variables before starting the main analysis.
-applyInputTags :: [Binding] -> Map String Int -> Map Int VariableState -> Either String (Map Int VariableState)
+applyInputTags :: [Binding] -> Map String Int -> IntMap VariableState -> Either String (IntMap VariableState)
 applyInputTags inputs nameToID initialStates =
   foldM applyTag initialStates inputs
   where
-  applyTag :: Map Int VariableState -> Binding -> Either String (Map Int VariableState)
+  applyTag :: IntMap VariableState -> Binding -> Either String (IntMap VariableState)
   applyTag currentStates binding =
     case tag binding of
       Nothing -> Right currentStates -- no tag, no change
@@ -1591,20 +1579,53 @@ applyInputTags inputs nameToID initialStates =
         -- intersecting the current domain with the tag's constraint
         let newState = currentState { domain = constraintDomain }
         -- updating the state map
-        Right $ Map.insert varID newState currentStates
+        Right $ IntMap.insert varID newState currentStates
 
 -- given Program
 analyzeProgram :: Program -> Map String VariableState
-analyzeProgram (Program inputs compVars constrVars _ pfRecips retVars constraints) =
-  let nameToID = buildVarNameToIDMap (inputs ++ compVars ++ constrVars)
-      initialVarStates = initializeVarStates (inputs ++ compVars ++ constrVars)
+analyzeProgram prog =
+  let (nameToID, finalIntMap) = analyzeProgramFull prog
+      idToName = IntMap.fromList [(vid, nm) | (nm, vid) <- Map.toList nameToID]
+  in transformIDToNames idToName finalIntMap
+
+-- | Precomputed data for analysis. Build once with 'precomputeAnalysis', then
+--   call 'runAnalysis' cheaply (no String-key Map construction).
+data PrecomputedAnalysis = PrecomputedAnalysis
+  { paNameToID        :: !(Map String Int)
+  , paConstraintMap   :: !(IntMap Constraint)
+  , paVarToConstraints :: !(IntMap IntSet)
+  , paInitialStates   :: !(IntMap VariableState)
+  }
+
+instance NFData PrecomputedAnalysis where
+  rnf (PrecomputedAnalysis a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+
+-- | Precompute all data structures needed for analysis (O(n log n) String work).
+--   Call this once, then use 'runAnalysis' for the fast worklist loop.
+precomputeAnalysis :: Program -> PrecomputedAnalysis
+precomputeAnalysis (Program inputs compVars constrVars _ _pfRecips _retVars constraints) =
+  let allVars = inputs ++ compVars ++ constrVars
+      nameToID = buildVarNameToIDMap allVars
+      initialVarStates = initializeVarStates allVars
       varToConstraints = buildVarToConstraints nameToID constraints
-      constraintMap = Map.fromList [(getConstraintID c, c) | c <- constraints]
-  -- applying input tags before starting the main analysis loop
-  in case applyInputTags inputs nameToID initialVarStates of
-       Left err -> error $ "Error applying input tags: " ++ err
-       Right statesWithInputTags ->
-         analyzeConstraints constraintMap nameToID varToConstraints Nothing statesWithInputTags
+      constraintMap = IntMap.fromList [(getConstraintID c, c) | c <- constraints]
+      statesWithInputTags = case applyInputTags inputs nameToID initialVarStates of
+        Left err -> error $ "Error applying input tags: " ++ err
+        Right s  -> s
+  in PrecomputedAnalysis nameToID constraintMap varToConstraints statesWithInputTags
+
+-- | Run the worklist analysis using precomputed data. This is the fast part.
+runAnalysis :: PrecomputedAnalysis -> IntMap VariableState
+runAnalysis (PrecomputedAnalysis nameToID constraintMap varToConstraints statesWithInputTags) =
+  let (finalIntMap, _idToName) = analyzeConstraintsRaw constraintMap nameToID varToConstraints Nothing statesWithInputTags
+  in finalIntMap
+
+-- | Full analysis returning the nameToID map and int-keyed states.
+--   Does NOT build a Map String VariableState (use transformIDToNames if needed for display).
+analyzeProgramFull :: Program -> (Map String Int, IntMap VariableState)
+analyzeProgramFull prog =
+  let pa = precomputeAnalysis prog
+  in (paNameToID pa, runAnalysis pa)
 
 -- given File
 analyzeFromFile :: FilePath -> IO ()
@@ -1679,40 +1700,40 @@ analyzeProgramWithRules (Program inputs compVars constrVars _ pfRecips retVars c
   let
       nameToID    = buildVarNameToIDMap (inputs ++ compVars ++ constrVars)
       varStates   = initializeVarStates (inputs ++ compVars ++ constrVars)
-      constraintMap = Map.fromList [(getConstraintID c, c) | c <- constraints]
+      constraintMap = IntMap.fromList [(getConstraintID c, c) | c <- constraints]
       varToCon    = buildVarToConstraints nameToID constraints
 
   in analyzeConstraints constraintMap nameToID varToCon maybeRules varStates
 
 -- Suppose we matched the placeholders -> realVarNames.
 -- Then we apply "x in {0,1}", meaning realVarName in {0,1}.
-applyUserAction :: UserAction -> Map.Map String Int -> Map.Map Int VariableState
-                -> (Bool, Map.Map Int VariableState)
+applyUserAction :: UserAction -> Map.Map String Int -> IntMap VariableState
+                -> (Bool, IntMap VariableState)
 applyUserAction (ConstrainSet placeholderName enumer) plHoNameToID varStates =
   case Map.lookup placeholderName plHoNameToID of
     Nothing -> (False, varStates)
     Just realID ->
-      let oldState = Map.findWithDefault initVarStateDefault realID varStates
+      let oldState = IntMap.findWithDefault initVarStateDefault realID varStates
           newState = updateValues oldState (KnownValues enumer)
       in case newState of
                    Left msg         -> (False, varStates)
-                   Right newState  -> (True, Map.insert realID newState varStates)
+                   Right newState  -> (True, IntMap.insert realID newState varStates)
 
 applyUserAction (ConstrainRange placeholderName lo up) plHoNameToID varStates =
   case Map.lookup placeholderName plHoNameToID of
     Nothing -> (False, varStates)
     Just realID ->
-      let oldState = Map.findWithDefault initVarStateDefault realID varStates
+      let oldState = IntMap.findWithDefault initVarStateDefault realID varStates
           newState = updateValues oldState (BoundedValues (Just lo) (Just up) Set.empty)
         in case newState of
                 Left msg         -> (False, varStates)
-                Right newState  -> (True, Map.insert realID newState varStates)
+                Right newState  -> (True, IntMap.insert realID newState varStates)
 
-applyUserRules :: Constraint -> [UserRule] -> Map.Map Int VariableState -> Map.Map String Int -> (Bool, Map.Map Int VariableState)
+applyUserRules :: Constraint -> [UserRule] -> IntMap VariableState -> Map.Map String Int -> (Bool, IntMap VariableState)
 applyUserRules realC userRules varStates nameToID =
   foldl applySingleRule (False, varStates) userRules
   where
-    applySingleRule :: (Bool, Map.Map Int VariableState) -> UserRule -> (Bool, Map.Map Int VariableState)
+    applySingleRule :: (Bool, IntMap VariableState) -> UserRule -> (Bool, IntMap VariableState)
     applySingleRule (changed, vs) (UserRule pC acts) =
       case matchConstraint pC realC of
         Nothing -> (changed, vs)

@@ -359,6 +359,11 @@ impl<'src> IrInterp<'src> {
             Leaf(Ident, b"int") => Sort::Int,
             Leaf(Ident, b"f32") => Sort::F32,
             Leaf(Ident, b"f64") => Sort::F64,
+            Leaf(Ident, b"field") => {
+                let m = self.modulus_stack.last()
+                    .expect("'field' sort used but no default modulus set");
+                Sort::Field(FieldT::from(m.clone()))
+            }
             List(ls) => {
                 assert!(!ls.is_empty());
                 match &ls[..] {
@@ -794,6 +799,21 @@ impl<'src> IrInterp<'src> {
         }
     }
 
+    /// Parse a computation, unwrapping an optional `set_default_modulus` wrapper.
+    fn maybe_unwrap_default_modulus(&mut self, tt: &TokTree<'src>) -> Computation {
+        if let List(tts) = tt {
+            if !tts.is_empty() && tts[0] == Leaf(Token::Ident, b"set_default_modulus") {
+                assert_eq!(tts.len(), 3, "set_default_modulus expects 2 arguments: modulus and computation");
+                let m = self.int(&tts[1]);
+                self.modulus_stack.push(m);
+                let c = self.computation(&tts[2]);
+                self.modulus_stack.pop();
+                return c;
+            }
+        }
+        self.computation(tt)
+    }
+
     /// Parse a computation set.
     pub fn computations(&mut self, tt: &TokTree<'src>) -> Computations {
         if let List(tts) = tt {
@@ -809,7 +829,7 @@ impl<'src> IrInterp<'src> {
                     match &ls[..] {
                         [Leaf(Token::Ident, var), ctree] => {
                             let name = from_utf8(var).unwrap().to_owned();
-                            let c = self.computation(ctree);
+                            let c = self.maybe_unwrap_default_modulus(ctree);
                             comps.insert(name, c);
                         }
                         _ => panic!("Expected named computation, found {}", tt),
@@ -958,6 +978,14 @@ pub fn serialize_computation(c: &Computation) -> String {
         writeln!(&mut out, "\n  {}", serialize_term(o)).unwrap();
     }
     writeln!(&mut out, "\n)").unwrap();
+    // Post-process: replace redundant (mod N) with compact 'field' keyword
+    if let Some(field) = c.metadata.input_field() {
+        let modulus_str = format!("(mod {})", field.modulus());
+        if out.matches(&modulus_str).count() > 1 {
+            let compact = out.replace(&modulus_str, "field");
+            return format!("(set_default_modulus {}\n{}\n)", field.modulus(), compact);
+        }
+    }
     out
 }
 

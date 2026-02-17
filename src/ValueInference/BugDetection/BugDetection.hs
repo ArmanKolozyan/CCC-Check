@@ -8,7 +8,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module BugDetection.BugDetection (detectBugs) where
+module BugDetection.BugDetection (detectBugs, detectBugsWithStore) where
 
 import Syntax.AST
 import Data.Map.Strict (Map)
@@ -16,9 +16,11 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Data.Maybe (fromMaybe)
 import Data.Bits ((.&.))
+import Data.IntMap.Strict (IntMap)
+import qualified Data.IntMap.Strict as IntMap
 import ValueAnalysis.VariableState
 import ValueAnalysis.ValueDomain
-import ValueAnalysis.Analysis (analyzeProgram, inferValues)
+import ValueAnalysis.Analysis (analyzeProgramFull, inferValues)
 
 {- 
   | This function:
@@ -29,18 +31,20 @@ import ValueAnalysis.Analysis (analyzeProgram, inferValues)
 
 detectBugs :: Program -> Maybe [Binding] -> Either [String] ()
 detectBugs program maybeVars =
-  let varStates = analyzeProgram program
-      allVars = inputs program ++ computationVars program ++ constraintVars program
-      vars = fromMaybe allVars maybeVars
-      nameToIDMap = buildVarNameToIDMap allVars
-      -- converting name-keyed store to ID-keyed for inferValues
-      varStatesIntKeys = invertStates varStates nameToIDMap
+  let (nameToIDMap, varStatesIntKeys) = analyzeProgramFull program
+  in detectBugsWithStore program maybeVars nameToIDMap varStatesIntKeys
 
+-- | Bug detection using a pre-computed analysis store (avoids re-running analysis).
+-- Takes the nameToID map and the int-keyed store directly.
+detectBugsWithStore :: Program -> Maybe [Binding] -> Map String Int -> IntMap VariableState -> Either [String] ()
+detectBugsWithStore program maybeVars nameToIDMap varStatesIntKeys =
+  let allVars = inputs program ++ computationVars program ++ constraintVars program
+      vars = fromMaybe allVars maybeVars
 
       -- gathering errors for each variable based on Sort
-      sortErrors = concatMap (checkVariable varStates) vars
+      sortErrors = concatMap (checkVariable varStatesIntKeys) vars
       -- gathering division-by-zero errors
-      divByZeroErrors = checkPfRecips (pfRecipExpressions program) varStates nameToIDMap varStatesIntKeys
+      divByZeroErrors = checkPfRecips (pfRecipExpressions program) nameToIDMap varStatesIntKeys
       -- gathering array access out-of-bounds errors
       arrayAccessErrors = checkArrayAccesses (constraints program) nameToIDMap varStatesIntKeys
 
@@ -52,11 +56,11 @@ detectBugs program maybeVars =
 -- | Checks whether one variable's final state is consistent with its declared Sort.
 --   Returns either an empty list (no issues) or a list of error messages.
 checkVariable
-  :: Map String VariableState
+  :: IntMap VariableState
   -> Binding
   -> [String]
-checkVariable store binding =
-  case Map.lookup (name binding) store of
+checkVariable intMapStore binding =
+  case IntMap.lookup (vid binding) intMapStore of
     Nothing -> ["No final state for var `" ++ name binding ++ "`!"]
     Just vState ->
       -- prioritizing checking the tag if it exists
@@ -265,8 +269,8 @@ checkPowerOf2Domain d varName = case d of
 -- | Checks if any PfRecip expression could be zero "at runtime", more precisely :
 --   1) if the expression is constrained to be nonZero (via nonZero flag)
 --   2) or, 0 is not in the expression's value domain
-checkPfRecips :: [Expression] -> Map String VariableState -> Map String Int -> Map Int VariableState -> [String]
-checkPfRecips denominators store nameToID varStatesIntKeys =
+checkPfRecips :: [Expression] -> Map String Int -> IntMap VariableState -> [String]
+checkPfRecips denominators nameToID varStatesIntKeys =
   concatMap checkSingle denominators
   where
     checkSingle expr =
@@ -277,14 +281,6 @@ checkPfRecips denominators store nameToID varStatesIntKeys =
          -- checking if it *could* be zero
          else (["Potential division by zero: Denominator expression `" ++ show expr ++ "` might be zero." | couldBeZero inferredDomain])
 
--- | Converts String->VariableState to Int->VariableState so we can call inferValues.
-invertStates :: Map String VariableState -> Map String Int -> Map Int VariableState
-invertStates st nmToID =
-  Map.fromList
-    [ (nmToID Map.! varName, vState)
-    | (varName, vState) <- Map.toList st
-    , varName `Map.member` nmToID
-    ]
 
 
 -- | Collects all ArrayStore and ArraySelect expressions from a list of constraints.
@@ -328,7 +324,7 @@ collectArrayAccesses = concatMap collectFromConstraint
 
 -- | Checks ArrayStore and ArraySelect expressions for potential out-of-bounds access
 --   using known indices based on the final inferred variable states.
-checkArrayAccesses :: [Constraint] -> Map String Int -> Map Int VariableState -> [String]
+checkArrayAccesses :: [Constraint] -> Map String Int -> IntMap VariableState -> [String]
 checkArrayAccesses programConstraints nameToIDMap varStatesIntKeys =
     let arrayAccessExprs = collectArrayAccesses programConstraints
     in concatMap checkSingle arrayAccessExprs

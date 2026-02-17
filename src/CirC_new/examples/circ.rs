@@ -567,6 +567,21 @@ fn main() {
                             ("maxbit", Some(val)) => {
                                 out.push_str(&format!("  ({} (maxbits {}))\n", key, val));
                             }
+                            ("minvalue", Some(val)) => {
+                                out.push_str(&format!("  ({} (minvalue {}))\n", key, val));
+                            }
+                            ("maxvalue", Some(val)) => {
+                                out.push_str(&format!("  ({} (maxvalue {}))\n", key, val));
+                            }
+                            ("max", Some(val)) => {
+                                out.push_str(&format!("  ({} (maxvalue {}))\n", key, val));
+                            }
+                            ("max_abs", Some(val)) => {
+                                out.push_str(&format!("  ({} (max_abs {}))\n", key, val));
+                            }
+                            ("maxbit_abs", Some(val)) => {
+                                out.push_str(&format!("  ({} (maxbit_abs {}))\n", key, val));
+                            }
                             _ => {
                                 out.push_str(&format!("  ({} {})\n", key, tag_name));
                             }

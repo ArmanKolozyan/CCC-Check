@@ -150,6 +150,9 @@ compileComputation (Atom "computation" _ ::: forms) = do
     pfRecipExpressions = pfRecips,
     returnVars = retVars
    }
+-- Unwrap set_default_modulus wrapper around computation
+compileComputation (Atom "set_default_modulus" _ ::: _modulus ::: inner ::: SNil _) =
+   compileComputation inner
 compileComputation e = throwError $ "Expected (computation ...), got: " ++ show e
 
 -- | Handles the compilation of forms by calling compileForm for each individual form and folding
@@ -631,6 +634,9 @@ compileTag sexp = throwError $ "Unsupported tag format: " ++ show sexp
 compileSort :: MonadCompile m => SExp -> m Sort
 compileSort (Atom "mod" _ ::: Num n _ ::: SNil _) =
   pure (FieldMod n)
+compileSort (Atom "field" _) =
+  -- BN254 modulus (default for all Circom circuits)
+  pure (FieldMod 21888242871839275222246405745257275088548364400416034343698204186575808495617)
 compileSort (Atom "bool" _) =
   pure Bool
 compileSort (Atom "bv" _ ::: Num n _ ::: SNil _) =
