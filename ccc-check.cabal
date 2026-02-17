@@ -51,10 +51,12 @@ executable ccc-check
       base >4.7 && <5
     , ccc-check
     , containers
+    , deepseq
     , maf2-analysis
     , maf2-domains
     , maf2-syntax
     , rio
+    , time
   default-language: Haskell2010
 
 test-suite all-tests
@@ -155,6 +157,7 @@ benchmark taggedcircomlib-bench
     , containers
     , criterion
     , deepseq
+    , directory
     , hspec
     , maf2-analysis
     , maf2-domains
