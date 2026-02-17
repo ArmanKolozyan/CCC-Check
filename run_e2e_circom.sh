@@ -56,6 +56,7 @@ ALL_PROGRAMS=(
     pedersen_test
     pedersen2_test
     constants
+    babypbk_test
 )
 
 # Specific programs or all
