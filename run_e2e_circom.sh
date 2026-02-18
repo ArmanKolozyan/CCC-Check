@@ -34,16 +34,13 @@ done
 # All available tagged programs
 ALL_PROGRAMS=(
     and or not nand nor xor
-    mux1 multimux1 mux11 mux2 mux21 mux3 mux31 mux4 mux41
-    isequal iszero decoder
-    num2bits bits2num
+    mux1 mux11 mux2 mux21 mux3 mux31 mux4 mux41
+    check_bitify check_comparators
+    decoder
     binsub binsum
-    lessthan lesseqthan greaterthan greatereqthan
-    biglessthan
-    compconstant
     aliascheck
     sign
-    bigadd bigadd15 bigadd2030
+    bigadd15 bigadd23 bigadd2030
     bigsub23 bigsub15
     bigmult21 bigmult22 bigmult23
     bigsubmodp_32
@@ -115,7 +112,7 @@ for name in "${PROGRAMS[@]}"; do
     echo -e "${CYAN}--- $name ---${NC}"
 
     if [ "$IR_ONLY" = true ]; then
-        # IR-only mode: skip CirC compilation, use existing IR files
+        # IR-only mode: skipping CirC compilation, use existing IR files
         if [ ! -f "$CIRCIR_FILE" ] || [ ! -f "$TAGS_FILE" ]; then
             echo -e "  ${RED}SKIP${NC}: IR files not found at $OUTPUT_DIR/${name}.{circir,tags}"
             echo -e "       Run without --ir-only first to generate them."
@@ -123,7 +120,7 @@ for name in "${PROGRAMS[@]}"; do
             continue
         fi
     else
-        # Full pipeline: compile Circom to IR first
+        # Full pipeline: compiling Circom to IR first
         if [ ! -f "$CIRCOM_FILE" ]; then
             echo -e "${RED}SKIP${NC}: $name.circom not found"
             FAIL=$((FAIL + 1))
@@ -142,28 +139,25 @@ for name in "${PROGRAMS[@]}"; do
         fi
     fi
 
-    # Run Haskell bug detector
+    # running Haskell bug detector
     if [ "$IR_ONLY" = true ]; then
         echo -e "  ${BOLD}[1/1]${NC} Bug detector: analyzing IR"
     else
         echo -e "  ${BOLD}[2/2]${NC} Bug detector: analyzing IR"
     fi
-    output=$("$HASKELL_EXE" "$CIRCIR_FILE" "$TAGS_FILE" 2>&1) || true
+    OUTPUT_FILE="$OUTPUT_DIR/${name}_output.txt"
+    "$HASKELL_EXE" "$CIRCIR_FILE" "$TAGS_FILE" > "$OUTPUT_FILE" 2>&1 || true
 
-    if echo "$output" | grep -q "^Error:"; then
+    if grep -q "^Error:" "$OUTPUT_FILE"; then
         echo -e "  ${RED}FAIL${NC}: Bug detector error"
-        echo "$output" | grep "^Error:" | sed 's/^/       /'
+        grep "^Error:" "$OUTPUT_FILE" | sed 's/^/       /'
         FAIL=$((FAIL + 1))
     else
         echo -e "  ${GREEN}PASS${NC}"
         # showing analysis highlights
-        if echo "$output" | grep -q "Potential division by zero"; then
-            echo "$output" | grep "Potential division by zero" | sed 's/^/       /'
-        fi
-        if echo "$output" | grep -q "Warning:"; then
-            echo "$output" | grep "Warning:" | head -3 | sed 's/^/       /'
-        fi
-        if echo "$output" | grep -q "No bugs detected"; then
+        grep "Potential division by zero" "$OUTPUT_FILE" | sed 's/^/       /' || true
+        grep "Warning:" "$OUTPUT_FILE" | head -3 | sed 's/^/       /' || true
+        if grep -q "No bugs detected" "$OUTPUT_FILE"; then
             echo -e "       No bugs detected."
         fi
         PASS=$((PASS + 1))
