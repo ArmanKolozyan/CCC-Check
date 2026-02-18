@@ -11,13 +11,16 @@
 module BugDetection.BugDetection (detectBugs, detectBugsWithStore) where
 
 import Syntax.AST
-import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import Data.HashMap.Strict (HashMap)
 import qualified Data.Set as Set
 import Data.Maybe (fromMaybe)
 import Data.Bits ((.&.))
+import Data.List (isPrefixOf, foldl')
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as IntMap
+import Control.DeepSeq (deepseq)
+import System.CPUTime (getCPUTime)
 import ValueAnalysis.VariableState
 import ValueAnalysis.ValueDomain
 import ValueAnalysis.Analysis (analyzeProgramFull, inferValues)
@@ -36,7 +39,7 @@ detectBugs program maybeVars =
 
 -- | Bug detection using a pre-computed analysis store (avoids re-running analysis).
 -- Takes the nameToID map and the int-keyed store directly.
-detectBugsWithStore :: Program -> Maybe [Binding] -> Map String Int -> IntMap VariableState -> Either [String] ()
+detectBugsWithStore :: Program -> Maybe [Binding] -> HashMap String Int -> IntMap VariableState -> Either [String] ()
 detectBugsWithStore program maybeVars nameToIDMap varStatesIntKeys =
   let allVars = inputs program ++ computationVars program ++ constraintVars program
       vars = fromMaybe allVars maybeVars
@@ -44,7 +47,7 @@ detectBugsWithStore program maybeVars nameToIDMap varStatesIntKeys =
       -- gathering errors for each variable based on Sort
       sortErrors = concatMap (checkVariable varStatesIntKeys) vars
       -- gathering division-by-zero errors
-      divByZeroErrors = checkPfRecips (pfRecipExpressions program) nameToIDMap varStatesIntKeys
+      divByZeroErrors = checkPfRecips (computations program) (pfRecipExpressions program) nameToIDMap varStatesIntKeys
       -- gathering array access out-of-bounds errors
       arrayAccessErrors = checkArrayAccesses (constraints program) nameToIDMap varStatesIntKeys
 
@@ -52,6 +55,32 @@ detectBugsWithStore program maybeVars nameToIDMap varStatesIntKeys =
   in if null errors
        then Right ()
        else Left errors
+
+-- | Profile bug detection phases: reports time spent in each phase.
+profileBugDetection :: Program -> Maybe [Binding] -> HashMap String Int -> IntMap VariableState -> IO ()
+profileBugDetection program maybeVars nameToIDMap varStatesIntKeys = do
+  let allVars = inputs program ++ computationVars program ++ constraintVars program
+      vars = fromMaybe allVars maybeVars
+
+  t0 <- getCPUTime
+  let sortErrors = concatMap (checkVariable varStatesIntKeys) vars
+  sortErrors `deepseq` return ()
+  t1 <- getCPUTime
+
+  let divByZeroErrors = checkPfRecips (computations program) (pfRecipExpressions program) nameToIDMap varStatesIntKeys
+  divByZeroErrors `deepseq` return ()
+  t2 <- getCPUTime
+
+  let arrayAccessErrors = checkArrayAccesses (constraints program) nameToIDMap varStatesIntKeys
+  arrayAccessErrors `deepseq` return ()
+  t3 <- getCPUTime
+
+  let toMs t = fromIntegral t / 1e9 :: Double
+  putStrLn $ "  Bug detection profile:"
+  putStrLn $ "    checkVariable (" ++ show (length vars) ++ " vars): " ++ show (toMs (t1-t0)) ++ " ms"
+  putStrLn $ "    checkPfRecips (" ++ show (length (pfRecipExpressions program)) ++ " denoms): " ++ show (toMs (t2-t1)) ++ " ms"
+  putStrLn $ "    checkArrayAccesses: " ++ show (toMs (t3-t2)) ++ " ms"
+  putStrLn $ "    Total: " ++ show (toMs (t3-t0)) ++ " ms"
 
 -- | Checks whether one variable's final state is consistent with its declared Sort.
 --   Returns either an empty list (no issues) or a list of error messages.
@@ -266,20 +295,96 @@ checkPowerOf2Domain d varName = case d of
 
 -- Checking denominators.
 
+-- | Checks whether an expression is a zero literal (Int 0 or FieldConst 0 _).
+isZeroLiteral :: Expression -> Bool
+isZeroLiteral (Int 0)          = True
+isZeroLiteral (FieldConst 0 _) = True
+isZeroLiteral _                = False
+
+-- | Collects all guarded denominators from the computations in a single pass.
+--   Looks for the pattern: Ite (Not (Eq d zero)) (PfRecip d) _
+--   where zero is Int 0 or FieldConst 0 _, and Eq operands may be swapped.
+--   Returns a Set of denominator expressions that are guarded (safe from div-by-zero).
+collectGuardedDenominators :: [Expression] -> Set.Set Expression
+collectGuardedDenominators = foldl' (\acc e -> collectFromExpr acc e) Set.empty
+  where
+    collectFromExpr :: Set.Set Expression -> Expression -> Set.Set Expression
+    -- the pattern we're looking for: Ite (Not (Eq d 0)) (PfRecip d) _
+    collectFromExpr acc (Ite (Not (Eq a b)) (PfRecip r) elseE)
+      | (a == r && isZeroLiteral b) || (b == r && isZeroLiteral a) =
+          let acc' = Set.insert r acc
+          in collectFromExpr (collectFromExpr (collectFromExpr acc' (Not (Eq a b))) (PfRecip r)) elseE
+    collectFromExpr acc (Add e1 e2)     = collectFromExpr (collectFromExpr acc e1) e2
+    collectFromExpr acc (Sub e1 e2)     = collectFromExpr (collectFromExpr acc e1) e2
+    collectFromExpr acc (Mul e1 e2)     = collectFromExpr (collectFromExpr acc e1) e2
+    collectFromExpr acc (Div e1 e2)     = collectFromExpr (collectFromExpr acc e1) e2
+    collectFromExpr acc (Ite c t e)     = collectFromExpr (collectFromExpr (collectFromExpr acc c) t) e
+    collectFromExpr acc (Eq e1 e2)      = collectFromExpr (collectFromExpr acc e1) e2
+    collectFromExpr acc (Gt e1 e2)      = collectFromExpr (collectFromExpr acc e1) e2
+    collectFromExpr acc (Lt e1 e2)      = collectFromExpr (collectFromExpr acc e1) e2
+    collectFromExpr acc (Gte e1 e2)     = collectFromExpr (collectFromExpr acc e1) e2
+    collectFromExpr acc (Lte e1 e2)     = collectFromExpr (collectFromExpr acc e1) e2
+    collectFromExpr acc (And es)        = foldl' collectFromExpr acc es
+    collectFromExpr acc (Or es)         = foldl' collectFromExpr acc es
+    collectFromExpr acc (Not e)         = collectFromExpr acc e
+    collectFromExpr acc (PfRecip e)     = collectFromExpr acc e
+    collectFromExpr acc (Let bs body)   = collectFromExpr (foldl' (\a (_, e) -> collectFromExpr a e) acc bs) body
+    collectFromExpr acc (ArraySelect a i)     = collectFromExpr (collectFromExpr acc a) i
+    collectFromExpr acc (ArrayStore a i v)    = collectFromExpr (collectFromExpr (collectFromExpr acc a) i) v
+    collectFromExpr acc (ArrayLiteral es _)   = foldl' collectFromExpr acc es
+    collectFromExpr acc (ArraySparseLiteral ies de _ _) = collectFromExpr (foldl' (\a (_, e) -> collectFromExpr a e) acc ies) de
+    collectFromExpr acc (ArrayConstruct es _) = foldl' collectFromExpr acc es
+    collectFromExpr acc (ArrayFill e _ _)     = collectFromExpr acc e
+    collectFromExpr acc (Return es)           = foldl' collectFromExpr acc es
+    collectFromExpr acc (Tuple es)            = foldl' collectFromExpr acc es
+    collectFromExpr acc (Assign _ e)          = collectFromExpr acc e
+    collectFromExpr acc (BvExtract e _ _)     = collectFromExpr acc e
+    collectFromExpr acc (BvConcat e1 e2)      = collectFromExpr (collectFromExpr acc e1) e2
+    collectFromExpr acc (BvXor e1 e2)         = collectFromExpr (collectFromExpr acc e1) e2
+    collectFromExpr acc (BvURem e1 e2)        = collectFromExpr (collectFromExpr acc e1) e2
+    collectFromExpr acc (BvUDiv e1 e2)        = collectFromExpr (collectFromExpr acc e1) e2
+    collectFromExpr acc (Bv2Pf _ e)           = collectFromExpr acc e
+    collectFromExpr acc (Pf2Bv _ e)           = collectFromExpr acc e
+    collectFromExpr acc (Bool2Bv e)           = collectFromExpr acc e
+    collectFromExpr acc (UExt _ e)            = collectFromExpr acc e
+    collectFromExpr acc (BitSelect _ e)       = collectFromExpr acc e
+    collectFromExpr acc _                     = acc -- Var, Int, FieldConst, BoolLit, BvLit
+
+-- | Checks whether a denominator is a __qv__ variable plus a nonzero constant.
+--   These are CirC compiler intermediates.
+--   Matches patterns like:
+--     Add (Var "__qv__*") (FieldConst c _)   where c /= 0
+--     Add (Sub (Int 0) (Var "__qv__*")) (FieldConst c _)  where c /= 0
+isQvPlusNonZeroConstant :: Expression -> Bool
+isQvPlusNonZeroConstant (Add (Var v) (FieldConst c _))
+  | "__qv__" `isPrefixOf` v && c /= 0 = True
+isQvPlusNonZeroConstant (Add (FieldConst c _) (Var v))
+  | "__qv__" `isPrefixOf` v && c /= 0 = True
+isQvPlusNonZeroConstant (Add (Sub z (Var v)) (FieldConst c _))
+  | isZeroLiteral z && "__qv__" `isPrefixOf` v && c /= 0 = True
+isQvPlusNonZeroConstant (Add (FieldConst c _) (Sub z (Var v)))
+  | isZeroLiteral z && "__qv__" `isPrefixOf` v && c /= 0 = True
+isQvPlusNonZeroConstant _ = False
+
 -- | Checks if any PfRecip expression could be zero "at runtime", more precisely :
 --   1) if the expression is constrained to be nonZero (via nonZero flag)
 --   2) or, 0 is not in the expression's value domain
-checkPfRecips :: [Expression] -> Map String Int -> IntMap VariableState -> [String]
-checkPfRecips denominators nameToID varStatesIntKeys =
-  concatMap checkSingle denominators
+--   3) handles false positives for guarded IsZero patterns and __qv__ + constant
+checkPfRecips :: [Expression] -> [Expression] -> HashMap String Int -> IntMap VariableState -> [String]
+checkPfRecips programComputations denominators nameToID varStatesIntKeys =
+  let guardedSet = collectGuardedDenominators programComputations
+  in concatMap (checkSingle guardedSet) denominators
   where
-    checkSingle expr =
-      let inferredDomain = inferValues expr nameToID varStatesIntKeys Nothing
-      -- using the functions from ValueDomain to check zero status
-      in if isDefinitelyNonZero inferredDomain
-         then [] -- guaranteed non-zero, OK
-         -- checking if it *could* be zero
-         else (["Potential division by zero: Denominator expression `" ++ show expr ++ "` might be zero." | couldBeZero inferredDomain])
+    checkSingle guardedSet expr
+      | isQvPlusNonZeroConstant expr = []
+      | expr `Set.member` guardedSet = []
+      | otherwise =
+          let inferredDomain = inferValues expr nameToID varStatesIntKeys Nothing
+          -- using the functions from ValueDomain to check zero status
+          in if isDefinitelyNonZero inferredDomain
+             then [] -- guaranteed non-zero, OK
+             -- checking if it *could* be zero
+             else ["Potential division by zero: Denominator expression `" ++ show expr ++ "` might be zero." | couldBeZero inferredDomain]
 
 
 
@@ -324,7 +429,7 @@ collectArrayAccesses = concatMap collectFromConstraint
 
 -- | Checks ArrayStore and ArraySelect expressions for potential out-of-bounds access
 --   using known indices based on the final inferred variable states.
-checkArrayAccesses :: [Constraint] -> Map String Int -> IntMap VariableState -> [String]
+checkArrayAccesses :: [Constraint] -> HashMap String Int -> IntMap VariableState -> [String]
 checkArrayAccesses programConstraints nameToIDMap varStatesIntKeys =
     let arrayAccessExprs = collectArrayAccesses programConstraints
     in concatMap checkSingle arrayAccessExprs

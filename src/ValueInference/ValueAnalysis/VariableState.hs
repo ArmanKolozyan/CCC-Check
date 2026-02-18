@@ -8,6 +8,8 @@ import Control.DeepSeq (NFData)
 import ValueAnalysis.ValueDomain (ValueDomain(..), defaultValueDomain)
 import Syntax.AST
 import qualified Data.Map.Strict as Map
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HashMap
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as IntMap
 
@@ -31,13 +33,13 @@ initializeVarStates :: [Binding] -> IntMap VariableState
 initializeVarStates vars = IntMap.fromList [(vid v, initVarState v) | v <- vars]
 
 -- | Builds a map from variable names to their IDs for lookup.
-buildVarNameToIDMap :: [Binding] -> Map.Map String Int
-buildVarNameToIDMap vars = Map.fromList [(name v, vid v) | v <- vars]
+buildVarNameToIDMap :: [Binding] -> HashMap String Int
+buildVarNameToIDMap vars = HashMap.fromList [(name v, vid v) | v <- vars]
 
 -- | Lookup variable ID by name.
-lookupVarID :: String -> Map.Map String Int -> Either String Int
+lookupVarID :: String -> HashMap String Int -> Either String Int
 lookupVarID name nameToID =
-  case Map.lookup name nameToID of
+  case HashMap.lookup name nameToID of
     Just vID -> Right vID
     Nothing  -> Left $ "Variable name not found in nameToID map: " ++ name
 
@@ -49,7 +51,7 @@ lookupVarState vID varStates =
     Nothing    -> Left $ "Variable state not found in varStates for ID: " ++ show vID
 
 -- | Lookup variable state by name.
-lookupVarStateByName :: String -> Map.Map String Int -> IntMap VariableState -> Either String VariableState
+lookupVarStateByName :: String -> HashMap String Int -> IntMap VariableState -> Either String VariableState
 lookupVarStateByName name nameToID varStates = do
   vID <- lookupVarID name nameToID
   lookupVarState vID varStates

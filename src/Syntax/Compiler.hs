@@ -355,10 +355,74 @@ compileConstraint constraint = do
         (Atom "not" _ ::: exp ::: SNil _) -> do
             constr <- compileConstraint exp
             pure $ NotC id constr
+        -- let-wrapped constraint: compile bindings, substitute into body constraint
+        (Atom "let" _ ::: bindingList ::: bodyConstr ::: SNil _) -> do
+            binds <- compileLetBindings bindingList
+            innerC <- compileConstraint bodyConstr
+            pure $ substConstraintLet binds innerC
         -- trivially true constraint (CirC emits bare `true` in some cases)
         (Atom "true" _) -> pure $ EqC id (Int 0) (Int 0)
         -- fallback: treat unknown constraint form as trivially true
         other -> pure $ EqC id (Int 0) (Int 0)
+
+-- | Substitutes let bindings into a constraint's expressions.
+--   For EqC, substitutes into both sides. For compound constraints, recurses.
+substConstraintLet :: [(String, Expression)] -> Constraint -> Constraint
+substConstraintLet binds (EqC cid lhs rhs) =
+    EqC cid (substExpr binds lhs) (substExpr binds rhs)
+substConstraintLet binds (AndC cid cs) =
+    AndC cid (map (substConstraintLet binds) cs)
+substConstraintLet binds (OrC cid cs) =
+    OrC cid (map (substConstraintLet binds) cs)
+substConstraintLet binds (NotC cid c) =
+    NotC cid (substConstraintLet binds c)
+
+-- | Substitutes let bindings into an expression by replacing Var references.
+substExpr :: [(String, Expression)] -> Expression -> Expression
+substExpr binds = go
+  where
+    env = Map.fromList binds
+    go (Var n) = case Map.lookup n env of
+        Just e  -> e
+        Nothing -> Var n
+    go (Int i) = Int i
+    go (FieldConst i p) = FieldConst i p
+    go (BoolLit b) = BoolLit b
+    go (Add e1 e2) = Add (go e1) (go e2)
+    go (Sub e1 e2) = Sub (go e1) (go e2)
+    go (Mul e1 e2) = Mul (go e1) (go e2)
+    go (Div e1 e2) = Div (go e1) (go e2)
+    go (Ite c t e) = Ite (go c) (go t) (go e)
+    go (Eq e1 e2) = Eq (go e1) (go e2)
+    go (Gt e1 e2) = Gt (go e1) (go e2)
+    go (Lt e1 e2) = Lt (go e1) (go e2)
+    go (Gte e1 e2) = Gte (go e1) (go e2)
+    go (Lte e1 e2) = Lte (go e1) (go e2)
+    go (And es) = And (map go es)
+    go (Or es) = Or (map go es)
+    go (Not e) = Not (go e)
+    go (PfRecip e) = PfRecip (go e)
+    go (BvExtract e h l) = BvExtract (go e) h l
+    go (BvConcat e1 e2) = BvConcat (go e1) (go e2)
+    go (BvLit v w) = BvLit v w
+    go (BvXor e1 e2) = BvXor (go e1) (go e2)
+    go (BvURem e1 e2) = BvURem (go e1) (go e2)
+    go (BvUDiv e1 e2) = BvUDiv (go e1) (go e2)
+    go (Bv2Pf m e) = Bv2Pf m (go e)
+    go (Pf2Bv w e) = Pf2Bv w (go e)
+    go (Bool2Bv e) = Bool2Bv (go e)
+    go (UExt a e) = UExt a (go e)
+    go (BitSelect p e) = BitSelect p (go e)
+    go (Let bs body) = Let (map (\(n, e) -> (n, go e)) bs) (go body)
+    go (Return es) = Return (map go es)
+    go (Tuple es) = Tuple (map go es)
+    go (ArrayLiteral es s) = ArrayLiteral (map go es) s
+    go (ArraySparseLiteral ies de sz s) = ArraySparseLiteral (map (\(i, e) -> (i, go e)) ies) (go de) sz s
+    go (ArrayConstruct es s) = ArrayConstruct (map go es) s
+    go (ArraySelect a i) = ArraySelect (go a) (go i)
+    go (ArrayStore a i v) = ArrayStore (go a) (go i) (go v)
+    go (ArrayFill v s sz) = ArrayFill (go v) s sz
+    go (Assign n e) = Assign n (go e)
 
 -- | Compiles a declare block by extracting variable declarations and constraints.
 compileDeclare :: MonadCompile m => SExp -> m ([Binding], [Constraint])

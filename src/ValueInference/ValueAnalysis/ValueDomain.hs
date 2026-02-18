@@ -89,8 +89,9 @@ defaultValueDomain :: ValueDomain
 defaultValueDomain = BoundedValues (Just 0) (Just (p - 1)) Set.empty
 
 -- | Checks if a value domain guarantees the value is non-zero.
--- For this to be the case, zero must be explicitly excluded via gaps 
+-- For this to be the case, zero must be explicitly excluded via gaps
 -- OR the bounds must strictly exclude zero.
+{-# INLINE isDefinitelyNonZero #-}
 isDefinitelyNonZero :: ValueDomain -> Bool
 isDefinitelyNonZero (KnownValues s) = not (Set.null s) && not (Set.member 0 s)
 isDefinitelyNonZero (BoundedValues lbM ubM currentGaps) =
@@ -107,6 +108,7 @@ isDefinitelyNonZero (BoundedValues lbM ubM currentGaps) =
 
 
 -- Helper function to check if a domain might possibly contain zero.
+{-# INLINE couldBeZero #-}
 couldBeZero :: ValueDomain -> Bool
 couldBeZero (KnownValues s) = Set.member 0 s
 couldBeZero (BoundedValues lbM ubM currentGaps) =
@@ -122,6 +124,7 @@ couldBeZero (BoundedValues lbM ubM currentGaps) =
     in not zeroIsExcluded && zeroInRange
 
 -- Helper function to check if a domain is certainly the single value zero.
+{-# INLINE isCertainlyZeroDomain #-}
 isCertainlyZeroDomain :: ValueDomain -> Bool
 isCertainlyZeroDomain (KnownValues s) = s == Set.singleton 0
 isCertainlyZeroDomain (BoundedValues lbM ubM currentGaps) =
@@ -201,6 +204,7 @@ intersectDomains d1 d2 = case (d1, d2) of
     (_, ArrayDomain {}) -> Left "Cannot intersect non-ArrayDomain with ArrayDomain"
 
 -- Helper to combine Maybe bounds using a function (max for lower bounds, min for upper bounds)
+{-# INLINE combineBounds #-}
 combineBounds :: (Integer -> Integer -> Integer) -> Maybe Integer -> Maybe Integer -> Maybe Integer
 combineBounds _ Nothing Nothing = Nothing
 combineBounds _ (Just a) Nothing = Just a
@@ -267,6 +271,7 @@ findPrevValidUpperBoundInterval (Just ub) currentGaps p =
         | otherwise = Right currentUb
 
 -- | Excludes a specific value from a domain.
+{-# INLINE excludeValue #-}
 excludeValue :: ValueDomain -> Integer -> ValueDomain
 excludeValue (KnownValues s) v = KnownValues (Set.delete v s)
 excludeValue d@(BoundedValues lbM ubM currentGaps) v =
@@ -287,8 +292,9 @@ excludeValue d@(BoundedValues lbM ubM currentGaps) v =
        in BoundedValues lbM ubM updatedIntervals
 
 -- | Checks if a value `v` falls within any of the excluded intervals.
+{-# INLINE isExcluded #-}
 isExcluded :: Integer -> Set (Integer, Integer) -> Integer -> Bool
-isExcluded v intervals p = any checkInterval (Set.toList intervals)
+isExcluded v intervals _ = any checkInterval intervals
   where
     checkInterval (l, u)
       | l <= u    = v >= l && v <= u -- standard interval

@@ -46,7 +46,7 @@ data Sort
   | Bool 
   | BitVector Integer
   | ArraySort Sort Integer -- arrays have an element sort and size
-  deriving (Show, Eq, Generic, NFData)
+  deriving (Show, Eq, Ord, Generic, NFData)
 
 -- | Expressions: variables, field elements, and arithmetic operations.
 data Expression
@@ -140,7 +140,7 @@ data Expression
 
     -- assignments
   | Assign String Expression
-  deriving (Show, Eq, Generic, NFData)
+  deriving (Show, Eq, Ord, Generic, NFData)
 
 -- | Minimal set of constraints: equality.
 data Constraint

@@ -7,20 +7,26 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE BangPatterns #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant if" #-}
 
-module ValueAnalysis.Analysis (analyzeProgram, analyzeProgramFull, precomputeAnalysis, runAnalysis, PrecomputedAnalysis(..), transformIDToNames, VariableState(..), updateValues, initVarState, ValueDomain(..), analyzeFromFile, analyzeFromFileWithTags, inferValues) where
+module ValueAnalysis.Analysis (analyzeProgram, analyzeProgramFull, analyzeProgramFullCounted, precomputeAnalysis, runAnalysis, runAnalysisCounted, PrecomputedAnalysis(..), transformIDToNames, VariableState(..), updateValues, initVarState, ValueDomain(..), analyzeFromFile, analyzeFromFileWithTags, inferValues) where
 
 import Syntax.AST
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import qualified Data.Map.Merge.Strict as MapMerge
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Set as Set
 import Data.Sequence (Seq, (|>), viewl, ViewL(..))
 import qualified Data.Sequence as Seq
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
+import Data.List (foldl', sortBy)
+import Data.Ord (comparing)
 import Data.Either (fromRight)
+import Data.Char (isDigit)
 import Syntax.Compiler (parseAndCompile)
 import Syntax.TagsParser (parseTagsFile)
 import ValueAnalysis.UserRules
@@ -33,8 +39,7 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 
 import Control.Monad (foldM)
-import Control.DeepSeq (NFData(..))
-
+import Control.DeepSeq (NFData(..), force)
 
 
 --------------------------
@@ -54,7 +59,7 @@ import Control.DeepSeq (NFData(..))
 --------------------------
 
 -- | Collects all variable IDs from a constraint into an IntSet.
-collectVarsFromConstraint :: Map String Int -> Constraint -> IntSet
+collectVarsFromConstraint :: HashMap String Int -> Constraint -> IntSet
 collectVarsFromConstraint nameToID (EqC _ e1 e2) =
     IntSet.union (collectVarsFromExpr nameToID e1) (collectVarsFromExpr nameToID e2)
 collectVarsFromConstraint nameToID (AndC _ cs) =
@@ -65,60 +70,65 @@ collectVarsFromConstraint nameToID (NotC _ c) =
     collectVarsFromConstraint nameToID c
 
 -- | Collects all variable IDs from an expression into an IntSet.
-collectVarsFromExpr :: Map String Int -> Expression -> IntSet
-collectVarsFromExpr nameToID = go
+--   Tracks let-bound names to avoid looking them up in nameToID.
+collectVarsFromExpr :: HashMap String Int -> Expression -> IntSet
+collectVarsFromExpr nameToID = go Set.empty
   where
-    go (Var name) = case Map.lookup name nameToID of
-        Just vID -> IntSet.singleton vID
-        Nothing  -> error $ "Variable name not found: " ++ name
-    go (Int _) = IntSet.empty
-    go (FieldConst _ _) = IntSet.empty
-    go (Add e1 e2) = IntSet.union (go e1) (go e2)
-    go (Sub e1 e2) = IntSet.union (go e1) (go e2)
-    go (Mul e1 e2) = IntSet.union (go e1) (go e2)
-    go (Div e1 e2) = IntSet.union (go e1) (go e2)
-    go (Ite e1 e2 e3) = IntSet.unions [go e1, go e2, go e3]
-    go (Eq e1 e2) = IntSet.union (go e1) (go e2)
-    go (Gt e1 e2) = IntSet.union (go e1) (go e2)
-    go (Lt e1 e2) = IntSet.union (go e1) (go e2)
-    go (Gte e1 e2) = IntSet.union (go e1) (go e2)
-    go (Lte e1 e2) = IntSet.union (go e1) (go e2)
-    go (And es) = IntSet.unions (map go es)
-    go (Or es) = IntSet.unions (map go es)
-    go (Not e) = go e
-    go (PfRecip e) = go e
-    go (BvExtract e _ _) = go e
-    go (BvConcat e1 e2) = IntSet.union (go e1) (go e2)
-    go (BvLit _ _) = IntSet.empty
-    go (BoolLit _) = IntSet.empty
-    go (BvXor e1 e2) = IntSet.union (go e1) (go e2)
-    go (BvURem e1 e2) = IntSet.union (go e1) (go e2)
-    go (BvUDiv e1 e2) = IntSet.union (go e1) (go e2)
-    go (Bv2Pf _ e) = go e
-    go (Pf2Bv _ e) = go e
-    go (Bool2Bv e) = go e
-    go (UExt _ e) = go e
-    go (BitSelect _ e) = go e
-    go (Let bindings body) =
-        IntSet.union (IntSet.unions (map (go . snd) bindings)) (go body)
-    go (ArrayLiteral es _) = IntSet.unions (map go es)
-    go (ArraySparseLiteral indexedExprs defExpr _ _) =
-        IntSet.union (IntSet.unions (map (go . snd) indexedExprs)) (go defExpr)
-    go (Return es) = IntSet.unions (map go es)
-    go (Tuple es) = IntSet.unions (map go es)
-    go (ArrayConstruct es _) = IntSet.unions (map go es)
-    go (ArraySelect arr idx) = IntSet.union (go arr) (go idx)
-    go (ArrayStore arr idx val) = IntSet.unions [go arr, go idx, go val]
-    go (ArrayFill val _ _) = go val
-    go (Assign _ expr) = go expr
+    go locals (Var name)
+        | Set.member name locals = IntSet.empty -- let-bound local, skip
+        | otherwise = case HashMap.lookup name nameToID of
+            Just vID -> IntSet.singleton vID
+            Nothing  -> IntSet.empty -- unknown variable (e.g., from CirC intermediates)
+    go _ (Int _) = IntSet.empty
+    go _ (FieldConst _ _) = IntSet.empty
+    go locals (Add e1 e2) = IntSet.union (go locals e1) (go locals e2)
+    go locals (Sub e1 e2) = IntSet.union (go locals e1) (go locals e2)
+    go locals (Mul e1 e2) = IntSet.union (go locals e1) (go locals e2)
+    go locals (Div e1 e2) = IntSet.union (go locals e1) (go locals e2)
+    go locals (Ite e1 e2 e3) = IntSet.unions [go locals e1, go locals e2, go locals e3]
+    go locals (Eq e1 e2) = IntSet.union (go locals e1) (go locals e2)
+    go locals (Gt e1 e2) = IntSet.union (go locals e1) (go locals e2)
+    go locals (Lt e1 e2) = IntSet.union (go locals e1) (go locals e2)
+    go locals (Gte e1 e2) = IntSet.union (go locals e1) (go locals e2)
+    go locals (Lte e1 e2) = IntSet.union (go locals e1) (go locals e2)
+    go locals (And es) = IntSet.unions (map (go locals) es)
+    go locals (Or es) = IntSet.unions (map (go locals) es)
+    go locals (Not e) = go locals e
+    go locals (PfRecip e) = go locals e
+    go locals (BvExtract e _ _) = go locals e
+    go locals (BvConcat e1 e2) = IntSet.union (go locals e1) (go locals e2)
+    go _ (BvLit _ _) = IntSet.empty
+    go _ (BoolLit _) = IntSet.empty
+    go locals (BvXor e1 e2) = IntSet.union (go locals e1) (go locals e2)
+    go locals (BvURem e1 e2) = IntSet.union (go locals e1) (go locals e2)
+    go locals (BvUDiv e1 e2) = IntSet.union (go locals e1) (go locals e2)
+    go locals (Bv2Pf _ e) = go locals e
+    go locals (Pf2Bv _ e) = go locals e
+    go locals (Bool2Bv e) = go locals e
+    go locals (UExt _ e) = go locals e
+    go locals (BitSelect _ e) = go locals e
+    go locals (Let bindings body) =
+        let bindingVars = IntSet.unions (map (go locals . snd) bindings)
+            locals' = foldl' (\s (n, _) -> Set.insert n s) locals bindings
+        in IntSet.union bindingVars (go locals' body)
+    go locals (ArrayLiteral es _) = IntSet.unions (map (go locals) es)
+    go locals (ArraySparseLiteral indexedExprs defExpr _ _) =
+        IntSet.union (IntSet.unions (map (go locals . snd) indexedExprs)) (go locals defExpr)
+    go locals (Return es) = IntSet.unions (map (go locals) es)
+    go locals (Tuple es) = IntSet.unions (map (go locals) es)
+    go locals (ArrayConstruct es _) = IntSet.unions (map (go locals) es)
+    go locals (ArraySelect arr idx) = IntSet.union (go locals arr) (go locals idx)
+    go locals (ArrayStore arr idx val) = IntSet.unions [go locals arr, go locals idx, go locals val]
+    go locals (ArrayFill val _ _) = go locals val
+    go locals (Assign _ expr) = go locals expr
 
 -- | Builds a variable-to-constraints mapping.
-buildVarToConstraints :: Map String Int -> [Constraint] -> IntMap IntSet
+buildVarToConstraints :: HashMap String Int -> [Constraint] -> IntMap IntSet
 buildVarToConstraints nameToID constraints =
   IntMap.fromListWith IntSet.union pairs
   where
     pairs = concatMap (extract nameToID) constraints
-    extract :: Map String Int -> Constraint -> [(Int, IntSet)]
+    extract :: HashMap String Int -> Constraint -> [(Int, IntSet)]
     extract nmToID (EqC cid e1 e2) =
         [(v, IntSet.singleton cid) | v <- IntSet.toList (collectVarsFromExpr nmToID e1 `IntSet.union` collectVarsFromExpr nmToID e2)]
     extract nmToID (AndC _ cs) = concatMap (extract nmToID) cs
@@ -128,6 +138,15 @@ buildVarToConstraints nameToID constraints =
 --------------------------
 -- 4) Setting Up the Processing Queue
 --------------------------
+
+-- | Recursively flattens 'AndC' nodes into their leaf constraints.
+--   This ensures each sub-constraint gets its own entry in the worklist,
+--   enabling proper fixed-point iteration when variable states change.
+flattenConstraints :: [Constraint] -> [Constraint]
+flattenConstraints = concatMap go
+  where
+    go (AndC _ cs) = concatMap go cs
+    go c           = [c]
 
 -- | Initializes the constraint queue with all constraints.
 initializeQueue :: [Constraint] -> Seq Int
@@ -143,9 +162,10 @@ getConstraintID (NotC cid _) = cid
 -- 5) Value Inferencing
 --------------------------
 
--- | Updates values of a variable and checks consistency.
+-- | Updates the values of a variable and checks consistency.
 --   It does this by intersecting the existing domain with the new domain information.
 --   Returns Left String on contradiction, Right VariableState on success.
+{-# INLINE updateValues #-}
 updateValues :: VariableState -> ValueDomain -> Either String VariableState
 updateValues oldState newDomainInfo =
   -- 1. getting the current domain from the old state
@@ -155,7 +175,7 @@ updateValues oldState newDomainInfo =
        -- 3a. if intersection fails (contradiction), we return the error
        Left errMsg -> Left errMsg
        -- 3b. if intersection succeeds, we create a new VariableState with the updated domain
-       Right updatedDomain -> Right (oldState { domain = updatedDomain })
+       Right updatedDomain -> Right (VariableState (force updatedDomain))
 
 -- | Computes the union (least upper bound) of two value domains.
 joinDomains :: ValueDomain -> ValueDomain -> ValueDomain
@@ -206,9 +226,9 @@ joinDomains d1 d2 = case (d1, d2) of
   -- joining incompatible types (e.g., Array and Scalar)
   _ -> defaultValueDomain
 
--- | Recursively infers possible values of an expression
--- Receives optional map for local (let) bindings.
-inferValues :: Expression -> Map String Int -> IntMap VariableState -> Maybe (Map String ValueDomain) -> ValueDomain
+-- | Recursively infers the possible values of an expression.
+--   Receives an optional map for local (let) bindings.
+inferValues :: Expression -> HashMap String Int -> IntMap VariableState -> Maybe (Map String ValueDomain) -> ValueDomain
 inferValues (Int c) _ _ _ = KnownValues (Set.singleton c)
 inferValues (FieldConst i p) _ _ _ = KnownValues $ Set.singleton (i `mod` p)
 
@@ -218,7 +238,7 @@ inferValues (Var xName) nameToID varStates maybeLocalBindings =
   case maybeLocalBindings >>= Map.lookup xName of
      Just localDomain -> localDomain -- found in local let-bindings
      Nothing -> -- not found locally, looking up globally
-      case Map.lookup xName nameToID of
+      case HashMap.lookup xName nameToID of
           -- variable known but no state? we return default domain
           Just varID -> maybe defaultValueDomain domain (IntMap.lookup varID varStates)
           -- variable name not found? we return default domain
@@ -598,7 +618,7 @@ getWrapAroundExclusion ubWrap lbWrap modulus =
        else
          Set.singleton (gapStart, gapEnd)
 
--- | Helper function: Extracts (x - c) terms from a multiplication expression.
+-- | Extracts (x - c) terms from a multiplication expression.
 extractRootFactors :: Expression -> Maybe (String, [Integer])
 extractRootFactors (Mul e1 e2) =
     case (extractRootFactors e1, extractRootFactors e2) of
@@ -613,7 +633,7 @@ extractRootFactors (Sub (Var xName) (FieldConst c fp)) = Just (xName, [c `mod` f
 extractRootFactors (Var xName) = Just (xName, [0]) -- is equivalent to (x - 0)
 extractRootFactors _ = Nothing
 
-zeroOne :: Int -> String -> String -> Map String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
+zeroOne :: Int -> String -> String -> HashMap String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
 zeroOne _ xName yName nameToID oldVarStates = do
    xID <- lookupVarID xName nameToID
    yID <- lookupVarID yName nameToID
@@ -664,8 +684,8 @@ isIn01 st = case domain st of
 
         in boundsOk && exclusionsOk
 
--- | Applies an "interesting" constraint to update variable states.
-analyzeConstraint :: Constraint -> Map String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
+-- | Applies a constraint to update variable states.
+analyzeConstraint :: Constraint -> HashMap String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
 
 
 -- | Boolean OR Rule: out = a + b - a*b
@@ -731,7 +751,7 @@ analyzeConstraint (EqC _ (Var outName) (Sub (Add (Mul (Var aName1) (Var bName1))
 analyzeConstraint (EqC _ (Var xName) e) nameToID varStates =
   case e of
     (Var yName) ->
-      case (Map.lookup xName nameToID, Map.lookup yName nameToID) of
+      case (HashMap.lookup xName nameToID, HashMap.lookup yName nameToID) of
         (Just xID, Just yID) ->
           case (IntMap.lookup xID varStates, IntMap.lookup yID varStates) of
             (Just xState, Just yState) ->
@@ -925,7 +945,7 @@ analyzeConstraint (AndC cid subCs) nameToID varStates = do
   pure (finalChanged, finalMap)
   where
     foldlAndM
-      :: Map String Int
+      :: HashMap String Int
       -> (Bool, IntMap VariableState)
       -> [Constraint]
       -> Either String (Bool, IntMap VariableState)
@@ -1025,7 +1045,7 @@ analyzeConstraint (EqC cid e (Var xName)) nameToID varStates =
 analyzeConstraint _ _ varStates = Right (False, varStates)
 
 -- Helper to update a specific element domain within an array variable's state
-updateArrayElement :: Expression -> Integer -> ValueDomain -> Map String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
+updateArrayElement :: Expression -> Integer -> ValueDomain -> HashMap String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
 updateArrayElement (Var arrName) idx newElemDom nameToID varStates = do
   arrID <- lookupVarID arrName nameToID
   arrState <- lookupVarState arrID varStates
@@ -1044,7 +1064,7 @@ updateArrayElement (Var arrName) idx newElemDom nameToID varStates = do
 updateArrayElement _ _ _ _ varStates = Right (False, varStates)
 
 -- Helper to update the default domain and potentially all element domains of an Array.
-updateArrayDefaultAndElements :: Expression -> ValueDomain -> ValueDomain -> Map String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
+updateArrayDefaultAndElements :: Expression -> ValueDomain -> ValueDomain -> HashMap String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
 updateArrayDefaultAndElements (Var arrName) newDefDom intersectDom nameToID varStates = do
   arrID <- lookupVarID arrName nameToID
   arrState <- lookupVarState arrID varStates
@@ -1067,7 +1087,7 @@ updateArrayDefaultAndElements (Var arrName) newDefDom intersectDom nameToID varS
 updateArrayDefaultAndElements _ _ _ _ varStates = Right (False, varStates)
 
 -- Helper function to constrain a variable to binary {0, 1}
-constrainVarToBinary :: String -> Map String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
+constrainVarToBinary :: String -> HashMap String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
 constrainVarToBinary varName nameToID varStates = do
   varID <- lookupVarID varName nameToID
   oldState <- lookupVarState varID varStates
@@ -1078,11 +1098,11 @@ constrainVarToBinary varName nameToID varStates = do
   let newMap = if changed then IntMap.insert varID newState varStates else varStates
   pure (changed, newMap)
 
--- | Propagates exclusions backward from a result domain to variables in an expression.
+-- | Propagates exclusions backwards from a result domain to variables in an expression.
 propagateExclusionsBackward
     :: Expression
     -> ValueDomain  -- the domain of the variable the expression is equal to (e.g., x's domain)
-    -> Map String Int
+    -> HashMap String Int
     -> IntMap VariableState
     -> (Bool, IntMap VariableState) -- returns (if any change occurred, updated states)
 propagateExclusionsBackward expr xDomain nameToID varStates =
@@ -1098,7 +1118,7 @@ propagateExclusionsBackward expr xDomain nameToID varStates =
     getExclusionIntervals (ArrayDomain _ _ _) = Set.empty
 
     -- helper to handle different expression structures
-    go :: Expression -> Set.Set (Integer, Integer) -> Map String Int -> IntMap VariableState -> (Bool, IntMap VariableState)
+    go :: Expression -> Set.Set (Integer, Integer) -> HashMap String Int -> IntMap VariableState -> (Bool, IntMap VariableState)
 
     -- x = y - c  =>  y = x + c
     go (Sub (Var yName) (Int c)) intervalsX nameToID currentStates =
@@ -1177,7 +1197,7 @@ intervalToValues modulus (l, u)
   | otherwise = [l..(modulus-1)] ++ [0..u]
 
 -- Helper: Applies exclusions to a specific array element's domain.
-applyExclusionsToArrayElement :: String -> Integer -> [Integer] -> Map String Int -> IntMap VariableState -> (Bool, IntMap VariableState)
+applyExclusionsToArrayElement :: String -> Integer -> [Integer] -> HashMap String Int -> IntMap VariableState -> (Bool, IntMap VariableState)
 applyExclusionsToArrayElement arrName idx exclusions nameToID currentStates =
   case lookupVarID arrName nameToID of
     Left _ -> (False, currentStates)
@@ -1208,7 +1228,7 @@ applyExclusionsToArrayElement arrName idx exclusions nameToID currentStates =
             _ -> (False, currentStates)
 
 -- Helper: Applies exclusions to the default domain and all element domains (over-approximation).
-applyExclusionsToArrayDefaultAndElements :: String -> [Integer] -> Map String Int -> IntMap VariableState -> (Bool, IntMap VariableState)
+applyExclusionsToArrayDefaultAndElements :: String -> [Integer] -> HashMap String Int -> IntMap VariableState -> (Bool, IntMap VariableState)
 applyExclusionsToArrayDefaultAndElements arrName exclusions nameToID currentStates =
   case lookupVarID arrName nameToID of
     Left _ -> (False, currentStates)
@@ -1244,7 +1264,7 @@ calculateExcludedSet op p (l, u) =
     in map (\v -> op v `mod` p) valuesX
 
 -- Helper: Applies a list of exclusions to a specific variable using excludeValue repeatedly.
-applyExclusionsToVar :: String -> [Integer] -> Map String Int -> IntMap VariableState -> (Bool, IntMap VariableState)
+applyExclusionsToVar :: String -> [Integer] -> HashMap String Int -> IntMap VariableState -> (Bool, IntMap VariableState)
 applyExclusionsToVar varName exclusions nameToID currentStates =
   case lookupVarID varName nameToID of
     Left _ -> (False, currentStates) -- var not found
@@ -1282,7 +1302,7 @@ applyExclusionsToVar varName exclusions nameToID currentStates =
 -- If the domain is a wrap-around interval like [15, 2] mod 17 (i.e., {15, 16, 0, 1, 2}),
 -- excluding an internal value like 0 requires careful handling that simple bound
 -- adjustments cannot manage generically.
-markExprNonZero :: Expression -> Map String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
+markExprNonZero :: Expression -> HashMap String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
 markExprNonZero (Var xName) nameToID varStates = do
     xID <- lookupVarID xName nameToID
     oldXSt <- lookupVarState xID varStates
@@ -1345,7 +1365,7 @@ markExprNonZero (Int c) _ varStates =
 markExprNonZero _ _ varStates = Right (False, varStates)
 
 -- Marks a pair of expressions as non-zero.
-markExprPairNonZero :: Expression -> Expression -> Map String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
+markExprPairNonZero :: Expression -> Expression -> HashMap String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
 markExprPairNonZero expr1 expr2 nameToID varStates = do
     (changed1, states1) <- markExprNonZero expr1 nameToID varStates
     -- applying the second check to the potentially updated state from the first check
@@ -1376,7 +1396,7 @@ modInverse a m
 fieldModulus :: Integer
 fieldModulus = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
-markNonZeroPair :: String -> String -> Map String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
+markNonZeroPair :: String -> String -> HashMap String Int -> IntMap VariableState -> Either String (Bool, IntMap VariableState)
 markNonZeroPair xName yName nameToID varStates = do
     xID <- lookupVarID xName nameToID
     yID <- lookupVarID yName nameToID
@@ -1403,7 +1423,7 @@ markNonZeroPair xName yName nameToID varStates = do
 
     pure (changed, newMap)
 
--- | We try to convert `expr` into a sum of terms: c^exponent * Var(b) or Var(b) * c^exponent.
+-- | Tries to convert `expr` into a sum of terms: c^exponent * Var(b) or Var(b) * c^exponent.
 --   c^k * b_k + ... + c^m * b_m or b_k * c^k + ... + b_m * c^m
 --   Returns Nothing if checking fails or if 'expr' is not that pattern.
 checkSumOfPowers
@@ -1436,7 +1456,7 @@ checkSumOfPowers c = go
     -- anything else => not recognized!
     go _           = Nothing
 
--- | if 'n' = c^exp exactly, we return that exponent; otherwise Nothing.
+-- | Returns the exponent if 'n' = c^exp exactly; otherwise Nothing.
 --   For c=2, e.g. (8 -> Just 3), (6 -> Nothing).
 isExactPowerOf :: Integer -> Integer -> Maybe Integer
 isExactPowerOf c n
@@ -1448,27 +1468,27 @@ isExactPowerOf c n
       | pow >  n  = Nothing
       | otherwise = go (e+1) (pow*c)
 
--- | Tests if given var is binary (0 or 1).
-isBinaryVar  :: Map String Int  -> IntMap VariableState -> String -> Bool
+-- | Tests if the given variable is binary (0 or 1).
+isBinaryVar  :: HashMap String Int  -> IntMap VariableState -> String -> Bool
 isBinaryVar nameToID varStates varName = 
   case lookupVarStateByName varName nameToID varStates of
     Left _ -> False -- Variable not found or no state
     Right st -> isIn01 st
 
--- | If the analysis (potentially after intersecting with previous knowledge or other constraints)
---    determines that 'z' must have a single, specific numerical value (i.e., its domain becomes
---    KnownValues {v}), we can deduce the exact value of each boolean variable 'b_i'.
+-- | Decodes a sum-of-powers expression when 'z' has a known single value.
+--    If the analysis determines that 'z' must have a single, specific numerical value
+--    (i.e., its domain becomes KnownValues {v}), this function deduces the exact value
+--    of each boolean variable 'b_i'.
 --    Since z = b_0*c^0 + b_1*c^1 + ... + b_maxExp*c^maxExp, and each b_i is 0 or 1,
---    the known value of 'z' essentially *is* the number represented in base 'c' by the bits 'b_i'.
---    We can extract the required value (0 or 1) for each b_i by looking at the corresponding
---    base-c digit of the known value of 'z'. This allows us to further constrain the domains
---    of the 'b_i' variables, setting them to KnownValues {0} or KnownValues {1}.
---    The `decodeSumOfPowers` function performs this bit extraction and state update.
+--    the known value of 'z' is the number represented in base 'c' by the bits 'b_i'.
+--    It extracts the required value (0 or 1) for each b_i by looking at the corresponding
+--    base-c digit of the known value of 'z', and constrains the domains of the 'b_i'
+--    variables to KnownValues {0} or KnownValues {1}.
 decodeSumOfPowers
   :: Integer                    -- c, the base
   -> Integer                    -- known value of z
   -> [(String, Integer)]        -- (bName, exponent) pairs
-  -> Map String Int             -- nameToID
+  -> HashMap String Int             -- nameToID
   -> IntMap VariableState      -- varStates
   -> Either String (IntMap VariableState)
 decodeSumOfPowers cBase knownZ terms nameToID varStates0 =
@@ -1490,8 +1510,8 @@ decodeSumOfPowers cBase knownZ terms nameToID varStates0 =
       updatedSt <- updateValues st newDomain
       pure (IntMap.insert bID updatedSt currentVarStates)
 
--- | Transforms the final IntMap VariableState to a Map String VariableState
--- so that we have the variable names instead of IDs.
+-- | Transforms the final IntMap VariableState to a Map String VariableState,
+--   mapping variable IDs back to their names.
 transformIDToNames
   :: IntMap String                    -- ^ idToName (pre-computed)
   -> IntMap VariableState             -- ^ final states keyed by Int
@@ -1500,34 +1520,35 @@ transformIDToNames idToName vStates =
   let pairs = [ (idToName IntMap.! i, st) | (i, st) <- IntMap.toList vStates]
   in Map.fromList pairs
 
-analyzeConstraints :: IntMap Constraint -> Map String Int -> IntMap IntSet -> Maybe [UserRule] -> IntMap VariableState -> Map String VariableState
+analyzeConstraints :: IntMap Constraint -> HashMap String Int -> IntMap IntSet -> Maybe [UserRule] -> IntMap VariableState -> Map String VariableState
 analyzeConstraints constraints nameToID varToConstraints maybeRules initialStates =
   let (finalIntMap, idToName) = analyzeConstraintsRaw constraints nameToID varToConstraints maybeRules initialStates
   in transformIDToNames idToName finalIntMap
 
--- | Core worklist loop returning the raw IntMap result and the idToName map.
-analyzeConstraintsRaw :: IntMap Constraint -> Map String Int -> IntMap IntSet -> Maybe [UserRule] -> IntMap VariableState -> (IntMap VariableState, IntMap String)
+-- | Runs the core worklist loop, returning the raw IntMap result and the idToName map.
+analyzeConstraintsRaw :: IntMap Constraint -> HashMap String Int -> IntMap IntSet -> Maybe [UserRule] -> IntMap VariableState -> (IntMap VariableState, IntMap String)
 analyzeConstraintsRaw constraints nameToID varToConstraints maybeRules =
   let constraintVarSets = IntMap.map (collectVarsFromConstraint nameToID) constraints
-      idToName = IntMap.fromList [(vid, nm) | (nm, vid) <- Map.toList nameToID]
+      idToName = IntMap.fromList [(vid, nm) | (nm, vid) <- HashMap.toList nameToID]
       initialQueue = initializeQueue (IntMap.elems constraints)
       initialInQueue = IntSet.fromList (IntMap.keys constraints)
   in \initialStates -> loop constraintVarSets idToName initialQueue initialInQueue initialStates
   where
     loop :: IntMap IntSet -> IntMap String -> Seq Int -> IntSet -> IntMap VariableState -> (IntMap VariableState, IntMap String)
-    loop cVarSets idToName queue inQueue vStates =
+    loop cVarSets idToName !queue !inQueue !vStates =
       case viewl queue of
         Seq.EmptyL -> (vStates, idToName)
         cId :< restQueue ->
-          let inQueue' = IntSet.delete cId inQueue
+          let !inQueue' = IntSet.delete cId inQueue
           in case IntMap.lookup cId constraints of
             Nothing -> loop cVarSets idToName restQueue inQueue' vStates
 
             Just constraint ->
               case analyzeConstraint constraint nameToID vStates of
-                Right (True, newStates) ->
-                  let affected = IntMap.findWithDefault IntSet.empty cId cVarSets
-                      (newQ, newInQ) = reQueueDedup restQueue inQueue' varToConstraints affected
+                Right (True, !newStates) ->
+                  let allVars  = IntMap.findWithDefault IntSet.empty cId cVarSets
+                      changed  = changedVarIDs vStates newStates allVars
+                      (!newQ, !newInQ) = reQueueDedup restQueue inQueue' varToConstraints changed
                   in loop cVarSets idToName newQ newInQ newStates
 
                 Right (False, sameStates) ->
@@ -1535,18 +1556,71 @@ analyzeConstraintsRaw constraints nameToID varToConstraints maybeRules =
                     Nothing -> loop cVarSets idToName restQueue inQueue' sameStates
 
                     Just userRs ->
-                      let (userChanged, updatedStates) =
+                      let (userChanged, !updatedStates) =
                             applyUserRules constraint userRs sameStates nameToID
                           in if userChanged
                                then
-                                 let affected = IntMap.findWithDefault IntSet.empty cId cVarSets
-                                     (newQ, newInQ) = reQueueDedup restQueue inQueue' varToConstraints affected
+                                 let allVars  = IntMap.findWithDefault IntSet.empty cId cVarSets
+                                     changed  = changedVarIDs sameStates updatedStates allVars
+                                     (!newQ, !newInQ) = reQueueDedup restQueue inQueue' varToConstraints changed
                                  in loop cVarSets idToName newQ newInQ updatedStates
                                else
                                  loop cVarSets idToName restQueue inQueue' updatedStates
                 Left _err -> loop cVarSets idToName restQueue inQueue' vStates
 
--- | Re-queue constraints that reference changed variables, with deduplication.
+-- | Like 'analyzeConstraintsRaw' but also returns the number of worklist iterations.
+analyzeConstraintsRawCounted :: IntMap Constraint -> HashMap String Int -> IntMap IntSet -> Maybe [UserRule] -> IntMap VariableState -> (IntMap VariableState, IntMap String, Int)
+analyzeConstraintsRawCounted constraints nameToID varToConstraints maybeRules =
+  let constraintVarSets = IntMap.map (collectVarsFromConstraint nameToID) constraints
+      idToName = IntMap.fromList [(vid, nm) | (nm, vid) <- HashMap.toList nameToID]
+      initialQueue = initializeQueue (IntMap.elems constraints)
+      initialInQueue = IntSet.fromList (IntMap.keys constraints)
+  in \initialStates -> loop constraintVarSets idToName initialQueue initialInQueue initialStates 0
+  where
+    loop :: IntMap IntSet -> IntMap String -> Seq Int -> IntSet -> IntMap VariableState -> Int -> (IntMap VariableState, IntMap String, Int)
+    loop cVarSets idToName !queue !inQueue !vStates !iters =
+      case viewl queue of
+        Seq.EmptyL -> (vStates, idToName, iters)
+        cId :< restQueue ->
+          let !inQueue' = IntSet.delete cId inQueue
+              !iters' = iters + 1
+          in case IntMap.lookup cId constraints of
+            Nothing -> loop cVarSets idToName restQueue inQueue' vStates iters'
+
+            Just constraint ->
+              case analyzeConstraint constraint nameToID vStates of
+                Right (True, !newStates) ->
+                  let allVars  = IntMap.findWithDefault IntSet.empty cId cVarSets
+                      changed  = changedVarIDs vStates newStates allVars
+                      (!newQ, !newInQ) = reQueueDedup restQueue inQueue' varToConstraints changed
+                  in loop cVarSets idToName newQ newInQ newStates iters'
+
+                Right (False, sameStates) ->
+                  case maybeRules of
+                    Nothing -> loop cVarSets idToName restQueue inQueue' sameStates iters'
+
+                    Just userRs ->
+                      let (userChanged, !updatedStates) =
+                            applyUserRules constraint userRs sameStates nameToID
+                          in if userChanged
+                               then
+                                 let allVars  = IntMap.findWithDefault IntSet.empty cId cVarSets
+                                     changed  = changedVarIDs sameStates updatedStates allVars
+                                     (!newQ, !newInQ) = reQueueDedup restQueue inQueue' varToConstraints changed
+                                 in loop cVarSets idToName newQ newInQ updatedStates iters'
+                               else
+                                 loop cVarSets idToName restQueue inQueue' updatedStates iters'
+                Left _err -> loop cVarSets idToName restQueue inQueue' vStates iters'
+
+-- | Computes the set of variable IDs whose states changed between old and new.
+{-# INLINE changedVarIDs #-}
+changedVarIDs :: IntMap VariableState -> IntMap VariableState -> IntSet -> IntSet
+changedVarIDs oldStates newStates candidates =
+  IntSet.filter (\vid ->
+    IntMap.lookup vid oldStates /= IntMap.lookup vid newStates
+  ) candidates
+
+-- | Re-queues constraints that reference changed variables, with deduplication.
 reQueueDedup :: Seq Int -> IntSet -> IntMap IntSet -> IntSet -> (Seq Int, IntSet)
 reQueueDedup oldQueue inQueue varToConstraints affectedVars =
   IntSet.foldl' (\(accQ, accSet) varID ->
@@ -1563,7 +1637,7 @@ reQueueDedup oldQueue inQueue varToConstraints affectedVars =
 --------------------------
 
 -- | Applies tag constraints to input variables before starting the main analysis.
-applyInputTags :: [Binding] -> Map String Int -> IntMap VariableState -> Either String (IntMap VariableState)
+applyInputTags :: [Binding] -> HashMap String Int -> IntMap VariableState -> Either String (IntMap VariableState)
 applyInputTags inputs nameToID initialStates =
   foldM applyTag initialStates inputs
   where
@@ -1585,47 +1659,365 @@ applyInputTags inputs nameToID initialStates =
 analyzeProgram :: Program -> Map String VariableState
 analyzeProgram prog =
   let (nameToID, finalIntMap) = analyzeProgramFull prog
-      idToName = IntMap.fromList [(vid, nm) | (nm, vid) <- Map.toList nameToID]
+      idToName = IntMap.fromList [(vid, nm) | (nm, vid) <- HashMap.toList nameToID]
   in transformIDToNames idToName finalIntMap
+
+--------------------------
+-- Template Instance Deduplication
+--------------------------
+
+-- | A trie node for variable name segments (split by '.').
+data TrieNode = TrieNode
+  { trieChildren :: !(Map String TrieNode)
+  , trieIsLeaf   :: !Bool  -- ^ Does a variable name end at this node?
+  } deriving (Show, Eq)
+
+emptyTrieNode :: TrieNode
+emptyTrieNode = TrieNode Map.empty False
+
+-- | Inserts a list of segments into the trie.
+insertTrie :: [String] -> TrieNode -> TrieNode
+insertTrie [] node = node { trieIsLeaf = True }
+insertTrie (seg:rest) node =
+  let child = Map.findWithDefault emptyTrieNode seg (trieChildren node)
+      child' = insertTrie rest child
+  in node { trieChildren = Map.insert seg child' (trieChildren node) }
+
+-- | Builds a trie from all variable names (split by '.').
+buildTrie :: [String] -> TrieNode
+buildTrie names = foldl' (\t n -> insertTrie (splitOn '.' n) t) emptyTrieNode names
+
+-- | Splits a string on a delimiter character.
+splitOn :: Char -> String -> [String]
+splitOn _ [] = [""]
+splitOn delim s =
+  let (token, rest) = break (== delim) s
+  in token : case rest of
+       []     -> []
+       (_:xs) -> splitOn delim xs
+
+-- | Tries to split a segment name into (baseName, numericSuffix).
+--   E.g., "escalarMuls_3" -> Just ("escalarMuls", "3")
+--   "beta" -> Nothing
+splitInstanceSeg :: String -> Maybe (String, String)
+splitInstanceSeg seg =
+  case break (== '_') seg of
+    (base, '_':suffix)
+      | not (null suffix) && all isDigit suffix -> Just (base, suffix)
+    _ -> Nothing
+
+-- | Computes the "structural signature" of a trie subtree, ignoring specific
+--   instance index values. This allows comparing whether two subtrees are identical.
+trieStructure :: TrieNode -> Map String TrieNode
+trieStructure = trieChildren
+
+-- | Detects instance index segments in the trie.
+--   An instance index is a segment where:
+--   1. Multiple siblings share the same baseName with different numeric suffixes
+--      (e.g., escalarMuls_0, escalarMuls_1)
+--   OR multiple siblings (without numeric suffixes) have identical subtree structure
+--      (e.g., aliasCheckX, aliasCheckY with the same children)
+--   2. Each such sibling is a non-leaf node (has children)
+--   3. All siblings in the group have identical subtree structure
+--   Returns a Set of (depth, groupKey) pairs identifying instance index positions.
+--   For numeric groups, groupKey is the baseName (e.g., "escalarMuls").
+--   For structural groups, groupKey is a synthetic key "__struct_<depth>_<N>" to
+--   distinguish it from named groups.
+detectInstanceIndices :: TrieNode -> Set.Set (Int, String)
+detectInstanceIndices root = go 0 root
+  where
+    go :: Int -> TrieNode -> Set.Set (Int, String)
+    go depth node =
+      let children = trieChildren node
+          -- Strategy 1: Group children by baseName (for those that look like baseName_N)
+          numericGroups :: Map String [(String, TrieNode)]
+          numericGroups = foldl' (\acc (seg, child) ->
+            case splitInstanceSeg seg of
+              Just (base, _suffix) -> Map.insertWith (++) base [(seg, child)] acc
+              Nothing -> acc
+            ) Map.empty (Map.toList children)
+
+          -- Filter numeric groups: need multiple distinct suffixes, all non-leaf, identical subtree
+          numericInstances = Map.foldlWithKey' (\acc base members ->
+            if length members >= 2
+               && all (not . trieIsLeaf . snd) members
+               && allSameStructure (map snd members)
+            then Set.insert (depth, base) acc
+            else acc
+            ) Set.empty numericGroups
+
+          -- Collect segment names already claimed by numeric groups
+          numericSegNames = Set.fromList $ concatMap (map fst) (Map.elems numericGroups)
+
+          -- Strategy 2: Group remaining non-leaf children by subtree structure
+          -- (for named instances like aliasCheckX, aliasCheckY, b2p, p2b)
+          remainingChildren = [ (seg, child)
+                              | (seg, child) <- Map.toList children
+                              , not (Set.member seg numericSegNames)
+                              , not (trieIsLeaf child)
+                              ]
+
+          -- Group by structure key (sorted list of child keys)
+          structGroups :: Map [String] [(String, TrieNode)]
+          structGroups = foldl' (\acc (seg, child) ->
+            let structKey = Map.keys (trieChildren child)
+            in Map.insertWith (++) structKey [(seg, child)] acc
+            ) Map.empty remainingChildren
+
+          -- Filter structural groups: need >= 2 members with identical subtree
+          -- For structural groups, we insert one entry per member segment name
+          -- using the synthetic key "__struct_<structKey>" so that computeTemplateKey
+          -- can match any member of the group.
+          structInstances = Map.foldl' (\acc members ->
+            if length members >= 2
+               && allSameStructure (map snd members)
+            then
+              -- All members in this group are interchangeable instances.
+              -- We use a synthetic group key that encodes the structure.
+              let groupKey = "__struct_" ++ joinWith '_' (sortBy compare (map fst members))
+              in foldl' (\a2 (seg, _) -> Set.insert (depth, seg) a2)
+                        (Set.insert (depth, groupKey) acc) members
+            else acc
+            ) Set.empty structGroups
+
+          -- Recurse into all children
+          childResults = Map.foldlWithKey' (\acc _seg child ->
+            Set.union acc (go (depth + 1) child)
+            ) Set.empty children
+
+      in Set.union numericInstances (Set.union structInstances childResults)
+
+    allSameStructure :: [TrieNode] -> Bool
+    allSameStructure [] = True
+    allSameStructure (x:xs) = all (\y -> Map.keys (trieChildren x) == Map.keys (trieChildren y)) xs
+
+-- | Computes the template key for a variable name by replacing instance index
+--   segments with "*". Also returns the instance tuple (the actual index values).
+--   Handles both numeric instances (baseName_N -> baseName_*) and
+--   structural instances (aliasCheckX -> * with suffix "aliasCheckX").
+computeTemplateKey :: Set.Set (Int, String) -> String -> (String, [String])
+computeTemplateKey instanceIndices varName =
+  let segs = splitOn '.' varName
+      (keySegs, idxVals) = unzip $ zipWith (\depth seg ->
+        case splitInstanceSeg seg of
+          Just (base, suffix)
+            | Set.member (depth, base) instanceIndices ->
+                (base ++ "_*", suffix)
+          _ -- Also check if the whole segment is a structural instance member
+            | Set.member (depth, seg) instanceIndices ->
+                ("*", seg)
+            | otherwise -> (seg, "")
+        ) [0..] segs
+  in (joinWith '.' keySegs, filter (not . null) idxVals)
+
+-- | Joins strings with a delimiter.
+joinWith :: Char -> [String] -> String
+joinWith _ [] = ""
+joinWith _ [x] = x
+joinWith delim (x:xs) = x ++ [delim] ++ joinWith delim xs
+
+-- | Detects template instances from all variable names and their IDs, and builds
+--   the dedup mapping (non-rep var ID -> representative var ID).
+--   Also returns the set of constraint IDs to exclude.
+buildDedupInfo :: HashMap String Int -> [Constraint] -> (IntMap Int, IntSet)
+buildDedupInfo nameToID flatConstraints =
+  let allNames = HashMap.keys nameToID
+      trie = buildTrie allNames
+      instanceIndices = detectInstanceIndices trie
+  in if Set.null instanceIndices
+     then (IntMap.empty, IntSet.empty)  -- no instances, no dedup
+     else
+       let -- Step 2-3: Compute template keys and group variables
+           -- For each variable, compute (templateKey, instanceTuple)
+           varKeysAndTuples :: [(String, Int, String, [String])]
+           varKeysAndTuples =
+             [ (vname, vid, tkey, ituple)
+             | (vname, vid) <- HashMap.toList nameToID
+             , let (tkey, ituple) = computeTemplateKey instanceIndices vname
+             ]
+
+           -- Group by template key: map templateKey -> [(instanceTuple, varID)]
+           -- We only care about variables that have non-empty instance tuples
+           templateGroups :: Map String [(String, Int)]  -- templateKey -> [(joinedTuple, varID)]
+           templateGroups = foldl' (\acc (_, vid, tkey, ituple) ->
+             if null ituple
+             then acc  -- no instance indices in this variable
+             else let joined = joinWith '.' ituple
+                  in Map.insertWith (++) tkey [(joined, vid)] acc
+             ) Map.empty varKeysAndTuples
+
+           -- For each template group, sort by instance tuple to get a stable representative.
+           -- The representative is the first tuple (lexicographically smallest).
+           -- Build mapping: non-rep varID -> rep varID
+           dedupMapping :: IntMap Int
+           dedupMapping = Map.foldl' (\acc members ->
+             let sorted = sortBy (comparing fst) members
+             in case sorted of
+                  [] -> acc
+                  ((repTuple, repID):rest) ->
+                    foldl' (\a (_, nonRepID) -> IntMap.insert nonRepID repID a) acc rest
+             ) IntMap.empty templateGroups
+
+           -- Step 4: Classify constraints
+           -- For each constraint, get all variable names and their instance tuples.
+           excludedConstraints :: IntSet
+           excludedConstraints = foldl' (\acc c ->
+             let cid = getConstraintID c
+                 varNames = collectVarNamesFromConstraint c
+                 -- Get instance tuples for all variables in this constraint
+                 tuples = mapMaybe (\vn ->
+                   let (_, ituple) = computeTemplateKey instanceIndices vn
+                   in if null ituple then Nothing else Just (joinWith '.' ituple)
+                   ) varNames
+             in if null tuples
+                then acc  -- shared/constant constraint, keep
+                else
+                  let allSame = all (== head tuples) tuples
+                  in if allSame
+                     then
+                       -- All vars have the same instance tuple
+                       -- Check if ANY variable is a non-representative
+                       let anyNonRep = any (\vn ->
+                             case HashMap.lookup vn nameToID of
+                               Just vid -> IntMap.member vid dedupMapping
+                               Nothing -> False
+                             ) varNames
+                       in if anyNonRep
+                          then IntSet.insert cid acc  -- duplicate, exclude
+                          else acc  -- representative, keep
+                     else acc  -- mixed tuples, keep (cross-instance)
+             ) IntSet.empty flatConstraints
+
+       in (dedupMapping, excludedConstraints)
+
+-- | Collects all variable names from a constraint (as Strings).
+collectVarNamesFromConstraint :: Constraint -> [String]
+collectVarNamesFromConstraint (EqC _ e1 e2) =
+  collectVarNamesFromExpr e1 ++ collectVarNamesFromExpr e2
+collectVarNamesFromConstraint (AndC _ cs) =
+  concatMap collectVarNamesFromConstraint cs
+collectVarNamesFromConstraint (OrC _ cs) =
+  concatMap collectVarNamesFromConstraint cs
+collectVarNamesFromConstraint (NotC _ c) =
+  collectVarNamesFromConstraint c
+
+-- | Collects all variable names from an expression.
+collectVarNamesFromExpr :: Expression -> [String]
+collectVarNamesFromExpr = go Set.empty
+  where
+    go locals (Var n)
+      | Set.member n locals = []
+      | otherwise = [n]
+    go _ (Int _) = []
+    go _ (FieldConst _ _) = []
+    go locals (Add e1 e2) = go locals e1 ++ go locals e2
+    go locals (Sub e1 e2) = go locals e1 ++ go locals e2
+    go locals (Mul e1 e2) = go locals e1 ++ go locals e2
+    go locals (Div e1 e2) = go locals e1 ++ go locals e2
+    go locals (Ite e1 e2 e3) = go locals e1 ++ go locals e2 ++ go locals e3
+    go locals (Eq e1 e2) = go locals e1 ++ go locals e2
+    go locals (Gt e1 e2) = go locals e1 ++ go locals e2
+    go locals (Lt e1 e2) = go locals e1 ++ go locals e2
+    go locals (Gte e1 e2) = go locals e1 ++ go locals e2
+    go locals (Lte e1 e2) = go locals e1 ++ go locals e2
+    go locals (And es) = concatMap (go locals) es
+    go locals (Or es) = concatMap (go locals) es
+    go locals (Not e) = go locals e
+    go locals (PfRecip e) = go locals e
+    go locals (BvExtract e _ _) = go locals e
+    go locals (BvConcat e1 e2) = go locals e1 ++ go locals e2
+    go _ (BvLit _ _) = []
+    go _ (BoolLit _) = []
+    go locals (BvXor e1 e2) = go locals e1 ++ go locals e2
+    go locals (BvURem e1 e2) = go locals e1 ++ go locals e2
+    go locals (BvUDiv e1 e2) = go locals e1 ++ go locals e2
+    go locals (Bv2Pf _ e) = go locals e
+    go locals (Pf2Bv _ e) = go locals e
+    go locals (Bool2Bv e) = go locals e
+    go locals (UExt _ e) = go locals e
+    go locals (BitSelect _ e) = go locals e
+    go locals (Let bindings body) =
+      let bindingVars = concatMap (go locals . snd) bindings
+          locals' = foldl' (\s (n, _) -> Set.insert n s) locals bindings
+      in bindingVars ++ go locals' body
+    go locals (ArrayLiteral es _) = concatMap (go locals) es
+    go locals (ArraySparseLiteral indexedExprs defExpr _ _) =
+      concatMap (go locals . snd) indexedExprs ++ go locals defExpr
+    go locals (Return es) = concatMap (go locals) es
+    go locals (Tuple es) = concatMap (go locals) es
+    go locals (ArrayConstruct es _) = concatMap (go locals) es
+    go locals (ArraySelect arr idx) = go locals arr ++ go locals idx
+    go locals (ArrayStore arr idx val) = go locals arr ++ go locals idx ++ go locals val
+    go locals (ArrayFill val _ _) = go locals val
+    go locals (Assign _ expr) = go locals expr
+
+-- | After worklist converges, propagates representative domains to non-representative variables.
+--   Uses intersectDomains to preserve any tag-derived refinements.
+propagateDedup :: IntMap Int -> IntMap VariableState -> IntMap VariableState
+propagateDedup varMapping states =
+  IntMap.foldlWithKey' (\acc nonRepID repID ->
+    case (IntMap.lookup repID acc, IntMap.lookup nonRepID acc) of
+      (Just repSt, Just nonRepSt) ->
+        case intersectDomains (domain repSt) (domain nonRepSt) of
+          Right d  -> IntMap.insert nonRepID (nonRepSt { domain = d }) acc
+          Left _   -> acc  -- keep existing domain on contradiction
+      _ -> acc
+  ) states varMapping
 
 -- | Precomputed data for analysis. Build once with 'precomputeAnalysis', then
 --   call 'runAnalysis' cheaply (no String-key Map construction).
 data PrecomputedAnalysis = PrecomputedAnalysis
-  { paNameToID        :: !(Map String Int)
+  { paNameToID        :: !(HashMap String Int)
   , paConstraintMap   :: !(IntMap Constraint)
   , paVarToConstraints :: !(IntMap IntSet)
   , paInitialStates   :: !(IntMap VariableState)
+  , paDedupMapping    :: !(IntMap Int)  -- ^ non-rep var ID → rep var ID (empty if no dedup)
   }
 
 instance NFData PrecomputedAnalysis where
-  rnf (PrecomputedAnalysis a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (PrecomputedAnalysis a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
 
--- | Precompute all data structures needed for analysis (O(n log n) String work).
+-- | Precomputes all data structures needed for analysis (O(n log n) String work).
 --   Call this once, then use 'runAnalysis' for the fast worklist loop.
+--   Includes template instance deduplication: detects structurally identical
+--   template instances, removes duplicate constraints, and records a mapping
+--   for post-analysis propagation.
 precomputeAnalysis :: Program -> PrecomputedAnalysis
 precomputeAnalysis (Program inputs compVars constrVars _ _pfRecips _retVars constraints) =
   let allVars = inputs ++ compVars ++ constrVars
       nameToID = buildVarNameToIDMap allVars
       initialVarStates = initializeVarStates allVars
-      varToConstraints = buildVarToConstraints nameToID constraints
-      constraintMap = IntMap.fromList [(getConstraintID c, c) | c <- constraints]
+      -- Flatten AndC nodes so each sub-constraint is a separate worklist entry
+      flatConstraints = flattenConstraints constraints
+      -- Build dedup info (detects template instances, classifies constraints)
+      (dedupMapping, excludedCIDs) = buildDedupInfo nameToID flatConstraints
+      -- Remove excluded (duplicate) constraints
+      dedupedConstraints = if IntSet.null excludedCIDs
+        then flatConstraints
+        else filter (\c -> not (IntSet.member (getConstraintID c) excludedCIDs)) flatConstraints
+      varToConstraints = buildVarToConstraints nameToID dedupedConstraints
+      constraintMap = IntMap.fromList [(getConstraintID c, c) | c <- dedupedConstraints]
       statesWithInputTags = case applyInputTags inputs nameToID initialVarStates of
         Left err -> error $ "Error applying input tags: " ++ err
         Right s  -> s
-  in PrecomputedAnalysis nameToID constraintMap varToConstraints statesWithInputTags
+  in PrecomputedAnalysis nameToID constraintMap varToConstraints statesWithInputTags dedupMapping
 
--- | Run the worklist analysis using precomputed data. This is the fast part.
+-- | Runs the worklist analysis using precomputed data. This is the fast part.
+--   After worklist converges, propagates representative results to non-rep variables.
 runAnalysis :: PrecomputedAnalysis -> IntMap VariableState
-runAnalysis (PrecomputedAnalysis nameToID constraintMap varToConstraints statesWithInputTags) =
+runAnalysis (PrecomputedAnalysis nameToID constraintMap varToConstraints statesWithInputTags dedupMapping) =
   let (finalIntMap, _idToName) = analyzeConstraintsRaw constraintMap nameToID varToConstraints Nothing statesWithInputTags
-  in finalIntMap
+  in if IntMap.null dedupMapping
+     then finalIntMap
+     else propagateDedup dedupMapping finalIntMap
 
 -- | Full analysis returning the nameToID map and int-keyed states.
 --   Does NOT build a Map String VariableState (use transformIDToNames if needed for display).
-analyzeProgramFull :: Program -> (Map String Int, IntMap VariableState)
+analyzeProgramFull :: Program -> (HashMap String Int, IntMap VariableState)
 analyzeProgramFull prog =
   let pa = precomputeAnalysis prog
   in (paNameToID pa, runAnalysis pa)
+
 
 -- given File
 analyzeFromFile :: FilePath -> IO ()
@@ -1729,7 +2121,7 @@ applyUserAction (ConstrainRange placeholderName lo up) plHoNameToID varStates =
                 Left msg         -> (False, varStates)
                 Right newState  -> (True, IntMap.insert realID newState varStates)
 
-applyUserRules :: Constraint -> [UserRule] -> IntMap VariableState -> Map.Map String Int -> (Bool, IntMap VariableState)
+applyUserRules :: Constraint -> [UserRule] -> IntMap VariableState -> HashMap String Int -> (Bool, IntMap VariableState)
 applyUserRules realC userRules varStates nameToID =
   foldl applySingleRule (False, varStates) userRules
   where
@@ -1742,7 +2134,7 @@ applyUserRules realC userRules varStates nameToID =
               sub = Map.fromList -- converting "placeholder -> realVarName" to "placeholder -> realVarID"
                 [ (ph, realID)
                 | (ph, rvName) <- Map.toList placeholderToRealName
-                , let realID = fromMaybe (-1) (Map.lookup rvName nameToID)
+                , let realID = fromMaybe (-1) (HashMap.lookup rvName nameToID)
                 ]
               (newChanged, newVS) =
                 foldl
