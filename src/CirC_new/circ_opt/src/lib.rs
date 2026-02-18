@@ -206,6 +206,16 @@ pub struct IrOpt {
         default_value = "false"
     )]
     pub time_eval_ops: bool,
+    /// Replace recognized one-way functions (hashes) with opaque OWF
+    /// nodes in the IR. Used by the datan backend to prevent false
+    /// positives from hash round constants.
+    #[arg(
+        long = "ir-use-owf",
+        env = "IR_USE_OWF",
+        action = ArgAction::Set,
+        default_value = "false"
+    )]
+    pub use_owf: bool,
 }
 
 impl Default for IrOpt {
@@ -215,6 +225,7 @@ impl Default for IrOpt {
             frequent_gc: Default::default(),
             fits_in_bits_ip: true,
             time_eval_ops: false,
+            use_owf: false,
         }
     }
 }

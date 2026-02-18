@@ -251,26 +251,45 @@ pub fn fold_cache(node: &Term, cache: &mut TermCache<TTerm>, ignore: &[Op]) -> T
                         // TODO: Urem by power of two?
                         (Shl, Some(a), Some(b)) => cbv(a.clone() << b),
                         (Shl, _, Some(b)) => {
-                            assert!(b.uint() < &Integer::from(b.width()));
+                            let w = b.width();
                             let n = b.uint().to_usize().unwrap();
-                            Some(term![BV_CONCAT;
-                              term![Op::new_bv_extract(b.width()-n-1, 0); c0],
-                              const_(Value::BitVector(BitVector::zeros(n)))
-                            ])
+                            if n >= w {
+                                Some(const_(Value::BitVector(
+                                    BitVector::zeros(w),
+                                )))
+                            } else {
+                                Some(term![BV_CONCAT;
+                                  term![Op::new_bv_extract(w-n-1, 0); c0],
+                                  const_(Value::BitVector(BitVector::zeros(n)))
+                                ])
+                            }
                         }
                         (Ashr, Some(a), Some(b)) => cbv(a.clone().ashr(b)),
                         (Ashr, _, Some(b)) => {
-                            assert!(b.uint() < &Integer::from(b.width()));
+                            let w = b.width();
                             let n = b.uint().to_usize().unwrap();
-                            Some(term![Op::BvSext(n);
-                                   term![Op::new_bv_extract(b.width()-1, n); c0]])
+                            if n >= w {
+                                let msb = term![
+                                    Op::new_bv_extract(w - 1, w - 1); c0
+                                ];
+                                Some(term![Op::BvSext(w - 1); msb])
+                            } else {
+                                Some(term![Op::BvSext(n);
+                                       term![Op::new_bv_extract(w-1, n); c0]])
+                            }
                         }
                         (Lshr, Some(a), Some(b)) => cbv(a.clone().lshr(b)),
                         (Lshr, _, Some(b)) => {
-                            assert!(b.uint() < &Integer::from(b.width()));
+                            let w = b.width();
                             let n = b.uint().to_usize().unwrap();
-                            Some(term![Op::BvUext(n);
-                                   term![Op::new_bv_extract(b.width()-1, n); c0]])
+                            if n >= w {
+                                Some(const_(Value::BitVector(
+                                    BitVector::zeros(w),
+                                )))
+                            } else {
+                                Some(term![Op::BvUext(n);
+                                       term![Op::new_bv_extract(w-1, n); c0]])
+                            }
                         }
                         _ => None,
                     }

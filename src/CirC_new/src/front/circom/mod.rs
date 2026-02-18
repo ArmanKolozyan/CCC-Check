@@ -22,11 +22,17 @@ use std::collections::HashMap as StdHashMap;
 
 thread_local! {
     static LAST_SIGNAL_TAGS: RefCell<StdHashMap<String, Vec<(String, Option<rug::Integer>)>>> = RefCell::new(StdHashMap::new());
+    static LAST_SIGNAL_CONNECTIONS: RefCell<Vec<(String, String)>> = RefCell::new(Vec::new());
 }
 
 /// Get the signal tags from the last `CircomFE::gen()` call.
 pub fn get_last_signal_tags() -> StdHashMap<String, Vec<(String, Option<rug::Integer>)>> {
     LAST_SIGNAL_TAGS.with(|tags| tags.borrow().clone())
+}
+
+/// Get the signal connections from the last `CircomFE::gen()` call.
+pub fn get_last_signal_connections() -> Vec<(String, String)> {
+    LAST_SIGNAL_CONNECTIONS.with(|conns| conns.borrow().clone())
 }
 
 /// Input to the Circom frontend
@@ -115,6 +121,10 @@ impl FrontEnd for CircomFE {
             .collect();
         LAST_SIGNAL_TAGS.with(|t| *t.borrow_mut() = tags);
 
+        // Store signal connections in thread-local for later retrieval
+        let connections = circom_gen.signal_connections.borrow().clone();
+        LAST_SIGNAL_CONNECTIONS.with(|c| *c.borrow_mut() = connections);
+
         // Return the computations
         circom_gen.into_computations()
     }
@@ -142,6 +152,8 @@ pub struct CircomGen<'ast> {
     template_vars: RefCell<Vec<HashMap<String, T>>>,
     /// Signal tags collected during processing: IR variable name -> list of (tag_name, optional_value)
     signal_tags: RefCell<HashMap<String, Vec<(String, Option<rug::Integer>)>>>,
+    /// Signal connections from <== / ==>: (source, dest) pairs for tag propagation
+    signal_connections: RefCell<Vec<(String, String)>>,
 }
 
 impl<'ast> CircomGen<'ast> {
@@ -158,6 +170,7 @@ impl<'ast> CircomGen<'ast> {
             output_signals: RefCell::new(Vec::new()),
             template_vars: RefCell::new(Vec::new()),
             signal_tags: RefCell::new(HashMap::default()),
+            signal_connections: RefCell::new(Vec::new()),
         }
     }
     
@@ -426,6 +439,11 @@ impl<'ast> CircomGen<'ast> {
             self.signal_tags.borrow_mut().extend(
                 walker.get_signal_tags().iter()
                     .map(|(k, v)| (k.clone(), v.clone()))
+            );
+
+            // Collect signal connections
+            self.signal_connections.borrow_mut().extend(
+                walker.get_signal_connections().iter().cloned()
             );
 
             // Exit template scope

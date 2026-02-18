@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 mod haboeck;
 mod map;
+mod owf;
 mod pf_batch_inv;
 mod poly;
 mod ram;
@@ -38,6 +39,9 @@ pub enum ExtOp {
     MapContainsKey,
     /// Flip keys and values; values maps to *first* key
     MapFlip,
+    /// One-way function (e.g., hash). Outputs are cryptographically
+    /// independent of inputs — used to block taint in analysis.
+    Owf,
 }
 
 impl ExtOp {
@@ -54,6 +58,7 @@ impl ExtOp {
             ExtOp::MapContainsKey => Some(2),
             ExtOp::MapSelect => Some(2),
             ExtOp::MapFlip => Some(2),
+            ExtOp::Owf => None,
         }
     }
     /// Type-check, given argument sorts
@@ -69,6 +74,7 @@ impl ExtOp {
             ExtOp::MapContainsKey => map::check_map_contains_key(arg_sorts),
             ExtOp::MapSelect => map::check_map_select(arg_sorts),
             ExtOp::MapFlip => map::check_map_flip(arg_sorts),
+            ExtOp::Owf => owf::check(arg_sorts),
         }
     }
     /// Evaluate, given argument values
@@ -84,6 +90,7 @@ impl ExtOp {
             ExtOp::MapContainsKey => map::eval_map_contains_key(args),
             ExtOp::MapSelect => map::eval_map_select(args),
             ExtOp::MapFlip => map::eval_map_flip(args),
+            ExtOp::Owf => owf::eval(args),
         }
     }
     /// Indicate which children of `t` must be typed to type `t`.
@@ -103,6 +110,7 @@ impl ExtOp {
             b"map_contains_key" => Some(ExtOp::MapContainsKey),
             b"map_select" => Some(ExtOp::MapSelect),
             b"map_flip" => Some(ExtOp::MapFlip),
+            b"owf" => Some(ExtOp::Owf),
             _ => None,
         }
     }
@@ -119,6 +127,7 @@ impl ExtOp {
             ExtOp::MapContainsKey => "map_contains_key",
             ExtOp::MapSelect => "map_select",
             ExtOp::MapFlip => "map_flip",
+            ExtOp::Owf => "owf",
         }
     }
 }

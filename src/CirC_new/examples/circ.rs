@@ -554,8 +554,51 @@ fn main() {
     if let Some(ref tags_path) = options.dump_tags {
         #[cfg(all(feature = "smt", feature = "circom"))]
         {
-            let tags = circ::front::circom::get_last_signal_tags();
+            let mut tags = circ::front::circom::get_last_signal_tags();
             if !tags.is_empty() {
+                // Post-process: propagate tag values along signal connections.
+                // When source <== dest (or dest ==> source), if one side has a bare
+                // tag (value=None) and the connected signal has a value, propagate it.
+                {
+                    let connections = circ::front::circom::get_last_signal_connections();
+                    let mut changed = true;
+                    while changed {
+                        changed = false;
+                        for (src, dst) in &connections {
+                            // For each tag on src with no value, check if dst has a value (and vice versa)
+                            let src_tags = tags.get(src).cloned().unwrap_or_default();
+                            let dst_tags = tags.get(dst).cloned().unwrap_or_default();
+
+                            // Propagate from dst to src
+                            for (tag_name, tag_value) in &dst_tags {
+                                if let Some(val) = tag_value {
+                                    if let Some(src_tag_list) = tags.get_mut(src) {
+                                        for (stn, stv) in src_tag_list.iter_mut() {
+                                            if stn == tag_name && stv.is_none() {
+                                                *stv = Some(val.clone());
+                                                changed = true;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Propagate from src to dst
+                            for (tag_name, tag_value) in &src_tags {
+                                if let Some(val) = tag_value {
+                                    if let Some(dst_tag_list) = tags.get_mut(dst) {
+                                        for (dtn, dtv) in dst_tag_list.iter_mut() {
+                                            if dtn == tag_name && dtv.is_none() {
+                                                *dtv = Some(val.clone());
+                                                changed = true;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 println!("Dumping tags to {:?}", tags_path);
                 let mut out = String::from("(tags\n");
                 let mut sorted_keys: Vec<_> = tags.keys().collect();

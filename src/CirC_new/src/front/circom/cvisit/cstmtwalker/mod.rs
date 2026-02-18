@@ -6,12 +6,28 @@ use super::walkfns::*;
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use circom_pest_ast as ast;
-use crate::ir::term::{Term, Op, Sort, leaf_term, term};
+use crate::ir::term::{ExtOp, Term, Op, Sort, leaf_term, term};
 use circ_hc::Node;
 use circom_pest_ast::{Expression, Number};
 use crate::front::circom::term::*;
 use crate::front::circom::term::{T, Ty};
 use crate::cfg::cfg;
+
+/// Known circomlib hash template names that should be treated as OWF.
+fn is_owf_template(template_name: &str) -> bool {
+    matches!(
+        template_name,
+        "Poseidon"
+            | "PoseidonEx"
+            | "MiMC7"
+            | "MultiMiMC7"
+            | "MiMCSponge"
+            | "Sha256"
+            | "Sha256_2"
+            | "Pedersen"
+            | "Keccak256"
+    )
+}
 
 /// Circom has only a few types
 #[derive(Debug, Clone, PartialEq)]
@@ -439,6 +455,9 @@ pub struct CircomStatementWalker<'ast, 'ret> {
     /// Signal tags: maps IR variable name -> list of (tag_name, optional_value) pairs
     /// e.g., [("binary", None)] or [("maxbit", Some(8))]
     signal_tags: HashMap<String, Vec<(String, Option<rug::Integer>)>>,
+    /// Signal connections from <== and ==>: maps (source_signal, dest_signal) pairs.
+    /// Used for tag value propagation after all templates are processed.
+    signal_connections: Vec<(String, String)>,
 }
 
 impl<'ast, 'ret: 'ast> CircomStatementWalker<'ast, 'ret> {
@@ -459,6 +478,7 @@ impl<'ast, 'ret: 'ast> CircomStatementWalker<'ast, 'ret> {
             has_returned: false,
             function_return_value: None,
             signal_tags: HashMap::default(),
+            signal_connections: Vec::new(),
         }
     }
 
@@ -4839,6 +4859,226 @@ impl<'ast, 'ret: 'ast> CircomStatementWalker<'ast, 'ret> {
         &self.signal_tags
     }
 
+    /// Get signal connections recorded during <== / ==> processing
+    pub fn get_signal_connections(&self) -> &[(String, String)] {
+        &self.signal_connections
+    }
+
+    /// Try to resolve a qualified IR signal name from an assignee target.
+    /// Returns None if the target is not a simple signal reference.
+    fn resolve_assignee_ir_names(&mut self, target: &ast::AssigneeTarget<'ast>) -> Vec<String> {
+        match target {
+            ast::AssigneeTarget::Single(assignee) => {
+                self.resolve_single_assignee_ir_names(assignee)
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// Resolve qualified IR names for a single assignee. May return multiple names for array signals.
+    fn resolve_single_assignee_ir_names(&mut self, assignee: &ast::Assignee<'ast>) -> Vec<String> {
+        let var_name = assignee.id.value.clone();
+
+        // Check for dot access (component.signal)
+        if let Some(dot_pos) = assignee.accesses.iter().position(|acc| matches!(acc, ast::AssigneeAccess::Dot(_))) {
+            // Component signal access
+            let mut comp_indices = Vec::new();
+            for access in &assignee.accesses[..dot_pos] {
+                if let ast::AssigneeAccess::Select(array_access) = access {
+                    if let Some(idx) = self.extract_constant_index_expr(&array_access.expression) {
+                        comp_indices.push(idx);
+                    } else {
+                        return Vec::new();
+                    }
+                }
+            }
+
+            let comp_instance_name = if comp_indices.is_empty() {
+                var_name.clone()
+            } else {
+                self.compute_component_array_instance_name(&var_name, &comp_indices)
+            };
+
+            let qualified_comp_name = if let Some(parent) = &self.current_component {
+                format!("{}.{}", parent, comp_instance_name)
+            } else {
+                comp_instance_name
+            };
+
+            if let Some(dot_access) = assignee.accesses.get(dot_pos) {
+                if let ast::AssigneeAccess::Dot(dot) = dot_access {
+                    let signal_name = &dot.inner.value;
+                    let qualified_signal = format!("{}.{}", qualified_comp_name, signal_name);
+
+                    // Collect any post-dot array indices
+                    let mut signal_indices = Vec::new();
+                    if let Some(ref array_access) = dot.array_access {
+                        if let Some(idx) = self.extract_constant_index_expr(&array_access.expression) {
+                            signal_indices.push(idx);
+                        } else {
+                            return Vec::new();
+                        }
+                    }
+                    for access in assignee.accesses.iter().skip(dot_pos + 1) {
+                        if let ast::AssigneeAccess::Select(array_access) = access {
+                            if let Some(idx) = self.extract_constant_index_expr(&array_access.expression) {
+                                signal_indices.push(idx);
+                            } else {
+                                return Vec::new();
+                            }
+                        }
+                    }
+
+                    if signal_indices.is_empty() {
+                        // Could be a scalar signal or an array being assigned as a whole
+                        // Check if it's an array
+                        let prefix = format!("{}_", qualified_signal);
+                        let array_names: Vec<String> = self.signal_tags.keys()
+                            .filter(|k| k.starts_with(&prefix))
+                            .cloned()
+                            .collect();
+                        if array_names.is_empty() {
+                            return vec![qualified_signal];
+                        } else {
+                            return array_names;
+                        }
+                    } else {
+                        let flat_idx = signal_indices[0]; // simplified
+                        return vec![format!("{}_{}", qualified_signal, flat_idx)];
+                    }
+                }
+            }
+            return Vec::new();
+        }
+
+        // Plain signal (possibly array)
+        let qualified_base = if let Some(comp_name) = &self.current_component {
+            if let Some(signals) = self.component_signals.get(comp_name) {
+                if let Some(qualified_name) = signals.get(&var_name) {
+                    qualified_name.clone()
+                } else {
+                    format!("{}.{}", comp_name, var_name)
+                }
+            } else {
+                format!("{}.{}", comp_name, var_name)
+            }
+        } else {
+            var_name.clone()
+        };
+
+        if assignee.accesses.is_empty() {
+            // Could be a scalar or whole-array assignment
+            let prefix = format!("{}_", qualified_base);
+            let array_names: Vec<String> = self.signal_tags.keys()
+                .filter(|k| k.starts_with(&prefix))
+                .cloned()
+                .collect();
+            if array_names.is_empty() {
+                vec![qualified_base]
+            } else {
+                array_names
+            }
+        } else {
+            // Has indices
+            let mut indices = Vec::new();
+            for access in &assignee.accesses {
+                if let ast::AssigneeAccess::Select(array_access) = access {
+                    if let Some(idx) = self.extract_constant_index_expr(&array_access.expression) {
+                        indices.push(idx);
+                    } else {
+                        return Vec::new();
+                    }
+                }
+            }
+            if indices.len() == 1 {
+                vec![format!("{}_{}", qualified_base, indices[0])]
+            } else {
+                Vec::new()
+            }
+        }
+    }
+
+    /// Try to extract qualified IR signal names from an expression.
+    /// Only handles simple cases: plain identifier or component.signal references.
+    fn extract_signal_names_from_expr(&mut self, expr: &ast::Expression<'ast>) -> Vec<String> {
+        match expr {
+            ast::Expression::Identifier(id) => {
+                let var_name = id.value.clone();
+                let qualified_base = if let Some(comp_name) = &self.current_component {
+                    if let Some(signals) = self.component_signals.get(comp_name) {
+                        if let Some(qualified_name) = signals.get(&var_name) {
+                            qualified_name.clone()
+                        } else {
+                            format!("{}.{}", comp_name, var_name)
+                        }
+                    } else {
+                        format!("{}.{}", comp_name, var_name)
+                    }
+                } else {
+                    var_name
+                };
+                // Check if it's an array
+                let prefix = format!("{}_", qualified_base);
+                let array_names: Vec<String> = self.signal_tags.keys()
+                    .filter(|k| k.starts_with(&prefix))
+                    .cloned()
+                    .collect();
+                if array_names.is_empty() {
+                    vec![qualified_base]
+                } else {
+                    let mut sorted = array_names;
+                    sorted.sort();
+                    sorted
+                }
+            }
+            ast::Expression::Postfix(postfix) => {
+                // Handle component.signal access
+                if let ast::Expression::Identifier(base_id) = postfix.base.as_ref() {
+                    let comp_name = base_id.value.clone();
+                    let qualified_comp = if let Some(parent) = &self.current_component {
+                        format!("{}.{}", parent, comp_name)
+                    } else {
+                        comp_name
+                    };
+                    if let Some(ast::Access::DotAccess(dot)) = postfix.access.first() {
+                        let signal_name = &dot.inner.value;
+                        let qualified_signal = format!("{}.{}", qualified_comp, signal_name);
+                        let prefix = format!("{}_", qualified_signal);
+                        let array_names: Vec<String> = self.signal_tags.keys()
+                            .filter(|k| k.starts_with(&prefix))
+                            .cloned()
+                            .collect();
+                        if array_names.is_empty() {
+                            vec![qualified_signal]
+                        } else {
+                            let mut sorted = array_names;
+                            sorted.sort();
+                            sorted
+                        }
+                    } else {
+                        Vec::new()
+                    }
+                } else {
+                    Vec::new()
+                }
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// Record signal connections for tag value propagation.
+    /// Called during <== / ==> processing.
+    fn record_signal_connection(&mut self, target: &ast::AssigneeTarget<'ast>, value_expr: &ast::Expression<'ast>) {
+        let target_names = self.resolve_assignee_ir_names(target);
+        let value_names = self.extract_signal_names_from_expr(value_expr);
+
+        if target_names.len() == value_names.len() && !target_names.is_empty() {
+            for (t, v) in target_names.into_iter().zip(value_names.into_iter()) {
+                self.signal_connections.push((v, t));
+            }
+        }
+    }
+
     /// Update the value of an existing tag on a signal.
     /// Searches for the tag by name across exact match and array-flattened names.
     fn set_tag_value(&mut self, signal_name: &str, tag_name: &str, value: rug::Integer) {
@@ -5092,41 +5332,147 @@ impl<'ast, 'ret: 'ast> CircomVisitorMut<'ast> for CircomStatementWalker<'ast, 'r
             }
         }
 
-        // Two-pass processing to handle var declarations that are used in signal array dimensions:
+        if cfg().ir.use_owf && is_owf_template(&template.id.value) {
+            // OWF mode: skip template expansion and emit OWF node instead.
+            // Collect input signal terms, create Owf node, bind outputs.
+            let field_sort = Sort::Field(default_field());
+            let mut input_terms = Vec::new();
+            let mut output_names = Vec::new();
 
-        // PASS 1a: Process component declarations (without instantiation) to register component names
-        // This ensures that later variable assignments like `h0 = K(8);` can find the component
-        for stmt in &template.statements {
-            if let ast::Statement::Component(comp) = stmt {
-                if comp.value.is_none() {
-                    // Only process declarations without instantiation here
-                    self.process_component_statement(comp);
+            for stmt in &template.statements {
+                if let circom_pest_ast::Statement::Signal(
+                    circom_pest_ast::SignalStatement::SignalDecl(decl),
+                ) = stmt
+                {
+                    let is_input = matches!(
+                        &decl.signal_type,
+                        Some(ast::SignalType::Input(_))
+                    );
+                    let is_output = matches!(
+                        &decl.signal_type,
+                        Some(ast::SignalType::Output(_))
+                    );
+                    let qualified_comp =
+                        self.current_component.as_ref().unwrap();
+
+                    for assignee in &decl.assignees {
+                        let sig_name = assignee.id.value.clone();
+                        let dims =
+                            self.extract_array_dimensions(assignee);
+
+                        if let Some(dims) = &dims {
+                            let total = dims.iter().product::<usize>();
+                            for idx in 0..total {
+                                let qn = format!(
+                                    "{}.{}_{}",
+                                    qualified_comp, sig_name, idx
+                                );
+                                if is_input {
+                                    input_terms.push(leaf_term(
+                                        Op::new_var(
+                                            qn,
+                                            field_sort.clone(),
+                                        ),
+                                    ));
+                                } else if is_output {
+                                    output_names.push(qn);
+                                }
+                            }
+                        } else {
+                            let qn = format!(
+                                "{}.{}",
+                                qualified_comp, sig_name
+                            );
+                            if is_input {
+                                input_terms.push(leaf_term(
+                                    Op::new_var(
+                                        qn,
+                                        field_sort.clone(),
+                                    ),
+                                ));
+                            } else if is_output {
+                                output_names.push(qn);
+                            }
+                        }
+                    }
                 }
             }
-        }
 
-        // PASS 1b: Process var DECLARATIONS (with full evaluation) to populate var_values
-        // This ensures that expressions like `signal output out[nout]` can resolve `nout`
-        // even when nout is computed from a function call like `var nout = nbits(...)`
-        // We use declarations_only=false to ensure var values are evaluated and stored.
-        for stmt in &template.statements {
-            if let ast::Statement::Variable(var) = stmt {
-                self.process_variable_statement(var, false);  // declarations_only=false - EVALUATE VALUES
-            }
-        }
+            let owf_result = term(
+                Op::ExtOp(ExtOp::Owf),
+                input_terms,
+            );
 
-        // PASS 2: Process all statements including reassignments and component instantiations
-        // Variable declarations were handled in PASS 1, but reassignments and component
-        // instantiation assignments (e.g., h0 = K(8);) need to be processed here
-        for stmt in &mut template.statements {
-            match stmt {
-                ast::Statement::Variable(var) => {
-                    // Process with full mode (declarations_only=false) to handle reassignments
-                    // and component instantiation assignments
-                    self.process_variable_statement(var, false);
+            if output_names.len() == 1 {
+                self.circom_gen.circ.borrow().cir_ctx()
+                    .cs.borrow_mut()
+                    .precomputes.add_output(
+                        output_names[0].clone(),
+                        owf_result.clone(),
+                    );
+                let out_term = leaf_term(Op::new_var(
+                    output_names[0].clone(),
+                    field_sort.clone(),
+                ));
+                let eq = term![Op::Eq; out_term, owf_result];
+                self.circom_gen.assert_constraint(eq);
+            } else {
+                for (idx, out_name) in
+                    output_names.iter().enumerate()
+                {
+                    let extracted =
+                        term![Op::Field(idx); owf_result.clone()];
+                    self.circom_gen.circ.borrow().cir_ctx()
+                        .cs.borrow_mut()
+                        .precomputes.add_output(
+                            out_name.clone(),
+                            extracted.clone(),
+                        );
+                    let out_term = leaf_term(Op::new_var(
+                        out_name.clone(),
+                        field_sort.clone(),
+                    ));
+                    let eq = term![Op::Eq; out_term, extracted];
+                    self.circom_gen.assert_constraint(eq);
                 }
-                _ => {
-                    self.visit_statement(stmt);
+            }
+        } else {
+            // Two-pass processing to handle var declarations that are used in signal array dimensions:
+
+            // PASS 1a: Process component declarations (without instantiation) to register component names
+            // This ensures that later variable assignments like `h0 = K(8);` can find the component
+            for stmt in &template.statements {
+                if let ast::Statement::Component(comp) = stmt {
+                    if comp.value.is_none() {
+                        // Only process declarations without instantiation here
+                        self.process_component_statement(comp);
+                    }
+                }
+            }
+
+            // PASS 1b: Process var DECLARATIONS (with full evaluation) to populate var_values
+            // This ensures that expressions like `signal output out[nout]` can resolve `nout`
+            // even when nout is computed from a function call like `var nout = nbits(...)`
+            // We use declarations_only=false to ensure var values are evaluated and stored.
+            for stmt in &template.statements {
+                if let ast::Statement::Variable(var) = stmt {
+                    self.process_variable_statement(var, false);  // declarations_only=false - EVALUATE VALUES
+                }
+            }
+
+            // PASS 2: Process all statements including reassignments and component instantiations
+            // Variable declarations were handled in PASS 1, but reassignments and component
+            // instantiation assignments (e.g., h0 = K(8);) need to be processed here
+            for stmt in &mut template.statements {
+                match stmt {
+                    ast::Statement::Variable(var) => {
+                        // Process with full mode (declarations_only=false) to handle reassignments
+                        // and component instantiation assignments
+                        self.process_variable_statement(var, false);
+                    }
+                    _ => {
+                        self.visit_statement(stmt);
+                    }
                 }
             }
         }
@@ -5255,6 +5601,11 @@ impl<'ast, 'ret: 'ast> CircomVisitorMut<'ast> for CircomStatementWalker<'ast, 'r
                                 //   target <-- value  (witness generation: assign value)
                                 //   target === value  (constraint: prove equality)
 
+                                // Record signal connection for tag propagation
+                                if let ast::TernaryOrExpression::Expression(val_expr) = &left.value {
+                                    self.record_signal_connection(&left.target, val_expr);
+                                }
+
                                 // If this is an intermediate signal (not input/output), declare it now
                                 if let ast::AssigneeTarget::Single(assignee) = &left.target {
                                     let target_name = assignee.id.value.clone();
@@ -5288,6 +5639,11 @@ impl<'ast, 'ret: 'ast> CircomVisitorMut<'ast> for CircomStatementWalker<'ast, 'r
                             ast::SignalAssignmentConstraintStatement::RightArrow(right) => {
                                 // value ==> target
                                 // Same as target <== value
+
+                                // Record signal connection for tag propagation
+                                if let ast::TernaryOrExpression::Expression(val_expr) = &right.value {
+                                    self.record_signal_connection(&right.target, val_expr);
+                                }
 
                                 // If this is an intermediate signal (not input/output), declare it now
                                 if let ast::AssigneeTarget::Single(assignee) = &right.target {
