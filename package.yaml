@@ -8,6 +8,7 @@ library:
   source-dirs:
     - src
     - src/ValueInference
+  ghc-options: -O2
   exposed-modules:
     - ValueAnalysis.Analysis
     - ValueDomain.Domain
@@ -31,11 +32,13 @@ library:
     - singletons
     - containers
     - deepseq
+    - unordered-containers
 
 executables:
   ccc-check:
     source-dirs: src/app
     main: Main.hs
+    ghc-options: -O2
     dependencies:
       - ccc-check
       - rio
@@ -44,6 +47,9 @@ executables:
       - maf2-domains
       - maf2-syntax
       - containers
+      - unordered-containers
+      - time
+      - deepseq
     other-modules:
       - Paths_ccc_check
 
@@ -149,6 +155,7 @@ benchmarks:
       - criterion
       - deepseq
       - containers
+      - directory
       - rio
       - maf2-analysis
       - maf2-domains

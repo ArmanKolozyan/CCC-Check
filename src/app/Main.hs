@@ -1,15 +1,17 @@
 module Main where
 
 import System.Environment (getArgs)
+import System.IO (hFlush, stdout, hSetBuffering, BufferMode(..))
 import qualified Data.Map.Strict as Map
+import qualified Data.HashMap.Strict as HashMap
 import Data.Time.Clock (getCurrentTime, diffUTCTime, nominalDiffTimeToSeconds)
 import Control.DeepSeq (deepseq, NFData)
 import Syntax.Compiler (parseAndCompile)
 import Syntax.TagsParser (parseTagsFile)
 import qualified Data.IntMap.Strict as IntMap
 import Syntax.AST (Program(..), Tag, Binding(..), name, tag)
-import ValueAnalysis.Analysis (precomputeAnalysis, runAnalysis, PrecomputedAnalysis(..), transformIDToNames)
-import ValueAnalysis.Printer (prettyPrintStore)
+import ValueAnalysis.Analysis (precomputeAnalysis, runAnalysis, runAnalysisCounted, PrecomputedAnalysis(..), transformIDToNames)
+-- import ValueAnalysis.Printer (prettyPrintStore)
 import BugDetection.BugDetection (detectBugsWithStore)
 
 main :: IO ()
@@ -64,45 +66,66 @@ chooseIters estimateMs
 -- | full pipeline: parse IR, apply tags, analyze, detect bugs
 analyzeAndDetect :: FilePath -> Maybe FilePath -> IO ()
 analyzeAndDetect circirFile maybeTagsFile = do
+    hSetBuffering stdout LineBuffering
     t0 <- getCurrentTime
+    putStrLn "[DEBUG] Reading file..." >> hFlush stdout
     content <- readFile circirFile
+    let len = length content
+    len `seq` return ()
+    putStrLn ("[DEBUG] File read: " ++ show len ++ " chars") >> hFlush stdout
+    putStrLn "[DEBUG] Preprocessing + parsing S-expressions..." >> hFlush stdout
     case parseAndCompile content of
         Left err -> putStrLn $ "Error: " ++ err
         Right program -> do
+            putStrLn "[DEBUG] S-exp parsed + compiled OK" >> hFlush stdout
             taggedProgram <- case maybeTagsFile of
                 Nothing -> return program
                 Just tagsPath -> do
+                    putStrLn "[DEBUG] Parsing tags file..." >> hFlush stdout
                     tagsResult <- parseTagsFile tagsPath
                     case tagsResult of
                         Left err -> error $ "Error parsing tags: " ++ err
                         Right tagsMap -> return (applyTags program tagsMap)
             -- Force evaluation of the tagged program to complete parsing
+            putStrLn "[DEBUG] Forcing deepseq on tagged program..." >> hFlush stdout
             taggedProgram `deepseq` return ()
             t1 <- getCurrentTime
+            putStrLn "[DEBUG] deepseq done" >> hFlush stdout
 
             -- Precompute nameToID etc. once (outside timed section)
+            putStrLn "[DEBUG] Precomputing analysis..." >> hFlush stdout
             let pa = precomputeAnalysis taggedProgram
             pa `deepseq` return ()
+            putStrLn "[DEBUG] Precompute done" >> hFlush stdout
 
-            -- First pass: rough estimate for calibration (run 10x to amortize overhead)
-            (roughMs, _) <- benchmarkN 10 $
+            -- Single run to measure analysis time
+            putStrLn "[DEBUG] Single analysis run..." >> hFlush stdout
+            (roughMs, _) <- benchmarkN 1 $
                 return $! runAnalysis pa
-            let iters = chooseIters roughMs
+            putStrLn ("[DEBUG] Single run took: " ++ show roughMs ++ " ms") >> hFlush stdout
+            let iters = 1
+
+            -- Get worklist iteration count (once, not timed)
+            let (_statesForCount, worklistIters) = runAnalysisCounted pa
 
             -- Accurate measurement with multiple iterations
+            putStrLn ("[DEBUG] Accurate measurement (" ++ show iters ++ " runs)...") >> hFlush stdout
             (analysisMs, intMapStore) <- benchmarkN iters $
                 return $! runAnalysis pa
+            putStrLn "[DEBUG] Analysis done" >> hFlush stdout
 
             let nameToID = paNameToID pa
+            putStrLn "[DEBUG] Bug detection..." >> hFlush stdout
             (bugdetMs, bugResult) <- benchmarkN iters $
                 return $! detectBugsWithStore taggedProgram Nothing nameToID intMapStore
+            putStrLn "[DEBUG] Bug detection done" >> hFlush stdout
 
             t3 <- getCurrentTime
             -- Convert to String-keyed map only for display
-            let idToName = IntMap.fromList [(vid, nm) | (nm, vid) <- Map.toList nameToID]
+            let idToName = IntMap.fromList [(vid, nm) | (nm, vid) <- HashMap.toList nameToID]
                 store = transformIDToNames idToName intMapStore
-            putStrLn "\n====== Inferred Value Information ======\n"
-            prettyPrintStore store
+            -- putStrLn "\n====== Inferred Value Information ======\n"
+            -- prettyPrintStore store
             putStrLn "\n====== Bug Detection Results ======\n"
             case bugResult of
                 Right () -> putStrLn "No bugs detected."
@@ -114,8 +137,10 @@ analyzeAndDetect circirFile maybeTagsFile = do
                          in s
             putStrLn $ "\n====== Timing ======"
             putStrLn $ "  Parsing:       " ++ fmt parseMs ++ " ms"
-            putStrLn $ "  Analysis:      " ++ fmt analysisMs ++ " ms  (" ++ show iters ++ " iterations)"
-            putStrLn $ "  Bug detection: " ++ fmt bugdetMs ++ " ms  (" ++ show iters ++ " iterations)"
+            putStrLn $ "  Analysis:      " ++ fmt analysisMs ++ " ms  (" ++ show iters ++ " bench iterations)"
+            putStrLn $ "  Bug detection: " ++ fmt bugdetMs ++ " ms  (" ++ show iters ++ " bench iterations)"
             putStrLn $ "  Total:         " ++ fmt totalMs ++ " ms"
+            putStrLn $ "  Worklist iterations: " ++ show worklistIters
+            putStrLn $ "  Constraints in worklist: " ++ show (IntMap.size (paConstraintMap pa))
   where
     mapErr = mapM_

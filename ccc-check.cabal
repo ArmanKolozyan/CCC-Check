@@ -29,6 +29,7 @@ library
   hs-source-dirs:
       src
       src/ValueInference
+  ghc-options: -O2
   build-depends:
       base >4.7 && <5
     , containers
@@ -39,6 +40,7 @@ library
     , mtl
     , rio
     , singletons
+    , unordered-containers
   default-language: Haskell2010
 
 executable ccc-check
@@ -47,6 +49,7 @@ executable ccc-check
       Paths_ccc_check
   hs-source-dirs:
       src/app
+  ghc-options: -O2
   build-depends:
       base >4.7 && <5
     , ccc-check
@@ -57,6 +60,7 @@ executable ccc-check
     , maf2-syntax
     , rio
     , time
+    , unordered-containers
   default-language: Haskell2010
 
 test-suite all-tests
