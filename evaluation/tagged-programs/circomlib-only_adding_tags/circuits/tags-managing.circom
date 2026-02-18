@@ -46,6 +46,14 @@ template BinaryCheck () {
     out <== in;
 }
 
+// Alias used by circomlib test circuits
+template AddBinaryTag () {
+    signal input in;
+    signal output {binary} out;
+
+    out <== BinaryCheck()(in);
+}
+
 /*
 *** BinaryCheckArray(n): template that adds the constraints needed to ensure that all signal of an array of n elements are binary and adds the tag binary to the input
         - Inputs: in[n] -> array of n field elements
@@ -65,6 +73,14 @@ template BinaryCheckArray(n) {
     for (var i = 0; i < n; i++) {
     	out[i] <== BinaryCheck()(in[i]);
     }
+}
+
+// Alias used by circom-ecdsa and circomlib test circuits
+template AddBinaryArrayTag(n) {
+    signal input in[n];
+    signal output {binary} out[n];
+
+    out <== BinaryCheckArray(n)(in);
 }
 
 
@@ -112,7 +128,15 @@ template MaxbitCheckArray(n,m) {
     for (var i = 0; i < m; i++) {
        out[i] <== MaxbitCheck(n)(in[i]);
     }
-    
+
+}
+
+// Alias used by circom-ecdsa test circuits
+template AddMaxbitArrayTag(n,m) {
+    signal input in[m];
+    signal output {maxbit} out[m];
+
+    out <== MaxbitCheckArray(n,m)(in);
 }
 
 
@@ -181,7 +205,7 @@ template MinMaxValueCheck(ct1,ct2){
     aux_min.maxbit = nbits(ct2);
     aux_min[0] <== ct1;
     aux_min[1] <== checked_in;
-    signal out1 <== LessEqThan(nbits(ct1))(aux_min);
+    signal out1 <== LessEqThan(nbits(ct2))(aux_min);
     out1 === 1;
     out.minvalue = ct1;
     

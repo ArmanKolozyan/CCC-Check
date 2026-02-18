@@ -12,9 +12,6 @@ template check_components(n){
    
    signal input in2;
    signal output ise <== IsEqual()([in1, in2]);
-   
-   signal input fe;
-   ForceEqualIfEnabled()(AddBinaryTag()(fe), [in1, in2]);
 
    signal input in_comp[2];
    

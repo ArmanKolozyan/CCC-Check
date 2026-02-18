@@ -62,31 +62,9 @@ function log2(a) {
 
 pragma circom 2.0.0;
 
-include "comparators.circom";
+include "../../circuits/comparators.circom";
 
-// We cannot verify this case, we obtain an counterexample for the implication (inp < w => success = 1)
-template DecoderBad(w) {
-    signal input inp;
-    signal output out[w];
-    signal output {binary} success;
-    var lc=0;
-
-    for (var i=0; i<w; i++) {
-        out[i] <-- (inp == i) ? 1 : 0;
-        out[i] * (inp-i) === 0;
-        lc = lc + out[i];
-    }
-
-    lc ==> success;
-    success * (success -1) === 0;
-    
-    spec_postcondition (inp < w) == success;
-    
-}
-
-
-// We verify this case, we ensure the implication (inp < w => success = 1)
-template DecoderFixed(w) {
+template Decoder(w) {
     signal input inp;
     signal output out[w];
     signal output {binary} success;
@@ -101,25 +79,6 @@ template DecoderFixed(w) {
         lc = lc + out[i];
     }
     lc ==> success;
-    
-    spec_postcondition (inp < w) == success;
 }
 
-
-template A(w){
-   signal input in1;
-   
-   signal output out[w];
-   signal output success; 
-   (out, success) <== DecoderBad(w)(in1);
-   
-   
-   signal output out3[w];
-   signal output success3; 
-   (out3, success3) <== DecoderFixed(w)(in1);
-
-   
-   
-}
-
-//component main = A(10);
+component main = Decoder(8);
