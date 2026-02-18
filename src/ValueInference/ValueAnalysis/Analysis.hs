@@ -2018,6 +2018,21 @@ analyzeProgramFull prog =
   let pa = precomputeAnalysis prog
   in (paNameToID pa, runAnalysis pa)
 
+-- | Like 'runAnalysis' but also returns the worklist iteration count.
+runAnalysisCounted :: PrecomputedAnalysis -> (IntMap VariableState, Int)
+runAnalysisCounted (PrecomputedAnalysis nameToID constraintMap varToConstraints statesWithInputTags dedupMapping) =
+  let (finalIntMap, _idToName, iters) = analyzeConstraintsRawCounted constraintMap nameToID varToConstraints Nothing statesWithInputTags
+      propagated = if IntMap.null dedupMapping
+                   then finalIntMap
+                   else propagateDedup dedupMapping finalIntMap
+  in (propagated, iters)
+
+-- | Like 'analyzeProgramFull' but also returns the worklist iteration count.
+analyzeProgramFullCounted :: Program -> (HashMap String Int, IntMap VariableState, Int)
+analyzeProgramFullCounted prog =
+  let pa = precomputeAnalysis prog
+      (states, iters) = runAnalysisCounted pa
+  in (paNameToID pa, states, iters)
 
 -- given File
 analyzeFromFile :: FilePath -> IO ()
