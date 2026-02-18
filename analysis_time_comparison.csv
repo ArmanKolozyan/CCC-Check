@@ -1,0 +1,36 @@
+circuit,ccc_analysis_ms,civer_internal_ms,speedup,iterations,constraints,ccc_result
+check_bitify,0.0052,23.89,4594.2x,91,45,no bugs
+check_comparators,0.2584,37.33,144.5x,236,125,div-by-zero(2)
+decoder,0.0176,19.86,1128.4x,9,7,div-by-zero(9)
+mux1,0.0018,5.75,3194.4x,15,9,no bugs
+mux11,0.0037,5.63,1521.6x,83,32,no bugs
+mux2,0.0017,3.55,2088.2x,17,13,no bugs
+mux21,0.0047,3.50,744.7x,146,50,no bugs
+mux3,0.0032,3.65,1140.6x,27,22,no bugs
+mux31,0.0081,3.60,444.4x,207,78,no bugs
+mux4,0.0069,3.95,572.5x,49,42,no bugs
+mux41,0.0142,3.84,270.4x,390,136,no bugs
+binsub,0.0023,17.65,7673.9x,20,10,no bugs
+binsum,0.0029,20.47,7058.6x,20,10,no bugs
+aliascheck,0.1206,110.98,920.2x,1320,796,no bugs
+sign,0.1201,170.92,1423.1x,1315,796,no bugs
+constants,0.0027,3.85,1425.9x,67,33,no bugs
+bigadd15,0.0106,34.64,3267.9x,129,69,no bugs
+bigadd23,0.0089,46.37,5210.1x,132,69,no bugs
+bigadd2030,0.1056,146.26,1385.0x,159,96,no bugs
+bigsub23,0.0052,57.62,11080.8x,71,39,no bugs
+bigsub15,0.0076,58.10,7644.7x,71,39,no bugs
+bigmult21,0.0038,31.32,8242.1x,56,27,no bugs
+bigmult22,0.0072,184.75,25659.7x,77,38,no bugs
+bigmult23,0.0116,5044.67,434885.3x,97,49,no bugs
+bigsubmodp_32,0.0291,87.81,3017.5x,423,220,no bugs
+bigmod_32,0.4675,5104.89,10919.6x,435,213,div-by-zero(4)
+bigmod_22,0.3882,5101.05,13140.3x,410,206,div-by-zero(4)
+escalarmul_min_test,0.9754,103.65,106.3x,1095,1036,no bugs
+escalarmul_test,0.8698,47.58,54.7x,1531,781,no bugs
+escalarmulfix_test,12.1518,36.58,3.0x,4831,3649,div-by-zero(781)
+escalarmulany_test,6.9009,27.34,4.0x,3125,1890,div-by-zero(512)
+pedersen_test,1.8697,79.98,42.8x,3379,1655,no bugs
+pedersen2_test,0.9078,42.03,46.3x,2441,1136,no bugs
+pointbits_loopback,0.6532,257.85,394.7x,6113,3335,no bugs
+babypbk_test,9.0027,131.70,14.6x,5827,4669,div-by-zero(781)
