@@ -15,14 +15,19 @@ CCC-Check addresses limitations of existing tools by providing:
 
 ## Project Structure
 
-- **`src/ValueInference/`** - Value domain analysis and bug detection implementation
-- **`src/Syntax/`** - AST definitions and CirC IR parsing
+- **`src/`** - Source code
+  - `ValueInference/` - Value domain analysis and bug detection implementation
+  - `Syntax/` - AST definitions and CirC IR parsing
+  - `CirC/` - CirC intermediate representation compiler
+  - `app/` - Application entry point
 - **`test/`** - Test suite with 48 circuit tests
 - **`evaluation/`** - Benchmark programs and performance evaluation data
   - `picus/` - PICUS tool comparison and analysis
   - `civer/` - Civer tool benchmarks
   - `benchmarks/` - Performance benchmarking results
   - `tagged-programs/` - ZKP programs with type annotations
+  - `tags-study/` - Tag annotation study data
+- **`scripts/`** - Shell scripts for testing and analysis time comparison
 
 ## Build & Test
 
@@ -30,6 +35,11 @@ CCC-Check addresses limitations of existing tools by providing:
 cabal build
 cabal test
 ```
+
+## Scripts
+
+- `scripts/run_e2e_circom.sh` - End-to-end pipeline: compiles Circom programs with CirC and runs the bug detector
+- `scripts/compare_analysis_time.sh` - Compares analysis times between CCC-Check and CIVER
 
 ## Citation
 

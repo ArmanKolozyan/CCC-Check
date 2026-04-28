@@ -15,7 +15,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CIRC_DIR="$SCRIPT_DIR/src/CirC_new"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+CIRC_DIR="$PROJECT_ROOT/src/CirC"
 CIRC_BIN="$CIRC_DIR/target/release/examples/circ"
 TAGGED_DIR="$CIRC_DIR/circom-benches/ccc-check-programs/tagged"
 OUTPUT_DIR="/tmp/e2e_circom_test"

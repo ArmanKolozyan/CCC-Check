@@ -14,12 +14,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # --- Configuration ---
-CIVER_BIN="$SCRIPT_DIR/evaluation/civer/circom_civer/target/release/circom"
-CIVER_TAGS="$SCRIPT_DIR/evaluation/tagged-programs/circomlib-only_adding_tags/test/circuits/tags_specifications.circom"
-CIVER_CIRCUITS="$SCRIPT_DIR/evaluation/tagged-programs/circomlib-only_adding_tags/test/circuits"
-CIVER_CIRCUITS_ECDSA="$SCRIPT_DIR/evaluation/tagged-programs/circom-ecdsa-master/test/circuits"
+CIVER_BIN="$PROJECT_ROOT/evaluation/civer/circom_civer/target/release/circom"
+CIVER_TAGS="$PROJECT_ROOT/evaluation/tagged-programs/circomlib-only_adding_tags/test/circuits/tags_specifications.circom"
+CIVER_CIRCUITS="$PROJECT_ROOT/evaluation/tagged-programs/circomlib-only_adding_tags/test/circuits"
+CIVER_CIRCUITS_ECDSA="$PROJECT_ROOT/evaluation/tagged-programs/circom-ecdsa-master/test/circuits"
 NUM_RUNS=3
 
 # Mapping from CCC-Check program names to CIVER test circuit filenames
@@ -68,7 +69,7 @@ CIVER_DIR_MAP[bigmod_32]="$CIVER_CIRCUITS_ECDSA"
 CIVER_DIR_MAP[bigmod_22]="$CIVER_CIRCUITS_ECDSA"
 
 # Extra -l flags for CIVER (ecdsa circuits need circomlib's root for transitive includes)
-CIRCOMLIB_ROOT="$SCRIPT_DIR/evaluation/tagged-programs/circomlib-only_adding_tags"
+CIRCOMLIB_ROOT="$PROJECT_ROOT/evaluation/tagged-programs/circomlib-only_adding_tags"
 declare -A CIVER_EXTRA_LIBS
 CIVER_EXTRA_LIBS[bigadd15]="-l $CIRCOMLIB_ROOT"
 CIVER_EXTRA_LIBS[bigadd23]="-l $CIRCOMLIB_ROOT"
@@ -199,7 +200,7 @@ classify_bugs() {
     echo "$result"
 }
 
-CRITERION_CSV="$SCRIPT_DIR/ccc_criterion_results.csv"
+CRITERION_CSV="$PROJECT_ROOT/evaluation/ccc_criterion_results.csv"
 if [ "$SKIP_CRITERION" = true ] && [ -f "$CRITERION_CSV" ]; then
     echo -e "${BOLD}[1/2] Skipping Criterion benchmarks (using cached $CRITERION_CSV)${NC}"
 else
@@ -282,7 +283,7 @@ printf "%-25s %12s %12s %10s %8s %12s  %-26s\n" \
     "-------------------------" "------------" "------------" "----------" "--------" "------------" "--------------------------"
 
 # --- CSV output ---
-CSV_FILE="$SCRIPT_DIR/analysis_time_comparison.csv"
+CSV_FILE="$PROJECT_ROOT/evaluation/analysis_time_comparison.csv"
 echo "circuit,ccc_analysis_ms,civer_internal_ms,speedup,iterations,constraints,ccc_result" > "$CSV_FILE"
 
 for name in "${ALL_PROGRAMS[@]}"; do
