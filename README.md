@@ -43,14 +43,14 @@ cabal test
 
 ## Citation
 
-If you find this work useful, please consider citing the following paper:
+If you find this work useful, please consider citing the following S&P26 paper:
 
 ```bibtex
-@misc{cryptoeprint:2025/2120,
-      author = {Arman Kolozyan and Bram Vandenbogaerde and Janwillem Swalens and Lode Hoste and Stefanos Chaliasos and Coen De Roover},
-      title = {Language-Agnostic Detection of Computation-Constraint Inconsistencies in {ZKP} Programs via Value Inference},
-      howpublished = {Cryptology {ePrint} Archive, Paper 2025/2120},
-      year = {2025},
-      url = {https://eprint.iacr.org/2025/2120}
-}
+@INPROCEEDINGS{11573602,
+author = {Kolozyan, Arman and Vandenbogaerde, Bram and Swalens, Janwillem and Hoste, Lode and Chaliasos, Stefanos and De Roover, Coen},
+booktitle = {2026 IEEE Symposium on Security and Privacy (SP)},
+title = {{Language-Agnostic Detection of Computation-Constraint Inconsistencies in ZKP Programs Via Value Inference}},
+year = {2026},
+pages = {3091-3110},
+doi = {10.1109/SP63933.2026.00207}}
 ```
